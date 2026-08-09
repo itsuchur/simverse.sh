@@ -44,3 +44,21 @@ docker compose -f compose.override.yaml up --build
 # Production
 docker compose -f compose.prod.yaml up -d --build
 ```
+
+### Updating dependencies in local Docker
+
+The dev stack keeps `node_modules` in named volumes (`app_node_modules`, `poller_node_modules`) so host binds do not overwrite them. Rebuilding the image alone does **not** update those volumes.
+
+After changing `package.json` / the lockfile, install into the volume:
+
+```bash
+docker compose -f compose.override.yaml run --rm --no-deps app bun install
+```
+
+Or wipe the volume and rebuild:
+
+```bash
+docker compose -f compose.override.yaml down
+docker volume rm simversesh_app_node_modules
+docker compose -f compose.override.yaml up --build
+```
