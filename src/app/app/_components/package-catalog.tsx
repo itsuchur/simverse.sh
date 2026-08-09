@@ -131,12 +131,19 @@ function filterPopularGroups(
     .filter((group) => group.packages.length > 0);
 }
 
+function lowestPriceRub(packages: CatalogPackage[]) {
+  const prices = packages
+    .map((pkg) => pkg.priceRub)
+    .filter((price): price is number => typeof price === "number");
+  if (prices.length === 0) {
+    return undefined;
+  }
+  return Math.min(...prices);
+}
+
 function PackageCard({ pkg }: { pkg: CatalogPackage }) {
   return (
-    <Card
-      size="sm"
-      className="cursor-pointer transition-colors hover:bg-muted/40"
-    >
+    <Card size="sm" className="transition-colors hover:bg-muted/40">
       <CardHeader>
         <CardTitle>{pkg.name}</CardTitle>
         <CardAction>
@@ -158,6 +165,15 @@ function PopularPanel({
 }: {
   groups: PopularCountryPackages[];
 }) {
+  const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
+
+  // Drop expansion if the open country falls out of the filtered list.
+  const visibleExpanded =
+    expandedCountry !== null &&
+    groups.some((group) => group.countryCode === expandedCountry)
+      ? expandedCountry
+      : null;
+
   if (groups.length === 0) {
     return (
       <Card>
@@ -172,34 +188,74 @@ function PopularPanel({
   }
 
   return (
-    <div className="space-y-6">
-      {groups.map((group) => (
-        <section key={group.countryCode} className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <ReactCountryFlag
-              countryCode={group.countryCode}
-              svg
-              style={{ width: "1.25em", height: "1.25em" }}
-              aria-label={group.countryName}
-            />
-            <span>{group.countryName}</span>
-          </h2>
-          {group.packages.length === 0 ? (
-            <Card>
+    <div className="space-y-3">
+      {groups.map((group) => {
+        const expanded = visibleExpanded === group.countryCode;
+        const fromPrice = lowestPriceRub(group.packages);
+
+        return (
+          <div key={group.countryCode} className="space-y-3">
+            <Card
+              size="sm"
+              role="button"
+              tabIndex={0}
+              aria-expanded={expanded}
+              className="cursor-pointer transition-colors hover:bg-muted/40"
+              onClick={() =>
+                setExpandedCountry((current) =>
+                  current === group.countryCode ? null : group.countryCode,
+                )
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setExpandedCountry((current) =>
+                    current === group.countryCode ? null : group.countryCode,
+                  );
+                }
+              }}
+            >
               <CardHeader>
-                <CardTitle>No packages</CardTitle>
-                <CardDescription>
-                  Nothing available for {group.countryName} yet.
-                </CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <ReactCountryFlag
+                    countryCode={group.countryCode}
+                    svg
+                    style={{ width: "1.25em", height: "1.25em" }}
+                    aria-label={group.countryName}
+                  />
+                  <span>{group.countryName}</span>
+                </CardTitle>
+                <CardAction>
+                  <span className="text-sm font-medium text-foreground">
+                    {fromPrice === undefined
+                      ? "—"
+                      : `from ${formatPriceRub(fromPrice)}`}
+                  </span>
+                </CardAction>
               </CardHeader>
             </Card>
-          ) : (
-            group.packages.map((pkg) => (
-              <PackageCard key={pkg.packageCode} pkg={pkg} />
-            ))
-          )}
-        </section>
-      ))}
+
+            {expanded ? (
+              group.packages.length === 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>No packages</CardTitle>
+                    <CardDescription>
+                      Nothing available for {group.countryName} yet.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              ) : (
+                <div className="space-y-3 pl-1">
+                  {group.packages.map((pkg) => (
+                    <PackageCard key={pkg.packageCode} pkg={pkg} />
+                  ))}
+                </div>
+              )
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
