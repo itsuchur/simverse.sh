@@ -36,11 +36,11 @@
     "clsx": "^2.1.1",
     "croner": "^10.0.1",
     "lucide-react": "^1.31.0",
-    "next": "^15.2.3",
+    "next": "16.3.0",
     "next-intl": "^4.13.5",
-    "react": "^19.0.0",
+    "react": "19.2.8",
     "react-country-flag": "^3.1.0",
-    "react-dom": "^19.0.0",
+    "react-dom": "19.2.8",
     "redis": "^6.2.0",
     "server-only": "^0.0.1",
     "shadcn": "^4.16.2",
@@ -53,10 +53,10 @@
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.0.15",
     "@types/node": "^20.14.10",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "eslint": "^9.23.0",
-    "eslint-config-next": "^15.2.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "eslint": "10.8.1",
+    "eslint-config-next": "16.3.0",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
@@ -67,5 +67,9 @@
   },
   "ct3aMetadata": {
     "initVersion": "7.40.0"
+  },
+  "overrides": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4"
   }
 }
