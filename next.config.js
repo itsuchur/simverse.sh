@@ -7,6 +7,9 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import("next").NextConfig} */
 const config = {
+  // Emit .next/standalone so the production Docker image can run without the
+  // full node_modules tree (see Dockerfile runner stage).
+  output: "standalone",
   // Allow the ngrok tunnel host to hit the Next.js dev server (HMR/assets/API).
   allowedDevOrigins: ["magical-guinea-utterly.ngrok-free.app"],
 };
