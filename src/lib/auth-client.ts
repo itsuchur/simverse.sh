@@ -8,10 +8,14 @@ export const authClient = createAuthClient({
       : process.env.BETTER_AUTH_URL,
   fetchOptions: {
     credentials: "include",
-    // Free ngrok serves an interstitial HTML page unless this header is present.
-    headers: {
-      "ngrok-skip-browser-warning": "true",
-    },
+    headers:
+      process.env.NODE_ENV === "development"
+        ? {
+            // Free ngrok serves an interstitial HTML page unless this header
+            // is present.
+            "ngrok-skip-browser-warning": "true",
+          }
+        : undefined,
   },
   plugins: [telegramClient()],
 });

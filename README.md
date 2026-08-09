@@ -1,32 +1,33 @@
-# Create T3 App
+# Simverse
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+Travel eSIM store running as a Telegram Mini App. Users sign in automatically
+with their Telegram account, browse a catalog of eSIM data packages (synced
+hourly from eSIM Access into Redis by the poller service), and purchase
+packages for their trips.
 
-## What's next? How do I make an app with this?
+Built on the [T3 Stack](https://create.t3.gg/):
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
-
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
-
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
+- [Next.js](https://nextjs.org) (App Router)
+- [Better Auth](https://better-auth.com) with the Telegram Mini App plugin
+- [Prisma](https://prisma.io) + PostgreSQL
+- [Tailwind CSS](https://tailwindcss.com) + shadcn/ui
 - [tRPC](https://trpc.io)
+- Redis (catalog cache), Sentry (monitoring)
 
-## Learn More
+## Development
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+```bash
+cp .env.example .env   # fill in values
+bun install            # also runs `prisma generate` (client lives in generated/, gitignored)
+bun run db:migrate     # apply Prisma migrations
+bun run dev
+```
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+Useful scripts: `bun run check` (lint + typecheck), `bun run lint:fix`,
+`bun run db:studio`.
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
-
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+Testing the Mini App end-to-end requires a public HTTPS URL (e.g. ngrok)
+registered with your Telegram bot; set it as `BETTER_AUTH_URL`.
 
 ## Docker Compose
 

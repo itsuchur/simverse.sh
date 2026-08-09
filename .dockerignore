@@ -1,4 +1,10 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# git history must never end up in an image
+.git
+.gitignore
+
+# generated Prisma client is produced by `bun install` (postinstall) inside
+# the image; never take it from the host
+/generated
 
 # dependencies
 /node_modules
