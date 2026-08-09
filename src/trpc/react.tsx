@@ -55,8 +55,11 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
           headers: () => {
             const headers = new Headers();
             headers.set("x-trpc-source", "nextjs-react");
-            // Free ngrok serves an interstitial HTML page unless this header is present.
-            headers.set("ngrok-skip-browser-warning", "true");
+            if (process.env.NODE_ENV === "development") {
+              // Free ngrok serves an interstitial HTML page unless this
+              // header is present.
+              headers.set("ngrok-skip-browser-warning", "true");
+            }
             return headers;
           },
         }),
