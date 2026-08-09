@@ -1,23 +1,27 @@
 import type { ReactNode } from "react";
 
-import { TelegramAuth } from "~/app/_components/telegram-auth";
 import { AppBottomNav } from "~/app/app/_components/app-bottom-nav";
+import { AuthGate } from "~/app/app/_components/auth-gate";
+import { getSession } from "~/server/better-auth/server";
 
-
-export default function MiniAppLayout({
+export default async function MiniAppLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  return (
-    <div className="min-h-dvh bg-white text-foreground">
-      <TelegramAuth />
+  // Gate the mini app behind a session. First-time visitors are signed in
+  // automatically by <AuthGate /> using Telegram initData, then the route is
+  // refreshed and renders the actual content. Reading the session also makes
+  // every /app route dynamic, which the catalog requires anyway.
+  const session = await getSession();
 
+  return (
+    <div className="text-foreground min-h-dvh bg-white">
       <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-white px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[calc(6.25rem+env(safe-area-inset-bottom))]">
-        {children}
+        {session ? children : <AuthGate />}
       </div>
 
-      <AppBottomNav />
+      {session ? <AppBottomNav /> : null}
     </div>
   );
 }
