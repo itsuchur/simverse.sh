@@ -60,6 +60,7 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
+  @@index([userId])
   @@map("session")
 }
 
@@ -82,6 +83,7 @@ model Account {
   telegramId       String?
   telegramUsername String?
 
+  @@index([userId])
   @@map("account")
 }
 
