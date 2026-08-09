@@ -1,3 +1,5 @@
+import "server-only";
+
 import { healthRouter } from "~/server/api/routers/health";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
