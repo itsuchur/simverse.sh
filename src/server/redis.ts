@@ -22,8 +22,6 @@ async function createRedisClient() {
 }
 
 export async function getRedis() {
-  if (!globalForRedis.redis) {
-    globalForRedis.redis = await createRedisClient();
-  }
+  globalForRedis.redis ??= await createRedisClient();
   return globalForRedis.redis;
 }
