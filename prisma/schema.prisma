@@ -148,3 +148,16 @@ model Order {
   /// (payment_provider, payment_charge_id) WHERE payment_charge_id IS NOT NULL.
   @@map("orders")
 }
+
+/// Raw inbound webhook requests for debugging / audit.
+model WebhookLog {
+  id         BigInt   @id @default(autoincrement())
+  source     String
+  headers    Json?    @db.JsonB
+  payload    Json?    @db.JsonB
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  @@index([source], map: "idx_webhook_logs_source")
+  /// GIN index `idx_webhook_logs_payload` is defined in the migration SQL.
+  @@map("webhook_logs")
+}
