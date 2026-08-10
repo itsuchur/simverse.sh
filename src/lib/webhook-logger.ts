@@ -1,40 +1,83 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
+
 import type { Prisma } from "../../generated/prisma";
 
 import { db } from "~/server/db";
 
-type Handler<TResponse extends Response> = (
+type Handler = (
   request: Request,
   body: unknown,
-) => TResponse | Promise<TResponse>;
+) => Response | Promise<Response>;
 
-export function withWebhookLogging<TResponse extends Response>(
+function captureWebhookError(
+  error: unknown,
   source: string,
-  handler: Handler<TResponse>,
+  phase: "read-body" | "persist",
 ) {
-  return async function (request: Request): Promise<TResponse> {
-    const text = await request.text();
+  Sentry.captureException(error, {
+    tags: {
+      component: "webhook-logger",
+      webhook_source: source,
+      webhook_phase: phase,
+    },
+  });
+}
+
+function loggingUnavailableResponse() {
+  return Response.json(
+    { error: "Webhook logging unavailable" },
+    {
+      status: 503,
+      headers: { "Retry-After": "30" },
+    },
+  );
+}
+
+export function withWebhookLogging(source: string, handler: Handler) {
+  return async function (request: Request): Promise<Response> {
+    const headers = Object.fromEntries(
+      request.headers.entries(),
+    ) satisfies Prisma.InputJsonObject;
+
     let body: unknown = null;
     try {
-      body = text ? JSON.parse(text) : null;
-    } catch {
-      body = text; // not valid JSON, log raw text instead
+      const text = await request.text();
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch {
+        body = text; // not valid JSON, log raw text instead
+      }
+    } catch (error) {
+      captureWebhookError(error, source, "read-body");
+
+      try {
+        await db.webhookLog.create({ data: { source, headers } });
+      } catch (loggingError) {
+        captureWebhookError(loggingError, source, "persist");
+        return loggingUnavailableResponse();
+      }
+
+      return Response.json(
+        { error: "Unable to read webhook body" },
+        { status: 400 },
+      );
     }
 
-    // Log first, don't let a DB failure block the webhook response
+    // Persist before dispatch. Returning a retryable error on failure prevents
+    // provider logic from running without a durable audit record.
     try {
       await db.webhookLog.create({
         data: {
           source,
-          headers: Object.fromEntries(
-            request.headers.entries(),
-          ) satisfies Prisma.InputJsonObject,
+          headers,
           ...(body === null ? {} : { payload: body }),
         },
       });
     } catch (error) {
-      console.error("Failed to log webhook:", error);
+      captureWebhookError(error, source, "persist");
+      return loggingUnavailableResponse();
     }
 
     return handler(request, body);
