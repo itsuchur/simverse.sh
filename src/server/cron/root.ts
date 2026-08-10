@@ -1,6 +1,7 @@
 import { Cron } from "croner";
 
 import { getRedis } from "~/server/redis";
+import { withRussianNames } from "~/server/suppliers/esimaccess/localize";
 import {
   ESIMACCESS_PACKAGES_REDIS_KEY,
   fetchEsimAccessPackages,
@@ -13,7 +14,7 @@ async function syncEsimAccessPackages() {
     fetchEsimAccessPackages(),
     fetchUsdRubRate(),
   ]);
-  const packageList = withPriceRub(packages, fx.rate);
+  const packageList = await withRussianNames(withPriceRub(packages, fx.rate));
   const redis = await getRedis();
 
   await redis.set(

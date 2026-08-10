@@ -72,6 +72,7 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "${REDIS_URL}"
       ESIMACCESS_ACCESS_CODE: "${ESIMACCESS_ACCESS_CODE}"
+      OPENROUTER_KEY: "${OPENROUTER_KEY}"
     depends_on:
       postgres:
         condition: service_healthy

@@ -23,6 +23,8 @@ export type EsimAccessPackage = {
   packageCode: string;
   slug: string;
   name: string;
+  /** Russian display name, precomputed by the poller (see localize.ts). */
+  nameRu?: string;
   price: number;
   retailPrice: number;
   /** Customer-facing price in whole rubles, from retailPrice × USD/RUB. */
@@ -51,6 +53,7 @@ function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
     packageCode: pkg.packageCode,
     slug: pkg.slug,
     name: pkg.name,
+    nameRu: pkg.nameRu,
     volume: pkg.volume,
     duration: pkg.duration,
     durationUnit: pkg.durationUnit,
@@ -186,10 +189,10 @@ export async function getPopularCountryCodes() {
   return redis.lRange(POPULAR_COUNTRIES_REDIS_KEY, 0, -1);
 }
 
-function countryDisplayName(countryCode: string) {
+function countryDisplayName(countryCode: string, locale: string) {
   try {
     return (
-      new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode) ??
+      new Intl.DisplayNames([locale], { type: "region" }).of(countryCode) ??
       countryCode
     );
   } catch {
@@ -198,9 +201,9 @@ function countryDisplayName(countryCode: string) {
 }
 
 /** Single-country packages whose `location` is listed in `popularCountries`. */
-export async function getPopularPackagesByCountry(): Promise<
-  PopularCountryPackages[]
-> {
+export async function getPopularPackagesByCountry(
+  locale: string,
+): Promise<PopularCountryPackages[]> {
   const [countryCodes, cached] = await Promise.all([
     getPopularCountryCodes(),
     getCachedEsimAccessPackages(),
@@ -209,7 +212,7 @@ export async function getPopularPackagesByCountry(): Promise<
 
   return countryCodes.map((countryCode) => ({
     countryCode,
-    countryName: countryDisplayName(countryCode),
+    countryName: countryDisplayName(countryCode, locale),
     packages: packageList
       .filter((pkg) => pkg.location === countryCode)
       .map(toCatalogPackage),

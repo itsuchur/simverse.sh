@@ -64,8 +64,10 @@ function filterPopularGroups(
 
       return {
         ...group,
-        packages: group.packages.filter((pkg) =>
-          pkg.name.toLowerCase().includes(query),
+        packages: group.packages.filter(
+          (pkg) =>
+            pkg.name.toLowerCase().includes(query) ||
+            pkg.nameRu?.toLowerCase().includes(query),
         ),
       };
     })
@@ -101,10 +103,12 @@ function PackageCard({ pkg }: { pkg: CatalogPackage }) {
       ? t("duration.day", { count: pkg.duration })
       : `${pkg.duration} ${pkg.durationUnit.toLowerCase()}${pkg.duration === 1 ? "" : "s"}`;
 
+  const displayName = locale === "ru" && pkg.nameRu ? pkg.nameRu : pkg.name;
+
   return (
     <Card size="sm" className="transition-colors hover:bg-muted/40">
       <CardHeader>
-        <CardTitle>{pkg.name}</CardTitle>
+        <CardTitle>{displayName}</CardTitle>
         <CardAction>
           <span className="text-sm font-medium text-foreground" lang={locale}>
             {price}

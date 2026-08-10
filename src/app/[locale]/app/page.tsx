@@ -1,3 +1,5 @@
+import { getLocale } from "next-intl/server";
+
 import { PackageCatalog } from "./_components/package-catalog";
 import { getSession } from "~/server/better-auth/server";
 import { getPopularPackagesByCountry } from "~/server/suppliers/esimaccess/packages";
@@ -16,7 +18,8 @@ export default async function AppHome() {
     return null;
   }
 
-  const popular = await getPopularPackagesByCountry();
+  const locale = await getLocale();
+  const popular = await getPopularPackagesByCountry(locale);
 
   return <PackageCatalog popular={popular} />;
 }

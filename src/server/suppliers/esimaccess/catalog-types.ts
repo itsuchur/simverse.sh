@@ -3,6 +3,8 @@ export type CatalogPackage = {
   packageCode: string;
   slug: string;
   name: string;
+  /** Russian display name, precomputed by the poller. */
+  nameRu?: string;
   volume: number;
   duration: number;
   durationUnit: string;
