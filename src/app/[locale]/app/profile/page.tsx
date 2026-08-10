@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- Telegram avatar URLs are
    remote and short-lived; next/image optimization adds no value here. */
-import Link from "next/link";
 import {
   ChevronRight,
   FileText,
@@ -9,46 +8,23 @@ import {
   Settings,
   Shield,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
+import { LocaleSwitcher } from "../_components/locale-switcher";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Link } from "~/i18n/navigation";
 import { getSession } from "~/server/better-auth/server";
 
 type ProfileOption = {
   label: string;
   icon: typeof Settings;
-  href?: string;
+  href?: "/refund-policy" | "/tos" | "/privacy-policy";
 };
-
-const profileOptions: ProfileOption[] = [
-  {
-    label: "Preferences",
-    icon: Settings,
-  },
-  {
-    label: "Transaction History",
-    icon: History,
-  },
-  {
-    label: "Refund Policy",
-    icon: RotateCcw,
-    href: "/refund-policy",
-  },
-  {
-    label: "Terms of Service",
-    icon: FileText,
-    href: "/tos",
-  },
-  {
-    label: "Privacy Policy",
-    icon: Shield,
-    href: "/privacy-policy",
-  },
-];
 
 function ProfileOptionCard({ option }: { option: ProfileOption }) {
   const Icon = option.icon;
@@ -96,7 +72,34 @@ export default async function AppProfile() {
     return null;
   }
 
+  const t = await getTranslations("Profile");
   const { user } = session;
+
+  const profileOptions: ProfileOption[] = [
+    {
+      label: t("preferences"),
+      icon: Settings,
+    },
+    {
+      label: t("transactionHistory"),
+      icon: History,
+    },
+    {
+      label: t("refundPolicy"),
+      icon: RotateCcw,
+      href: "/refund-policy",
+    },
+    {
+      label: t("termsOfService"),
+      icon: FileText,
+      href: "/tos",
+    },
+    {
+      label: t("privacyPolicy"),
+      icon: Shield,
+      href: "/privacy-policy",
+    },
+  ];
 
   return (
     <main className="space-y-3 pt-2">
@@ -117,13 +120,15 @@ export default async function AppProfile() {
             <div>
               <CardTitle>{user.name}</CardTitle>
               <CardDescription>
-                Signed in with Telegram
-                {user.isPremium ? " · Premium" : ""}
+                {t("signedInWithTelegram")}
+                {user.isPremium ? ` · ${t("premium")}` : ""}
               </CardDescription>
             </div>
           </div>
         </CardHeader>
       </Card>
+
+      <LocaleSwitcher />
 
       {profileOptions.map((option) => (
         <ProfileOptionCard key={option.label} option={option} />

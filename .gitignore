@@ -45,6 +45,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# next-intl generated message declarations
+messages/*.d.json.ts
+
 # idea files
 .idea
 # Sentry Config File

@@ -1,0 +1,75 @@
+{
+  "Metadata": {
+    "title": "Simverse",
+    "description": "eSIM-пакеты данных для путешествий прямо в Telegram."
+  },
+  "HomePage": {
+    "title": "Мой сайт"
+  },
+  "Nav": {
+    "ariaLabel": "Основная навигация",
+    "home": "Главная",
+    "myEsims": "Мои eSIM",
+    "profile": "Профиль"
+  },
+  "Auth": {
+    "signingIn": "Выполняется вход…",
+    "requiredTitle": "Требуется вход",
+    "requiredDescription": "Не удалось войти автоматически. Откройте приложение через Telegram-бота, чтобы продолжить.",
+    "tryAgain": "Попробовать снова"
+  },
+  "Catalog": {
+    "searchLabel": "Поиск направлений",
+    "searchPlaceholder": "Поиск стран или регионов",
+    "tabs": {
+      "popular": "Популярные",
+      "local": "Локальные",
+      "regional": "Региональные",
+      "global": "Глобальные"
+    },
+    "fromPrice": "от {price}",
+    "noMatchingPlans": "Нет подходящих тарифов",
+    "noMatchingPopularDescription": "Попробуйте другой запрос или проверьте популярные страны в Redis.",
+    "noMatchingStubDescription": "Попробуйте другой запрос, когда полный каталог будет подключён.",
+    "noPackages": "Нет пакетов",
+    "noPackagesForCountry": "Для страны {country} пока ничего нет.",
+    "duration": {
+      "day": "{count, plural, one {# день} few {# дня} many {# дней} other {# дня}}"
+    },
+    "stubs": {
+      "near1Name": "Ближайшая страна A",
+      "near1Description": "На основе локали Telegram",
+      "near2Name": "Ближайшая страна B",
+      "near2Description": "Локальный eSIM для одной страны",
+      "europeName": "Европа",
+      "europeDescription": "30+ стран · региональный пакет",
+      "europePrice": "от $12",
+      "asiaName": "Азия",
+      "asiaDescription": "Мультистрановые travel-пакеты",
+      "asiaPrice": "от $14",
+      "globalName": "Глобальный Pass",
+      "globalDescription": "100+ стран на одном eSIM",
+      "globalPrice": "от $29"
+    }
+  },
+  "MyEsims": {
+    "title": "Мои eSIM",
+    "description": "Здесь появятся установленные и купленные eSIM."
+  },
+  "Profile": {
+    "signedInWithTelegram": "Вход через Telegram",
+    "premium": "Premium",
+    "preferences": "Настройки",
+    "transactionHistory": "История транзакций",
+    "refundPolicy": "Политика возвратов",
+    "termsOfService": "Условия использования",
+    "privacyPolicy": "Политика конфиденциальности",
+    "language": "Язык",
+    "languageDescription": "Выберите язык приложения."
+  },
+  "LocaleSwitcher": {
+    "label": "Язык",
+    "en": "English",
+    "ru": "Русский"
+  }
+}

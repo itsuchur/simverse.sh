@@ -1,38 +1,39 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { CardSim, Home, User } from "lucide-react";
+import { useTranslations } from "next-intl";
 
+import { Link, usePathname } from "~/i18n/navigation";
 import { cn } from "~/lib/utils";
 
-const items = [
-  {
-    href: "/app",
-    label: "Home",
-    icon: Home,
-    match: (path: string) => path === "/app",
-  },
-  {
-    href: "/app/myesim",
-    label: "My eSIMs",
-    icon: CardSim,
-    match: (path: string) => path.startsWith("/app/myesim"),
-  },
-  {
-    href: "/app/profile",
-    label: "Profile",
-    icon: User,
-    match: (path: string) => path.startsWith("/app/profile"),
-  },
-] as const;
-
 export function AppBottomNav() {
+  const t = useTranslations("Nav");
   const pathname = usePathname();
+
+  const items = [
+    {
+      href: "/app",
+      label: t("home"),
+      icon: Home,
+      match: (path: string) => path === "/app",
+    },
+    {
+      href: "/app/myesim",
+      label: t("myEsims"),
+      icon: CardSim,
+      match: (path: string) => path.startsWith("/app/myesim"),
+    },
+    {
+      href: "/app/profile",
+      label: t("profile"),
+      icon: User,
+      match: (path: string) => path.startsWith("/app/profile"),
+    },
+  ] as const;
 
   return (
     <nav
-      aria-label="Main"
+      aria-label={t("ariaLabel")}
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40"
     >
       <div className="pointer-events-auto mx-auto w-full max-w-lg px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

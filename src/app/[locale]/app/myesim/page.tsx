@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import {
   Card,
   CardDescription,
@@ -14,14 +16,14 @@ export default async function AppMyESIms() {
     return null;
   }
 
+  const t = await getTranslations("MyEsims");
+
   return (
     <main className="pt-2">
       <Card>
         <CardHeader>
-          <CardTitle>My eSIMs</CardTitle>
-          <CardDescription>
-            Your installed and purchased eSIMs will appear here.
-          </CardDescription>
+          <CardTitle>{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
       </Card>
     </main>

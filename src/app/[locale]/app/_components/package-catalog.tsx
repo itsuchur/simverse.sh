@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
 import {
@@ -18,57 +19,13 @@ import type {
   PopularCountryPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
 
-const tabs = [
-  { value: "popular", label: "Popular" },
-  { value: "local", label: "Local" },
-  { value: "regional", label: "Regional" },
-  { value: "global", label: "Global" },
-] as const;
+const tabValues = ["popular", "local", "regional", "global"] as const;
 
 type PlanStub = {
   id: string;
   name: string;
   description: string;
   price: string;
-};
-
-const stubCatalog: Record<"local" | "regional" | "global", PlanStub[]> = {
-  local: [
-    {
-      id: "near-1",
-      name: "Nearby country A",
-      description: "Based on your Telegram locale",
-      price: "—",
-    },
-    {
-      id: "near-2",
-      name: "Nearby country B",
-      description: "Local single-country eSIM",
-      price: "—",
-    },
-  ],
-  regional: [
-    {
-      id: "eu",
-      name: "Europe",
-      description: "30+ countries · regional pass",
-      price: "from $12",
-    },
-    {
-      id: "asia",
-      name: "Asia",
-      description: "Multi-country travel packs",
-      price: "from $14",
-    },
-  ],
-  global: [
-    {
-      id: "world",
-      name: "Global Pass",
-      description: "100+ countries on one eSIM",
-      price: "from $29",
-    },
-  ],
 };
 
 function formatVolume(bytes: number) {
@@ -78,22 +35,6 @@ function formatVolume(bytes: number) {
   }
   const mib = bytes / 1024 ** 2;
   return `${Math.round(mib)} MB`;
-}
-
-function formatDuration(duration: number, unit: string) {
-  const label = unit.toLowerCase() === "day" ? "day" : unit.toLowerCase();
-  return `${duration} ${label}${duration === 1 ? "" : "s"}`;
-}
-
-function formatPriceRub(priceRub: number | undefined) {
-  if (typeof priceRub !== "number") {
-    return "—";
-  }
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: 0,
-  }).format(priceRub);
 }
 
 function filterStubPlans(plans: PlanStub[], query: string) {
@@ -142,18 +83,35 @@ function lowestPriceRub(packages: CatalogPackage[]) {
 }
 
 function PackageCard({ pkg }: { pkg: CatalogPackage }) {
+  const t = useTranslations("Catalog");
+  const format = useFormatter();
+  const locale = useLocale();
+
+  const price =
+    typeof pkg.priceRub === "number"
+      ? format.number(pkg.priceRub, {
+          style: "currency",
+          currency: "RUB",
+          maximumFractionDigits: 0,
+        })
+      : "—";
+
+  const duration =
+    pkg.durationUnit.toLowerCase() === "day"
+      ? t("duration.day", { count: pkg.duration })
+      : `${pkg.duration} ${pkg.durationUnit.toLowerCase()}${pkg.duration === 1 ? "" : "s"}`;
+
   return (
     <Card size="sm" className="transition-colors hover:bg-muted/40">
       <CardHeader>
         <CardTitle>{pkg.name}</CardTitle>
         <CardAction>
-          <span className="text-sm font-medium text-foreground">
-            {formatPriceRub(pkg.priceRub)}
+          <span className="text-sm font-medium text-foreground" lang={locale}>
+            {price}
           </span>
         </CardAction>
         <CardDescription>
-          {formatVolume(pkg.volume)} ·{" "}
-          {formatDuration(pkg.duration, pkg.durationUnit)}
+          {formatVolume(pkg.volume)} · {duration}
         </CardDescription>
       </CardHeader>
     </Card>
@@ -165,6 +123,8 @@ function PopularPanel({
 }: {
   groups: PopularCountryPackages[];
 }) {
+  const t = useTranslations("Catalog");
+  const format = useFormatter();
   const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
 
   // Drop expansion if the open country falls out of the filtered list.
@@ -178,10 +138,8 @@ function PopularPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No matching plans</CardTitle>
-          <CardDescription>
-            Try another search or check popular countries in Redis.
-          </CardDescription>
+          <CardTitle>{t("noMatchingPlans")}</CardTitle>
+          <CardDescription>{t("noMatchingPopularDescription")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -229,7 +187,13 @@ function PopularPanel({
                   <span className="text-sm font-medium text-foreground">
                     {fromPrice === undefined
                       ? "—"
-                      : `from ${formatPriceRub(fromPrice)}`}
+                      : t("fromPrice", {
+                          price: format.number(fromPrice, {
+                            style: "currency",
+                            currency: "RUB",
+                            maximumFractionDigits: 0,
+                          }),
+                        })}
                   </span>
                 </CardAction>
               </CardHeader>
@@ -239,9 +203,11 @@ function PopularPanel({
               group.packages.length === 0 ? (
                 <Card>
                   <CardHeader>
-                    <CardTitle>No packages</CardTitle>
+                    <CardTitle>{t("noPackages")}</CardTitle>
                     <CardDescription>
-                      Nothing available for {group.countryName} yet.
+                      {t("noPackagesForCountry", {
+                        country: group.countryName,
+                      })}
                     </CardDescription>
                   </CardHeader>
                 </Card>
@@ -261,14 +227,14 @@ function PopularPanel({
 }
 
 function StubPanel({ plans }: { plans: PlanStub[] }) {
+  const t = useTranslations("Catalog");
+
   if (plans.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No matching plans</CardTitle>
-          <CardDescription>
-            Try another search once the full catalog is wired up.
-          </CardDescription>
+          <CardTitle>{t("noMatchingPlans")}</CardTitle>
+          <CardDescription>{t("noMatchingStubDescription")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -302,10 +268,54 @@ export function PackageCatalog({
 }: {
   popular: PopularCountryPackages[];
 }) {
+  const t = useTranslations("Catalog");
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("popular");
 
   const trimmed = query.trim().toLowerCase();
+
+  const stubCatalog = useMemo(
+    () =>
+      ({
+        local: [
+          {
+            id: "near-1",
+            name: t("stubs.near1Name"),
+            description: t("stubs.near1Description"),
+            price: "—",
+          },
+          {
+            id: "near-2",
+            name: t("stubs.near2Name"),
+            description: t("stubs.near2Description"),
+            price: "—",
+          },
+        ],
+        regional: [
+          {
+            id: "eu",
+            name: t("stubs.europeName"),
+            description: t("stubs.europeDescription"),
+            price: t("stubs.europePrice"),
+          },
+          {
+            id: "asia",
+            name: t("stubs.asiaName"),
+            description: t("stubs.asiaDescription"),
+            price: t("stubs.asiaPrice"),
+          },
+        ],
+        global: [
+          {
+            id: "world",
+            name: t("stubs.globalName"),
+            description: t("stubs.globalDescription"),
+            price: t("stubs.globalPrice"),
+          },
+        ],
+      }) satisfies Record<"local" | "regional" | "global", PlanStub[]>,
+    [t],
+  );
 
   const popularGroups = useMemo(
     () => filterPopularGroups(popular, trimmed),
@@ -318,14 +328,14 @@ export function PackageCatalog({
         value,
         plans: filterStubPlans(stubCatalog[value], trimmed),
       })),
-    [trimmed],
+    [stubCatalog, trimmed],
   );
 
   return (
     <div className="flex min-h-full flex-col gap-4">
       <div className="sticky top-0 z-30 -mx-4 space-y-3 border-b border-border bg-white/95 px-4 pt-1 pb-3 backdrop-blur supports-backdrop-filter:bg-white/80">
         <label htmlFor="catalog-search" className="sr-only">
-          Search destinations
+          {t("searchLabel")}
         </label>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -334,7 +344,7 @@ export function PackageCatalog({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search countries or regions"
+            placeholder={t("searchPlaceholder")}
             autoComplete="off"
             enterKeyHint="search"
             className="h-11 pl-9"
@@ -350,13 +360,13 @@ export function PackageCatalog({
         className="gap-4"
       >
         <TabsList className="grid h-11 w-full grid-cols-4">
-          {tabs.map((item) => (
+          {tabValues.map((value) => (
             <TabsTrigger
-              key={item.value}
-              value={item.value}
+              key={value}
+              value={value}
               className="text-xs sm:text-sm"
             >
-              {item.label}
+              {t(`tabs.${value}`)}
             </TabsTrigger>
           ))}
         </TabsList>

@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-import { autoSignInFromMiniApp } from "~/lib/auth-client";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -12,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { useRouter } from "~/i18n/navigation";
+import { autoSignInFromMiniApp } from "~/lib/auth-client";
 
 /**
  * Automatic Telegram Mini App sign-in.
@@ -22,6 +23,7 @@ import {
  * new session cookie.
  */
 export function AuthGate() {
+  const t = useTranslations("Auth");
   const router = useRouter();
   const [status, setStatus] = useState<"signing-in" | "failed">("signing-in");
 
@@ -51,7 +53,7 @@ export function AuthGate() {
     return (
       <main className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 py-24">
         <LoaderCircle className="size-6 animate-spin" aria-hidden />
-        <p className="text-sm">Signing you in…</p>
+        <p className="text-sm">{t("signingIn")}</p>
       </main>
     );
   }
@@ -60,11 +62,8 @@ export function AuthGate() {
     <main className="flex flex-1 flex-col justify-center py-24">
       <Card>
         <CardHeader>
-          <CardTitle>Sign-in required</CardTitle>
-          <CardDescription>
-            We couldn&apos;t sign you in automatically. Open this app from your
-            Telegram bot to continue.
-          </CardDescription>
+          <CardTitle>{t("requiredTitle")}</CardTitle>
+          <CardDescription>{t("requiredDescription")}</CardDescription>
         </CardHeader>
         <div className="px-6 pb-6">
           <Button
@@ -75,7 +74,7 @@ export function AuthGate() {
               signIn();
             }}
           >
-            Try again
+            {t("tryAgain")}
           </Button>
         </div>
       </Card>

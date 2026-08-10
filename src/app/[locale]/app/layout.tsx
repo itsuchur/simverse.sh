@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { AppBottomNav } from "~/app/app/_components/app-bottom-nav";
-import { AuthGate } from "~/app/app/_components/auth-gate";
+import { AppBottomNav } from "./_components/app-bottom-nav";
+import { AuthGate } from "./_components/auth-gate";
 import { getSession } from "~/server/better-auth/server";
 
 export default async function MiniAppLayout({

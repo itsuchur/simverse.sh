@@ -4,6 +4,7 @@
  */
 import "./src/env.js";
 import { withSentryConfig } from "@sentry/nextjs";
+import createNextIntlPlugin from "next-intl/plugin";
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -14,7 +15,13 @@ const config = {
   allowedDevOrigins: ["magical-guinea-utterly.ngrok-free.app"],
 };
 
-export default withSentryConfig(config, {
+const withNextIntl = createNextIntlPlugin({
+  experimental: {
+    createMessagesDeclaration: "./messages/en.json",
+  },
+});
+
+export default withSentryConfig(withNextIntl(config), {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 

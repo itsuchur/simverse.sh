@@ -1,10 +1,11 @@
-// src/app/page.tsx
+import { getTranslations } from "next-intl/server";
 
+export default async function Home() {
+  const t = await getTranslations("HomePage");
 
-export default function Home() {
   return (
     <main>
-      <h1>My website</h1>
+      <h1>{t("title")}</h1>
     </main>
   );
 }

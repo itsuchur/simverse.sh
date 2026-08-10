@@ -1,4 +1,4 @@
-import { PackageCatalog } from "~/app/app/_components/package-catalog";
+import { PackageCatalog } from "./_components/package-catalog";
 import { getSession } from "~/server/better-auth/server";
 import { getPopularPackagesByCountry } from "~/server/suppliers/esimaccess/packages";
 
