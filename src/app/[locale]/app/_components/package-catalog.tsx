@@ -153,22 +153,23 @@ type DestinationGroup = {
   packages: CatalogPackage[];
 };
 
-function DestinationDialog({
-  group,
-  onSelectPlan,
-}: {
-  group: DestinationGroup;
-  onSelectPlan: (pkg: CatalogPackage, destinationLabel: string) => void;
-}) {
+function DestinationDialog({ group }: { group: DestinationGroup }) {
   const t = useTranslations("Catalog");
   const format = useFormatter();
   const [open, setOpen] = useState(false);
+  const [selectedPkg, setSelectedPkg] = useState<CatalogPackage | null>(null);
   const operators = uniqueOperators(group.packages);
   const durationGroups = groupPackagesByDuration(group.packages);
   const fromPrice = lowestPriceRub(group.packages);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setSelectedPkg(null);
+      }}
+    >
       <DialogTrigger
         render={
           <Card
@@ -246,10 +247,7 @@ function DestinationDialog({
                       key={pkg.packageCode}
                       type="button"
                       className="hover:bg-muted/60 flex w-full items-center justify-between rounded-md px-1 py-1.5 text-left text-sm transition-colors"
-                      onClick={() => {
-                        setOpen(false);
-                        onSelectPlan(pkg, group.label);
-                      }}
+                      onClick={() => setSelectedPkg(pkg)}
                     >
                       <span>{formatVolume(pkg.volume)}</span>
                       <span className="font-medium">{price}</span>
@@ -260,18 +258,23 @@ function DestinationDialog({
             </div>
           ))}
         </div>
+
+        {selectedPkg ? (
+          <OrderConfirmation
+            open
+            onOpenChange={(next) => {
+              if (!next) setSelectedPkg(null);
+            }}
+            pkg={selectedPkg}
+            destinationLabel={group.label}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DestinationGroupsPanel({
-  groups,
-  onSelectPlan,
-}: {
-  groups: DestinationGroup[];
-  onSelectPlan: (pkg: CatalogPackage, destinationLabel: string) => void;
-}) {
+function DestinationGroupsPanel({ groups }: { groups: DestinationGroup[] }) {
   if (groups.length === 0) {
     return <NoMatches />;
   }
@@ -279,23 +282,13 @@ function DestinationGroupsPanel({
   return (
     <div className="space-y-3">
       {groups.map((group) => (
-        <DestinationDialog
-          key={group.id}
-          group={group}
-          onSelectPlan={onSelectPlan}
-        />
+        <DestinationDialog key={group.id} group={group} />
       ))}
     </div>
   );
 }
 
-function CountryGroupsPanel({
-  groups,
-  onSelectPlan,
-}: {
-  groups: PopularCountryPackages[];
-  onSelectPlan: (pkg: CatalogPackage, destinationLabel: string) => void;
-}) {
+function CountryGroupsPanel({ groups }: { groups: PopularCountryPackages[] }) {
   const destinations = useMemo(
     () =>
       groups
@@ -319,18 +312,10 @@ function CountryGroupsPanel({
     [groups],
   );
 
-  return (
-    <DestinationGroupsPanel groups={destinations} onSelectPlan={onSelectPlan} />
-  );
+  return <DestinationGroupsPanel groups={destinations} />;
 }
 
-function RegionGroupsPanel({
-  groups,
-  onSelectPlan,
-}: {
-  groups: RegionPackages[];
-  onSelectPlan: (pkg: CatalogPackage, destinationLabel: string) => void;
-}) {
+function RegionGroupsPanel({ groups }: { groups: RegionPackages[] }) {
   const locale = useLocale();
 
   const destinations = useMemo(
@@ -354,18 +339,10 @@ function RegionGroupsPanel({
     [groups, locale],
   );
 
-  return (
-    <DestinationGroupsPanel groups={destinations} onSelectPlan={onSelectPlan} />
-  );
+  return <DestinationGroupsPanel groups={destinations} />;
 }
 
-function GlobalPanel({
-  packages,
-  onSelectPlan,
-}: {
-  packages: CatalogPackage[];
-  onSelectPlan: (pkg: CatalogPackage, destinationLabel: string) => void;
-}) {
+function GlobalPanel({ packages }: { packages: CatalogPackage[] }) {
   const t = useTranslations("Catalog");
 
   if (packages.length === 0) {
@@ -389,7 +366,6 @@ function GlobalPanel({
           packages,
         },
       ]}
-      onSelectPlan={onSelectPlan}
     />
   );
 }
@@ -408,9 +384,6 @@ export function PackageCatalog({
   const t = useTranslations("Catalog");
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("popular");
-  const [selectedPkg, setSelectedPkg] = useState<CatalogPackage | null>(null);
-  const [destinationLabel, setDestinationLabel] = useState<string | undefined>();
-  const [orderOpen, setOrderOpen] = useState(false);
 
   const trimmed = query.trim().toLowerCase();
 
@@ -431,12 +404,6 @@ export function PackageCatalog({
       trimmed ? global.filter((pkg) => packageMatches(pkg, trimmed)) : global,
     [global, trimmed],
   );
-
-  const onSelectPlan = (pkg: CatalogPackage, label: string) => {
-    setSelectedPkg(pkg);
-    setDestinationLabel(label);
-    setOrderOpen(true);
-  };
 
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -479,37 +446,21 @@ export function PackageCatalog({
         </TabsList>
 
         <TabsContent value="popular" className="space-y-3">
-          <CountryGroupsPanel
-            groups={popularGroups}
-            onSelectPlan={onSelectPlan}
-          />
+          <CountryGroupsPanel groups={popularGroups} />
         </TabsContent>
 
         <TabsContent value="local" className="space-y-3">
-          <CountryGroupsPanel
-            groups={localGroups}
-            onSelectPlan={onSelectPlan}
-          />
+          <CountryGroupsPanel groups={localGroups} />
         </TabsContent>
 
         <TabsContent value="regional" className="space-y-3">
-          <RegionGroupsPanel
-            groups={regionalGroups}
-            onSelectPlan={onSelectPlan}
-          />
+          <RegionGroupsPanel groups={regionalGroups} />
         </TabsContent>
 
         <TabsContent value="global" className="space-y-3">
-          <GlobalPanel packages={globalPackages} onSelectPlan={onSelectPlan} />
+          <GlobalPanel packages={globalPackages} />
         </TabsContent>
       </Tabs>
-
-      <OrderConfirmation
-        open={orderOpen}
-        onOpenChange={setOrderOpen}
-        pkg={selectedPkg}
-        destinationLabel={destinationLabel}
-      />
     </div>
   );
 }
