@@ -1,14 +1,21 @@
+import "server-only";
+
 import { createHmac, randomUUID } from "node:crypto";
 
 import { getRedis } from "~/server/redis";
 import type {
+  CatalogByScope,
   CatalogPackage,
   PopularCountryPackages,
+  RegionPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
+import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 
 export type {
+  CatalogByScope,
   CatalogPackage,
   PopularCountryPackages,
+  RegionPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
 
 const ESIMACCESS_API_BASE = "https://api.esimaccess.com/api/v1/open";
@@ -217,4 +224,62 @@ export async function getPopularPackagesByCountry(
       .filter((pkg) => pkg.location === countryCode)
       .map(toCatalogPackage),
   }));
+}
+
+const GLOBAL_COUNTRY_THRESHOLD = 90;
+
+/** The Russian region label is the part of `nameRu` before the em dash. */
+function regionLabelRu(pkg: EsimAccessPackage): string | undefined {
+  return pkg.nameRu?.split(" — ")[0];
+}
+
+/**
+ * Splits the full catalog by coverage: single-country packages grouped by
+ * country, multi-country ones grouped by region label, and worldwide ones
+ * (90+ countries) as a flat list.
+ */
+export async function getCatalogByScope(
+  locale: string,
+): Promise<CatalogByScope> {
+  const cached = await getCachedEsimAccessPackages();
+  const packageList = cached?.packageList ?? [];
+
+  const byCountry = new Map<string, CatalogPackage[]>();
+  const byRegion = new Map<string, RegionPackages>();
+  const global: CatalogPackage[] = [];
+
+  for (const pkg of packageList) {
+    const countryCount = pkg.location.split(",").filter(Boolean).length;
+
+    if (countryCount === 1) {
+      const packages = byCountry.get(pkg.location) ?? [];
+      packages.push(toCatalogPackage(pkg));
+      byCountry.set(pkg.location, packages);
+    } else if (countryCount < GLOBAL_COUNTRY_THRESHOLD) {
+      const label = parseName(pkg.name)?.label ?? pkg.name;
+      const group = byRegion.get(label) ?? {
+        regionLabel: label,
+        regionLabelRu: regionLabelRu(pkg),
+        packages: [],
+      };
+      group.packages.push(toCatalogPackage(pkg));
+      byRegion.set(label, group);
+    } else {
+      global.push(toCatalogPackage(pkg));
+    }
+  }
+
+  const local: PopularCountryPackages[] = [...byCountry.entries()]
+    .map(([countryCode, packages]) => ({
+      countryCode,
+      countryName: countryDisplayName(countryCode, locale),
+      packages,
+    }))
+    .sort((a, b) => a.countryName.localeCompare(b.countryName, locale));
+
+  const regional = [...byRegion.values()].sort((a, b) =>
+    a.regionLabel.localeCompare(b.regionLabel),
+  );
+
+  return { local, regional, global };
 }

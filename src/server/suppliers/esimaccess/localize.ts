@@ -1,7 +1,13 @@
+import "server-only";
+
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import type { EsimAccessPackage } from "~/server/suppliers/esimaccess/packages";
+import {
+  parseName,
+  type ParsedName,
+} from "~/server/suppliers/esimaccess/parse-package-name";
 
 /**
  * Russian package names, generated once per package and cached in a JSON file
@@ -18,8 +24,10 @@ type TranslationFile = {
   packages: Record<string, { en: string; ru: string }>;
 };
 
+// Some bundlers pass a URL object for import.meta.url; Node's fileURLToPath
+// accepts either, but browser polyfills only accept a string.
 const TRANSLATION_FILE_PATH = fileURLToPath(
-  new URL("./package-names.ru.json", import.meta.url),
+  new URL("./package-names.ru.json", import.meta.url).href,
 );
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -59,58 +67,6 @@ function writeTranslationFile(file: TranslationFile) {
     // means the work is redone next sync.
     console.warn(`[localize] could not write ${TRANSLATION_FILE_PATH}`, error);
   }
-}
-
-/**
- * Supplier names follow `<label> <volume><per-day?> <days?> <FUP?> <modifier?>`,
- * e.g. "Spain 3GB 30Days", "Singapore 2GB/Day", "Japan 3GB/Day FUP1Mbps (IIJ)".
- */
-const NAME_PATTERN =
-  /^(?<label>.+?)\s+(?<amount>\d+(?:\.\d+)?)(?<unit>MB|GB)(?<perDay>\/Day|\s+Daily)?(?:\s+(?<days>\d+)\s*[Dd]ays?)?(?<rest>.*)$/;
-
-type ParsedName = {
-  label: string;
-  amount: string;
-  unit: "MB" | "GB";
-  perDay: boolean;
-  days?: number;
-  fup?: { value: number; unit: "K" | "M" };
-  modifier?: string;
-};
-
-function parseName(name: string): ParsedName | null {
-  const match = NAME_PATTERN.exec(name.trim());
-  if (!match?.groups) return null;
-
-  const { label, amount, unit, perDay, days, rest } = match.groups as {
-    label: string;
-    amount: string;
-    unit: "MB" | "GB";
-    perDay?: string;
-    days?: string;
-    rest?: string;
-  };
-
-  let fup: ParsedName["fup"];
-  let modifier: string | undefined;
-  if (rest) {
-    const fupMatch = /FUP(\d+)([KM])bps/.exec(rest);
-    if (fupMatch) {
-      fup = { value: Number(fupMatch[1]), unit: fupMatch[2] as "K" | "M" };
-    }
-    const leftover = rest.replace(/FUP\d+[KM]bps/, "").trim();
-    if (leftover) modifier = leftover;
-  }
-
-  return {
-    label: label.trim(),
-    amount,
-    unit,
-    perDay: Boolean(perDay),
-    days: days ? Number(days) : undefined,
-    fup,
-    modifier,
-  };
 }
 
 function ruDays(count: number): string {

@@ -29,27 +29,9 @@
     },
     "fromPrice": "from {price}",
     "noMatchingPlans": "No matching plans",
-    "noMatchingPopularDescription": "Try another search or check popular countries in Redis.",
-    "noMatchingStubDescription": "Try another search once the full catalog is wired up.",
-    "noPackages": "No packages",
-    "noPackagesForCountry": "Nothing available for {country} yet.",
+    "noMatchingDescription": "Try a different search.",
     "duration": {
       "day": "{count, plural, one {# day} other {# days}}"
-    },
-    "stubs": {
-      "near1Name": "Nearby country A",
-      "near1Description": "Based on your Telegram locale",
-      "near2Name": "Nearby country B",
-      "near2Description": "Local single-country eSIM",
-      "europeName": "Europe",
-      "europeDescription": "30+ countries · regional pass",
-      "europePrice": "from $12",
-      "asiaName": "Asia",
-      "asiaDescription": "Multi-country travel packs",
-      "asiaPrice": "from $14",
-      "globalName": "Global Pass",
-      "globalDescription": "100+ countries on one eSIM",
-      "globalPrice": "from $29"
     }
   },
   "MyEsims": {

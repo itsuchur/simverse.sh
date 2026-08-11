@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
@@ -17,16 +17,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import type {
   CatalogPackage,
   PopularCountryPackages,
+  RegionPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
 
 const tabValues = ["popular", "local", "regional", "global"] as const;
-
-type PlanStub = {
-  id: string;
-  name: string;
-  description: string;
-  price: string;
-};
 
 function formatVolume(bytes: number) {
   const gib = bytes / 1024 ** 3;
@@ -37,16 +31,14 @@ function formatVolume(bytes: number) {
   return `${Math.round(mib)} MB`;
 }
 
-function filterStubPlans(plans: PlanStub[], query: string) {
-  if (!query) return plans;
-  return plans.filter(
-    (plan) =>
-      plan.name.toLowerCase().includes(query) ||
-      plan.description.toLowerCase().includes(query),
+function packageMatches(pkg: CatalogPackage, query: string) {
+  return (
+    pkg.name.toLowerCase().includes(query) ||
+    pkg.nameRu?.toLowerCase().includes(query)
   );
 }
 
-function filterPopularGroups(
+function filterCountryGroups(
   groups: PopularCountryPackages[],
   query: string,
 ): PopularCountryPackages[] {
@@ -64,11 +56,31 @@ function filterPopularGroups(
 
       return {
         ...group,
-        packages: group.packages.filter(
-          (pkg) =>
-            pkg.name.toLowerCase().includes(query) ||
-            pkg.nameRu?.toLowerCase().includes(query),
-        ),
+        packages: group.packages.filter((pkg) => packageMatches(pkg, query)),
+      };
+    })
+    .filter((group) => group.packages.length > 0);
+}
+
+function filterRegionGroups(
+  groups: RegionPackages[],
+  query: string,
+): RegionPackages[] {
+  if (!query) return groups;
+
+  return groups
+    .map((group) => {
+      const labelMatch =
+        group.regionLabel.toLowerCase().includes(query) ||
+        group.regionLabelRu?.toLowerCase().includes(query);
+
+      if (labelMatch) {
+        return group;
+      }
+
+      return {
+        ...group,
+        packages: group.packages.filter((pkg) => packageMatches(pkg, query)),
       };
     })
     .filter((group) => group.packages.length > 0);
@@ -106,11 +118,11 @@ function PackageCard({ pkg }: { pkg: CatalogPackage }) {
   const displayName = locale === "ru" && pkg.nameRu ? pkg.nameRu : pkg.name;
 
   return (
-    <Card size="sm" className="transition-colors hover:bg-muted/40">
+    <Card size="sm" className="hover:bg-muted/40 transition-colors">
       <CardHeader>
         <CardTitle>{displayName}</CardTitle>
         <CardAction>
-          <span className="text-sm font-medium text-foreground" lang={locale}>
+          <span className="text-foreground text-sm font-medium" lang={locale}>
             {price}
           </span>
         </CardAction>
@@ -122,73 +134,69 @@ function PackageCard({ pkg }: { pkg: CatalogPackage }) {
   );
 }
 
-function PopularPanel({
-  groups,
-}: {
-  groups: PopularCountryPackages[];
-}) {
+function NoMatches() {
+  const t = useTranslations("Catalog");
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("noMatchingPlans")}</CardTitle>
+        <CardDescription>{t("noMatchingDescription")}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
+type ExpandableGroup = {
+  id: string;
+  title: ReactNode;
+  packages: CatalogPackage[];
+};
+
+function ExpandableGroupsPanel({ groups }: { groups: ExpandableGroup[] }) {
   const t = useTranslations("Catalog");
   const format = useFormatter();
-  const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Drop expansion if the open country falls out of the filtered list.
+  // Drop expansion if the open group falls out of the filtered list.
   const visibleExpanded =
-    expandedCountry !== null &&
-    groups.some((group) => group.countryCode === expandedCountry)
-      ? expandedCountry
+    expandedId !== null && groups.some((group) => group.id === expandedId)
+      ? expandedId
       : null;
 
   if (groups.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("noMatchingPlans")}</CardTitle>
-          <CardDescription>{t("noMatchingPopularDescription")}</CardDescription>
-        </CardHeader>
-      </Card>
-    );
+    return <NoMatches />;
   }
 
   return (
     <div className="space-y-3">
       {groups.map((group) => {
-        const expanded = visibleExpanded === group.countryCode;
+        const expanded = visibleExpanded === group.id;
         const fromPrice = lowestPriceRub(group.packages);
+        const toggle = () =>
+          setExpandedId((current) => (current === group.id ? null : group.id));
 
         return (
-          <div key={group.countryCode} className="space-y-3">
+          <div key={group.id} className="space-y-3">
             <Card
               size="sm"
               role="button"
               tabIndex={0}
               aria-expanded={expanded}
-              className="cursor-pointer transition-colors hover:bg-muted/40"
-              onClick={() =>
-                setExpandedCountry((current) =>
-                  current === group.countryCode ? null : group.countryCode,
-                )
-              }
+              className="hover:bg-muted/40 cursor-pointer transition-colors"
+              onClick={toggle}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setExpandedCountry((current) =>
-                    current === group.countryCode ? null : group.countryCode,
-                  );
+                  toggle();
                 }
               }}
             >
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <ReactCountryFlag
-                    countryCode={group.countryCode}
-                    svg
-                    style={{ width: "1.25em", height: "1.25em" }}
-                    aria-label={group.countryName}
-                  />
-                  <span>{group.countryName}</span>
+                  {group.title}
                 </CardTitle>
                 <CardAction>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-foreground text-sm font-medium">
                     {fromPrice === undefined
                       ? "—"
                       : t("fromPrice", {
@@ -204,24 +212,11 @@ function PopularPanel({
             </Card>
 
             {expanded ? (
-              group.packages.length === 0 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{t("noPackages")}</CardTitle>
-                    <CardDescription>
-                      {t("noPackagesForCountry", {
-                        country: group.countryName,
-                      })}
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              ) : (
-                <div className="space-y-3 pl-1">
-                  {group.packages.map((pkg) => (
-                    <PackageCard key={pkg.packageCode} pkg={pkg} />
-                  ))}
-                </div>
-              )
+              <div className="space-y-3 pl-1">
+                {group.packages.map((pkg) => (
+                  <PackageCard key={pkg.packageCode} pkg={pkg} />
+                ))}
+              </div>
             ) : null}
           </div>
         );
@@ -230,47 +225,82 @@ function PopularPanel({
   );
 }
 
-function StubPanel({ plans }: { plans: PlanStub[] }) {
-  const t = useTranslations("Catalog");
+function CountryGroupsPanel({ groups }: { groups: PopularCountryPackages[] }) {
+  const expandable = useMemo(
+    () =>
+      groups
+        .filter((group) => group.packages.length > 0)
+        .map((group) => ({
+          id: group.countryCode,
+          title: (
+            <>
+              <ReactCountryFlag
+                countryCode={group.countryCode}
+                svg
+                style={{ width: "1.25em", height: "1.25em" }}
+                aria-label={group.countryName}
+              />
+              <span>{group.countryName}</span>
+            </>
+          ),
+          packages: group.packages,
+        })),
+    [groups],
+  );
 
-  if (plans.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("noMatchingPlans")}</CardTitle>
-          <CardDescription>{t("noMatchingStubDescription")}</CardDescription>
-        </CardHeader>
-      </Card>
-    );
+  return <ExpandableGroupsPanel groups={expandable} />;
+}
+
+function RegionGroupsPanel({ groups }: { groups: RegionPackages[] }) {
+  const locale = useLocale();
+
+  const expandable = useMemo(
+    () =>
+      groups
+        .map((group) => ({
+          id: group.regionLabel,
+          label:
+            locale === "ru" && group.regionLabelRu
+              ? group.regionLabelRu
+              : group.regionLabel,
+          packages: group.packages,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, locale))
+        .map(({ id, label, packages }) => ({
+          id,
+          title: <span>{label}</span>,
+          packages,
+        })),
+    [groups, locale],
+  );
+
+  return <ExpandableGroupsPanel groups={expandable} />;
+}
+
+function GlobalPanel({ packages }: { packages: CatalogPackage[] }) {
+  if (packages.length === 0) {
+    return <NoMatches />;
   }
 
   return (
-    <>
-      {plans.map((plan) => (
-        <Card
-          key={plan.id}
-          size="sm"
-          className="cursor-pointer transition-colors hover:bg-muted/40"
-        >
-          <CardHeader>
-            <CardTitle>{plan.name}</CardTitle>
-            <CardAction>
-              <span className="text-sm font-medium text-foreground">
-                {plan.price}
-              </span>
-            </CardAction>
-            <CardDescription>{plan.description}</CardDescription>
-          </CardHeader>
-        </Card>
+    <div className="space-y-3">
+      {packages.map((pkg) => (
+        <PackageCard key={pkg.packageCode} pkg={pkg} />
       ))}
-    </>
+    </div>
   );
 }
 
 export function PackageCatalog({
   popular,
+  local,
+  regional,
+  global,
 }: {
   popular: PopularCountryPackages[];
+  local: PopularCountryPackages[];
+  regional: RegionPackages[];
+  global: CatalogPackage[];
 }) {
   const t = useTranslations("Catalog");
   const [query, setQuery] = useState("");
@@ -278,71 +308,32 @@ export function PackageCatalog({
 
   const trimmed = query.trim().toLowerCase();
 
-  const stubCatalog = useMemo(
-    () =>
-      ({
-        local: [
-          {
-            id: "near-1",
-            name: t("stubs.near1Name"),
-            description: t("stubs.near1Description"),
-            price: "—",
-          },
-          {
-            id: "near-2",
-            name: t("stubs.near2Name"),
-            description: t("stubs.near2Description"),
-            price: "—",
-          },
-        ],
-        regional: [
-          {
-            id: "eu",
-            name: t("stubs.europeName"),
-            description: t("stubs.europeDescription"),
-            price: t("stubs.europePrice"),
-          },
-          {
-            id: "asia",
-            name: t("stubs.asiaName"),
-            description: t("stubs.asiaDescription"),
-            price: t("stubs.asiaPrice"),
-          },
-        ],
-        global: [
-          {
-            id: "world",
-            name: t("stubs.globalName"),
-            description: t("stubs.globalDescription"),
-            price: t("stubs.globalPrice"),
-          },
-        ],
-      }) satisfies Record<"local" | "regional" | "global", PlanStub[]>,
-    [t],
-  );
-
   const popularGroups = useMemo(
-    () => filterPopularGroups(popular, trimmed),
+    () => filterCountryGroups(popular, trimmed),
     [popular, trimmed],
   );
-
-  const stubPanels = useMemo(
+  const localGroups = useMemo(
+    () => filterCountryGroups(local, trimmed),
+    [local, trimmed],
+  );
+  const regionalGroups = useMemo(
+    () => filterRegionGroups(regional, trimmed),
+    [regional, trimmed],
+  );
+  const globalPackages = useMemo(
     () =>
-      (["local", "regional", "global"] as const).map((value) => ({
-        value,
-        plans: filterStubPlans(stubCatalog[value], trimmed),
-      })),
-    [stubCatalog, trimmed],
+      trimmed ? global.filter((pkg) => packageMatches(pkg, trimmed)) : global,
+    [global, trimmed],
   );
 
   return (
     <div className="flex min-h-full flex-col gap-4">
-      <div className="sticky top-0 z-30 -mx-4 space-y-3 border-b border-border bg-white/95 px-4 pt-1 pb-3 backdrop-blur supports-backdrop-filter:bg-white/80">
+      <div className="border-border sticky top-0 z-30 -mx-4 space-y-3 border-b bg-white/95 px-4 pt-1 pb-3 backdrop-blur supports-backdrop-filter:bg-white/80">
         <label htmlFor="catalog-search" className="sr-only">
           {t("searchLabel")}
         </label>
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             id="catalog-search"
             type="search"
@@ -376,18 +367,20 @@ export function PackageCatalog({
         </TabsList>
 
         <TabsContent value="popular" className="space-y-3">
-          <PopularPanel groups={popularGroups} />
+          <CountryGroupsPanel groups={popularGroups} />
         </TabsContent>
 
-        {stubPanels.map((item) => (
-          <TabsContent
-            key={item.value}
-            value={item.value}
-            className="space-y-3"
-          >
-            <StubPanel plans={item.plans} />
-          </TabsContent>
-        ))}
+        <TabsContent value="local" className="space-y-3">
+          <CountryGroupsPanel groups={localGroups} />
+        </TabsContent>
+
+        <TabsContent value="regional" className="space-y-3">
+          <RegionGroupsPanel groups={regionalGroups} />
+        </TabsContent>
+
+        <TabsContent value="global" className="space-y-3">
+          <GlobalPanel packages={globalPackages} />
+        </TabsContent>
       </Tabs>
     </div>
   );

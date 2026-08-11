@@ -18,3 +18,19 @@ export type PopularCountryPackages = {
   countryName: string;
   packages: CatalogPackage[];
 };
+
+/** Multi-country packages sharing one region label, e.g. "Europe (35 areas)". */
+export type RegionPackages = {
+  regionLabel: string;
+  regionLabelRu?: string;
+  packages: CatalogPackage[];
+};
+
+export type CatalogByScope = {
+  /** Single-country packages, grouped by country. */
+  local: PopularCountryPackages[];
+  /** 2–89 countries, grouped by region label. */
+  regional: RegionPackages[];
+  /** 90+ countries, flat. */
+  global: CatalogPackage[];
+};
