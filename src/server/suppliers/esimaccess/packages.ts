@@ -55,6 +55,35 @@ export type CachedEsimAccessPackages = {
   packageList: EsimAccessPackage[];
 };
 
+function extractNetworks(
+  locationNetworkList: unknown[] | undefined,
+): CatalogPackage["networks"] {
+  if (!locationNetworkList?.length) {
+    return undefined;
+  }
+
+  const seen = new Set<string>();
+  const networks: NonNullable<CatalogPackage["networks"]> = [];
+
+  for (const location of locationNetworkList) {
+    if (!location || typeof location !== "object") continue;
+    const operatorList = (location as { operatorList?: unknown }).operatorList;
+    if (!Array.isArray(operatorList)) continue;
+
+    for (const operator of operatorList) {
+      if (!operator || typeof operator !== "object") continue;
+      const name = (operator as { operatorName?: unknown }).operatorName;
+      if (typeof name !== "string" || !name.trim()) continue;
+      const operatorName = name.trim();
+      if (seen.has(operatorName)) continue;
+      seen.add(operatorName);
+      networks.push({ operatorName });
+    }
+  }
+
+  return networks.length > 0 ? networks : undefined;
+}
+
 function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
   return {
     packageCode: pkg.packageCode,
@@ -67,6 +96,7 @@ function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
     location: pkg.location,
     priceRub: pkg.priceRub,
     currencyCode: pkg.currencyCode,
+    networks: extractNetworks(pkg.locationNetworkList),
   };
 }
 

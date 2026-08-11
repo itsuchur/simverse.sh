@@ -28,12 +28,21 @@
       "global": "Global"
     },
     "fromPrice": "from {price}",
+    "choosePackage": "Choose your package",
+    "countriesAndNetworks": "{count} Countries and Networks",
     "noMatchingPlans": "No matching plans",
     "noMatchingDescription": "Try a different search.",
     "duration": {
       "day": "{count, plural, one {# day} other {# days}}"
     }
   },
+  "OrderConfirmation": {
+    "title": "Order Confirmation",
+    "compatibility": "By confirming this order, you confirm that your device is eSIM compatible and network unlocked.",
+    "buyNow": "Buy Now",
+    "planSummary": "{data} · {duration}"
+  },
+
   "MyEsims": {
     "title": "My eSIMs",
     "description": "Your installed and purchased eSIMs will appear here."

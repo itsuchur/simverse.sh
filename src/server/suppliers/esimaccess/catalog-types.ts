@@ -1,3 +1,8 @@
+/** Slim carrier entry for storefront network lists. */
+export type CatalogNetwork = {
+  operatorName: string;
+};
+
 /** Fields needed to render the store catalog. */
 export type CatalogPackage = {
   packageCode: string;
@@ -11,6 +16,8 @@ export type CatalogPackage = {
   location: string;
   priceRub?: number;
   currencyCode: string;
+  /** Unique operators from the supplier locationNetworkList. */
+  networks?: CatalogNetwork[];
 };
 
 export type PopularCountryPackages = {

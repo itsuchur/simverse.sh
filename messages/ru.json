@@ -28,12 +28,21 @@
       "global": "Глобальные"
     },
     "fromPrice": "от {price}",
+    "choosePackage": "Выберите пакет",
+    "countriesAndNetworks": "{count} стран и сетей",
     "noMatchingPlans": "Нет подходящих тарифов",
     "noMatchingDescription": "Попробуйте изменить запрос.",
     "duration": {
       "day": "{count, plural, one {# день} few {# дня} many {# дней} other {# дня}}"
     }
   },
+  "OrderConfirmation": {
+    "title": "Подтверждение заказа",
+    "compatibility": "Подтверждая заказ, вы подтверждаете, что ваше устройство совместимо с eSIM и разблокировано для сети.",
+    "buyNow": "Купить",
+    "planSummary": "{data} · {duration}"
+  },
+
   "MyEsims": {
     "title": "Мои eSIM",
     "description": "Здесь появятся установленные и купленные eSIM."
