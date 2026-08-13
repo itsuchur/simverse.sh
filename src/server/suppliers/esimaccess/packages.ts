@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHmac, randomUUID } from "node:crypto";
 
+import { usdToStars } from "~/lib/usd-to-stars";
 import { getRedis } from "~/server/redis";
 import type {
   CatalogByScope,
@@ -36,6 +37,8 @@ export type EsimAccessPackage = {
   retailPrice: number;
   /** Customer-facing price in whole rubles, from retailPrice × USD/RUB. */
   priceRub?: number;
+  /** Customer-facing price in whole Telegram Stars, from retailPrice. */
+  priceStars?: number;
   currencyCode: string;
   volume: number;
   duration: number;
@@ -95,6 +98,7 @@ function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
     durationUnit: pkg.durationUnit,
     location: pkg.location,
     priceRub: pkg.priceRub,
+    priceStars: pkg.priceStars,
     currencyCode: pkg.currencyCode,
     networks: extractNetworks(pkg.locationNetworkList),
   };
@@ -202,6 +206,11 @@ export function retailPriceToRub(
   return Math.round((retailPrice / ESIMACCESS_PRICE_SCALE) * usdRubRate);
 }
 
+/** retailPrice is USD with scale 10000 = $1; returns whole Telegram Stars. */
+export function retailPriceToStars(retailPrice: number): number {
+  return usdToStars(retailPrice / ESIMACCESS_PRICE_SCALE);
+}
+
 export function withPriceRub(
   packages: EsimAccessPackage[],
   usdRubRate: number,
@@ -209,6 +218,7 @@ export function withPriceRub(
   return packages.map((pkg) => ({
     ...pkg,
     priceRub: retailPriceToRub(pkg.retailPrice, usdRubRate),
+    priceStars: retailPriceToStars(pkg.retailPrice),
   }));
 }
 
