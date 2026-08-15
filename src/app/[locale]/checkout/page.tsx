@@ -26,9 +26,16 @@ export default async function CheckoutPage() {
   if (!plan) {
     const t = await getTranslations("Checkout");
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 py-24 text-center">
-        <p className="text-sm">{t("empty")}</p>
-        <Link href="/app" className={buttonVariants({ variant: "outline" })}>
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 py-24 text-center">
+        <p className="text-base leading-7">{t("empty")}</p>
+        <Link
+          href="/app"
+          className={buttonVariants({
+            variant: "outline",
+            size: "lg",
+            className: "h-11 px-4 text-base",
+          })}
+        >
           {t("backToCatalog")}
         </Link>
       </main>

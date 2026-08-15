@@ -43,23 +43,28 @@ function DestinationHeader({
   if (isSingleCountry && countryCode) {
     const name = countryDisplayName(countryCode, locale);
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <ReactCountryFlag
           countryCode={countryCode}
           svg
-          style={{ width: "1.5em", height: "1.5em" }}
+          style={{
+            width: "1.75em",
+            height: "1.75em",
+            flexShrink: 0,
+            display: "block",
+          }}
           aria-label={name}
         />
-        <h1 className="text-xl font-semibold">{name}</h1>
+        <h1 className="min-w-0 text-2xl leading-snug font-semibold">{name}</h1>
       </div>
     );
   }
 
   const label = locale === "ru" && plan.nameRu ? plan.nameRu : plan.name;
   return (
-    <div className="flex items-center gap-2">
-      <Globe className="size-6" aria-hidden />
-      <h1 className="text-xl font-semibold">{label}</h1>
+    <div className="flex items-center gap-4">
+      <Globe className="size-7 shrink-0" aria-hidden />
+      <h1 className="min-w-0 text-2xl leading-snug font-semibold">{label}</h1>
     </div>
   );
 }
@@ -89,11 +94,12 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
   const data = formatDataGb(plan.data_gb);
 
   return (
-    <main className="flex flex-1 flex-col gap-6 py-4">
+    <main className="flex flex-1 flex-col gap-8 py-4">
       <Button
         type="button"
         variant="ghost"
-        className="-ml-2.5"
+        size="lg"
+        className="-ml-2.5 h-11 px-3 text-base"
         disabled={leaving}
         onClick={() => {
           void (async () => {
@@ -114,7 +120,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           })();
         }}
       >
-        <ChevronLeft data-icon="inline-start" />
+        <ChevronLeft data-icon="inline-start" className="size-5" />
         {t("backToApp")}
       </Button>
 
@@ -122,13 +128,13 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
 
       {plan.networks.length > 0 ? (
         plan.networks.length > 3 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-base leading-7">
             {tCatalog("countriesAndNetworks", {
               count: String(plan.networks.length),
             })}
           </p>
         ) : (
-          <ul className="text-muted-foreground list-inside list-disc text-sm">
+          <ul className="text-muted-foreground list-inside list-disc space-y-1 text-base leading-7">
             {plan.networks.map((name) => (
               <li key={name}>{name}</li>
             ))}
@@ -136,18 +142,28 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
         )
       ) : null}
 
-      <p className="text-foreground text-sm font-medium">
+      <p className="text-foreground text-lg leading-snug font-medium">
         {data} · {duration}
       </p>
 
-      <div className="mt-auto flex flex-col gap-2">
-        <Button type="button" size="lg" className="w-full">
+      <div className="mt-auto flex flex-col gap-3">
+        <Button type="button" size="lg" className="h-11 w-full text-base">
           {t("payStars", { price: starsPrice })}
         </Button>
-        <Button type="button" size="lg" variant="outline" className="w-full">
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="h-11 w-full text-base"
+        >
           {t("payCard", { price: cardPrice })}
         </Button>
-        <Button type="button" size="lg" variant="outline" className="w-full">
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="h-11 w-full text-base"
+        >
           {t("payCryptomus")}
         </Button>
       </div>

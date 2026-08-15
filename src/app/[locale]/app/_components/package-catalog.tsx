@@ -22,6 +22,7 @@ import {
 } from "~/components/ui/dialog";
 import OrderConfirmation from "~/components/ui/orderConfirmation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { cn } from "~/lib/utils";
 import type {
   CatalogPackage,
   PopularCountryPackages,
@@ -158,6 +159,7 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
   const format = useFormatter();
   const [open, setOpen] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<CatalogPackage | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const operators = uniqueOperators(group.packages);
   const durationGroups = groupPackagesByDuration(group.packages);
   const fromPrice = lowestPriceRub(group.packages);
@@ -167,23 +169,23 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) setSelectedPkg(null);
+        if (!next) {
+          setSelectedPkg(null);
+          setConfirming(false);
+        }
       }}
     >
       <DialogTrigger
         render={
-          <Card
-            size="sm"
-            className="hover:bg-muted/40 w-full cursor-pointer transition-colors"
-          />
+          <Card className="hover:bg-muted/40 w-full cursor-pointer transition-colors" />
         }
       >
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="items-center py-1">
+          <CardTitle className="flex min-w-0 items-center gap-4 text-lg leading-snug">
             {group.title}
           </CardTitle>
-          <CardAction>
-            <span className="text-foreground text-sm font-medium">
+          <CardAction className="self-center pl-3">
+            <span className="text-foreground text-base font-medium">
               {fromPrice === undefined
                 ? "—"
                 : t("fromPrice", {
@@ -198,72 +200,91 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
         </CardHeader>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[min(85vh,36rem)] gap-3 overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
+      <DialogContent className="flex max-h-[min(88vh,42rem)] flex-col gap-0 overflow-hidden p-0 text-base sm:max-w-md">
+        <DialogHeader className="shrink-0 px-6 pt-7 pr-14 pb-4">
+          <DialogTitle className="flex items-center gap-4 text-lg leading-snug">
             {group.title}
           </DialogTitle>
         </DialogHeader>
 
-        <hr className="border-border" />
+        <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch] [max-height:calc(min(88vh,42rem)-5.75rem)]">
+          <div className="flex flex-col gap-6">
+            <hr className="border-border" />
 
-        {operators.length > 0 ? (
-          operators.length > 3 ? (
-            <p className="text-muted-foreground text-sm">
-              {t("countriesAndNetworks", {
-                count: String(operators.length),
-              })}
-            </p>
-          ) : (
-            <ul className="text-muted-foreground list-inside list-disc text-sm">
-              {operators.map((name) => (
-                <li key={name}>{name}</li>
+            {operators.length > 0 ? (
+              operators.length > 3 ? (
+                <p className="text-muted-foreground leading-7">
+                  {t("countriesAndNetworks", {
+                    count: String(operators.length),
+                  })}
+                </p>
+              ) : (
+                <ul className="text-muted-foreground list-inside list-disc space-y-1 leading-7">
+                  {operators.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              )
+            ) : null}
+
+            <p className="text-base font-medium">{t("choosePackage")}</p>
+
+            <div className="space-y-6">
+              {durationGroups.map(({ duration, packages }) => (
+                <div key={duration} className="space-y-3">
+                  <h2 className="text-center text-lg leading-snug font-semibold">
+                    {t("duration.day", { count: duration })}
+                  </h2>
+                  <div className="space-y-2">
+                    {packages.map((pkg) => {
+                      const price =
+                        typeof pkg.priceRub === "number"
+                          ? format.number(pkg.priceRub, {
+                              style: "currency",
+                              currency: "RUB",
+                              maximumFractionDigits: 0,
+                            })
+                          : "—";
+                      const selected =
+                        selectedPkg?.packageCode === pkg.packageCode;
+
+                      return (
+                        <button
+                          key={pkg.packageCode}
+                          type="button"
+                          aria-pressed={selected}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left text-base leading-snug transition-colors",
+                            selected
+                              ? "bg-muted font-medium ring-1 ring-foreground/20"
+                              : "hover:bg-muted/60",
+                          )}
+                          onClick={() => {
+                            setSelectedPkg(pkg);
+                            setConfirming(true);
+                          }}
+                        >
+                          <span>{formatVolume(pkg.volume)}</span>
+                          <span
+                            className={cn("pl-4", !selected && "font-medium")}
+                          >
+                            {price}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ))}
-            </ul>
-          )
-        ) : null}
-
-        <p className="font-medium">{t("choosePackage")}</p>
-
-        <div className="space-y-4">
-          {durationGroups.map(({ duration, packages }) => (
-            <div key={duration} className="space-y-1">
-              <h1 className="text-base font-semibold">
-                {t("duration.day", { count: duration })}
-              </h1>
-              <div className="space-y-0.5">
-                {packages.map((pkg) => {
-                  const price =
-                    typeof pkg.priceRub === "number"
-                      ? format.number(pkg.priceRub, {
-                          style: "currency",
-                          currency: "RUB",
-                          maximumFractionDigits: 0,
-                        })
-                      : "—";
-
-                  return (
-                    <button
-                      key={pkg.packageCode}
-                      type="button"
-                      className="hover:bg-muted/60 flex w-full items-center justify-between rounded-md px-1 py-1.5 text-left text-sm transition-colors"
-                      onClick={() => setSelectedPkg(pkg)}
-                    >
-                      <span>{formatVolume(pkg.volume)}</span>
-                      <span className="font-medium">{price}</span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
-          ))}
+          </div>
         </div>
 
-        {selectedPkg ? (
+        {selectedPkg && confirming ? (
           <OrderConfirmation
             open
             onOpenChange={(next) => {
-              if (!next) setSelectedPkg(null);
+              if (!next) setConfirming(false);
             }}
             pkg={selectedPkg}
             destinationLabel={group.label}
@@ -301,10 +322,15 @@ function CountryGroupsPanel({ groups }: { groups: PopularCountryPackages[] }) {
               <ReactCountryFlag
                 countryCode={group.countryCode}
                 svg
-                style={{ width: "1.25em", height: "1.25em" }}
+                style={{
+                  width: "1.75em",
+                  height: "1.75em",
+                  flexShrink: 0,
+                  display: "block",
+                }}
                 aria-label={group.countryName}
               />
-              <span>{group.countryName}</span>
+              <span className="min-w-0">{group.countryName}</span>
             </>
           ),
           packages: group.packages,
@@ -359,8 +385,8 @@ function GlobalPanel({ packages }: { packages: CatalogPackage[] }) {
           label,
           title: (
             <>
-              <Globe className="size-5" aria-hidden />
-              <span>{label}</span>
+              <Globe className="size-7 shrink-0" aria-hidden />
+              <span className="min-w-0">{label}</span>
             </>
           ),
           packages,

@@ -58,10 +58,10 @@ export default function OrderConfirmation({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 data-open:zoom-in-100 data-closed:zoom-out-100 top-auto bottom-0 left-1/2 max-h-[min(85vh,28rem)] w-full max-w-[calc(100%-0rem)] translate-x-[-50%] translate-y-0 gap-4 rounded-t-2xl rounded-b-none sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-          <p className="text-foreground text-sm font-medium">
+      <DialogContent className="data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 data-open:zoom-in-100 data-closed:zoom-out-100 top-auto bottom-0 left-1/2 max-h-[min(88vh,36rem)] w-full max-w-[calc(100%-0rem)] translate-x-[-50%] translate-y-0 gap-6 rounded-t-2xl rounded-b-none p-6 pb-0 text-base sm:max-w-md">
+        <DialogHeader className="gap-4 pr-10">
+          <DialogTitle className="text-lg leading-snug">{t("title")}</DialogTitle>
+          <p className="text-foreground text-base leading-snug font-medium">
             {destinationLabel ? `${destinationLabel} · ` : null}
             {t("planSummary", {
               data: formatVolume(pkg.volume),
@@ -70,17 +70,20 @@ export default function OrderConfirmation({
             {" · "}
             {price}
           </p>
-          <DialogDescription>{t("compatibility")}</DialogDescription>
+          <DialogDescription className="text-base leading-7">
+            {t("compatibility")}
+          </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
+        <DialogFooter className="-mx-6 -mb-0 flex-col gap-3 p-6 sm:flex-col">
           {error ? (
-            <p className="text-destructive w-full text-center text-sm">
+            <p className="text-destructive w-full text-center text-base">
               {error}
             </p>
           ) : null}
           <Button
             type="button"
-            className="w-full bg-blue-600 text-white hover:bg-blue-700"
+            size="lg"
+            className="h-11 w-full bg-blue-600 text-base text-white hover:bg-blue-700"
             disabled={pending}
             onClick={() => {
               void (async () => {
