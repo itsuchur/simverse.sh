@@ -1,31 +1,46 @@
-import { getTranslations } from "next-intl/server";
-
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
+import { db } from "~/server/db";
+import { syncPendingProfilesForUser } from "~/server/orders/fulfill";
+
+import { MyEsimList, type MyEsimOrder } from "./myesim-list";
+
+export const dynamic = "force-dynamic";
 
 export default async function AppMyESIms() {
-  // Pages render in parallel with the layout, so the layout's session gate
-  // does not keep page output out of the response payload. Check here too.
   const session = await getSession();
   if (!session) {
     return null;
   }
 
-  const t = await getTranslations("MyEsims");
+  await syncPendingProfilesForUser(session.user.id);
+
+  const rows = await db.order.findMany({
+    where: {
+      userId: session.user.id,
+      paymentStatus: paymentStatus.paid,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const orders: MyEsimOrder[] = rows.map((row) => ({
+    orderUuid: row.orderUuid,
+    packageName: row.packageName,
+    countryCode: row.countryCode,
+    dataAmountMb: row.dataAmountMb,
+    validityDays: row.validityDays,
+    status: row.status,
+    failureReason: row.failureReason,
+    esimIccid: row.esimIccid,
+    esimActivationCode: row.esimActivationCode,
+    esimQrUrl: row.esimQrUrl,
+    esimSmdpAddress: row.esimSmdpAddress,
+    createdAt: row.createdAt.toISOString(),
+  }));
 
   return (
-    <main className="pt-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
-      </Card>
+    <main className="flex flex-1 flex-col py-4">
+      <MyEsimList orders={orders} />
     </main>
   );
 }

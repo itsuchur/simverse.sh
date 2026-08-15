@@ -53,12 +53,21 @@
     "backToApp": "Назад в приложение",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Банковская карта · {price}",
-    "payCryptomus": "Pay with Cryptomus"
+    "payCryptomus": "Pay with Cryptomus",
+    "payFailed": "Не удалось начать оплату. Откройте приложение в Telegram и попробуйте снова."
   },
 
   "MyEsims": {
     "title": "Мои eSIM",
-    "description": "Здесь появятся установленные и купленные eSIM."
+    "description": "Здесь появятся установленные и купленные eSIM.",
+    "preparing": "Готовим вашу eSIM…",
+    "failed": "Не удалось выпустить эту eSIM. Напишите в поддержку через Telegram-бота.",
+    "iccid": "ICCID",
+    "activationCode": "Код активации",
+    "smdp": "Адрес SM-DP+",
+    "copy": "Копировать",
+    "copied": "Скопировано",
+    "qrAlt": "QR-код eSIM"
   },
   "Profile": {
     "signedInWithTelegram": "Вход через Telegram",

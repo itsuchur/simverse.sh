@@ -14,6 +14,10 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.string().url(),
     TELEGRAM_BOT_TOKEN: z.string().min(1),
     TELEGRAM_BOT_USERNAME: z.string().min(1),
+    TELEGRAM_WEBHOOK_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(16)
+        : z.string().min(16).optional(),
     DATABASE_URL: z.string().url(),
     REDIS_URL: z.string().url(),
     ESIMACCESS_ACCESS_CODE: z.string().min(1),
@@ -46,6 +50,7 @@ export const env = createEnv({
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
     TELEGRAM_BOT_USERNAME: process.env.TELEGRAM_BOT_USERNAME,
+    TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
     ESIMACCESS_ACCESS_CODE: process.env.ESIMACCESS_ACCESS_CODE,

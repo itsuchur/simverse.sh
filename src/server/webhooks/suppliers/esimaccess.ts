@@ -5,6 +5,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import { env } from "~/env";
+import { attachGotResource } from "~/server/orders/fulfill";
 
 /**
  * eSIM Access webhook notifications.
@@ -54,25 +55,38 @@ export function verifyEsimAccessWebhookToken(token: string | null): boolean {
   return timingSafeEqual(a, b);
 }
 
+function contentString(
+  content: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  const value = content?.[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 export async function handleEsimAccessNotification(
   notification: EsimAccessNotification,
 ): Promise<void> {
   switch (notification.notifyType) {
     case "CHECK_HEALTH":
-      // Setup verification ping; acknowledging with 200 is all that's needed.
       return;
-    case "ORDER_STATUS":
+    case "ORDER_STATUS": {
+      const orderStatusValue = contentString(
+        notification.content,
+        "orderStatus",
+      );
+      if (orderStatusValue !== "GOT_RESOURCE") {
+        return;
+      }
+      await attachGotResource({
+        orderNo: contentString(notification.content, "orderNo"),
+        transactionId: contentString(notification.content, "transactionId"),
+      });
+      return;
+    }
     case "ESIM_STATUS":
     case "SMDP_EVENT":
     case "DATA_USAGE":
     case "VALIDITY_USAGE":
-      // Order fulfillment is not implemented yet. Notifications are only
-      // hints; when implemented, re-query the eSIM Access API for the
-      // authoritative state instead of trusting the payload.
-      console.log(
-        `[webhook:esimaccess] ${notification.notifyType}`,
-        notification.content ?? {},
-      );
       return;
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, Globe } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
@@ -8,6 +8,27 @@ import ReactCountryFlag from "react-country-flag";
 import { Button } from "~/components/ui/button";
 import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
+import { openTelegramInvoice, prepareTelegramWebApp } from "~/lib/telegram-webapp";
+
+async function requestStarsInvoice() {
+  const headers: Record<string, string> = {};
+  if (process.env.NODE_ENV === "development") {
+    headers["ngrok-skip-browser-warning"] = "true";
+  }
+  const response = await fetch("/api/checkout/stars", {
+    method: "POST",
+    credentials: "include",
+    headers,
+  });
+  if (!response.ok) {
+    throw new Error("invoice_http");
+  }
+  const body = (await response.json()) as { invoiceUrl?: string };
+  if (!body.invoiceUrl) {
+    throw new Error("invoice_missing");
+  }
+  return body.invoiceUrl;
+}
 
 function formatDataGb(dataGb: number) {
   if (dataGb >= 1) {
@@ -76,6 +97,12 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
   const locale = useLocale();
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+
+  useEffect(() => {
+    prepareTelegramWebApp();
+  }, []);
 
   const cardPrice =
     locale === "ru"
@@ -147,7 +174,39 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
       </p>
 
       <div className="mt-auto flex flex-col gap-3">
-        <Button type="button" size="lg" className="h-11 w-full text-base">
+        {payError ? (
+          <p className="text-destructive w-full text-center text-base">
+            {payError}
+          </p>
+        ) : null}
+        <Button
+          type="button"
+          size="lg"
+          className="h-11 w-full text-base"
+          disabled={leaving || paying}
+          onClick={() => {
+            setPaying(true);
+            setPayError(null);
+            void requestStarsInvoice()
+              .then((url) => openTelegramInvoice(url))
+              .then((status) => {
+                if (status === "paid" || status === "pending") {
+                  router.push("/app/myesim");
+                  return;
+                }
+                if (status === "failed") {
+                  setPayError(t("payFailed"));
+                }
+              })
+              .catch((error: unknown) => {
+                console.error("[checkout] stars invoice", error);
+                setPayError(t("payFailed"));
+              })
+              .finally(() => {
+                setPaying(false);
+              });
+          }}
+        >
           {t("payStars", { price: starsPrice })}
         </Button>
         <Button

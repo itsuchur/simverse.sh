@@ -53,12 +53,21 @@
     "backToApp": "Back to App",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Credit Card · {price}",
-    "payCryptomus": "Pay with Cryptomus"
+    "payCryptomus": "Pay with Cryptomus",
+    "payFailed": "Couldn't start payment. Open the app from Telegram and try again."
   },
 
   "MyEsims": {
     "title": "My eSIMs",
-    "description": "Your installed and purchased eSIMs will appear here."
+    "description": "Your installed and purchased eSIMs will appear here.",
+    "preparing": "Preparing your eSIM…",
+    "failed": "We couldn't issue this eSIM. Contact support via the Telegram bot.",
+    "iccid": "ICCID",
+    "activationCode": "Activation code",
+    "smdp": "SM-DP+ address",
+    "copy": "Copy",
+    "copied": "Copied",
+    "qrAlt": "eSIM QR code"
   },
   "Profile": {
     "signedInWithTelegram": "Signed in with Telegram",

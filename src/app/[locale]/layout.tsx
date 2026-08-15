@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
+import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -35,6 +36,10 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${geist.variable} font-sans antialiased`}>
       <body>
+        <Script
+          src="https://telegram.org/js/telegram-web-app.js"
+          strategy="beforeInteractive"
+        />
         <NextIntlClientProvider>
           <TRPCReactProvider>{children}</TRPCReactProvider>
         </NextIntlClientProvider>
