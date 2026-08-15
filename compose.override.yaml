@@ -33,6 +33,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.poller.dev
+    command: ["bun", "--conditions=react-server", "--watch", "src/server/cron/root.ts"]
     environment:
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_URL: "${REDIS_URL}"

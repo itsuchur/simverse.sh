@@ -13,4 +13,4 @@ COPY . .
 
 ENV NODE_ENV=development
 
-CMD ["bun", "--watch", "run", "src/server/cron/root.ts"]
+CMD ["bun", "--conditions=react-server", "--watch", "src/server/cron/root.ts"]

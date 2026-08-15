@@ -40,7 +40,20 @@
     "title": "Подтверждение заказа",
     "compatibility": "Подтверждая заказ, вы подтверждаете, что ваше устройство совместимо с eSIM и разблокировано для сети.",
     "buyNow": "Купить",
+    "buyFailed": "Не удалось перейти к оплате. Откройте приложение в Telegram и попробуйте снова.",
     "planSummary": "{data} · {duration}"
+  },
+  "Checkout": {
+    "title": "Оплата",
+    "loading": "Загружаем тариф…",
+    "unavailable": "Этот тариф временно недоступен. Возвращаем вас в каталог.",
+    "empty": "Корзина пуста.",
+    "authRequired": "Откройте приложение через Telegram, чтобы продолжить.",
+    "backToCatalog": "Назад в каталог",
+    "backToApp": "Назад в приложение",
+    "payStars": "Telegram Stars · {price}",
+    "payCard": "Банковская карта · {price}",
+    "payCryptomus": "Pay with Cryptomus"
   },
 
   "MyEsims": {

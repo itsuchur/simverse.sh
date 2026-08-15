@@ -32,4 +32,4 @@ COPY --from=deps --chown=worker:worker /app/generated ./generated
 
 USER worker
 
-CMD ["bun", "run", "src/server/cron/root.ts"]
+CMD ["bun", "--conditions=react-server", "src/server/cron/root.ts"]

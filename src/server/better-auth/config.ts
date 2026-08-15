@@ -13,6 +13,11 @@ export const auth = betterAuth({
   }),
   user: {
     additionalFields: {
+      telegramId: {
+        type: "string",
+        required: false,
+        input: false,
+      },
       languageCode: {
         type: "string",
         required: false,

@@ -4090,6 +4090,10 @@
       "en": "USA & Canada 1GB 7Days",
       "ru": "США и Канада — 1 ГБ, 7 дней"
     },
+    "P30W4QBKR": {
+      "en": "Laos 5GB/Day Premium",
+      "ru": "Лаос — 5 ГБ/день Premium"
+    },
     "P30YBHRE4": {
       "en": "Haiti 20GB 30Days",
       "ru": "Гаити — 20 ГБ, 30 дней"
@@ -4117,6 +4121,10 @@
     "P33C3KC73": {
       "en": "Morocco 2GB/Day",
       "ru": "Марокко — 2 ГБ/день"
+    },
+    "P349EZVTL": {
+      "en": "Hong Kong 3GB/Day FUP1Mbps (nonhkip)",
+      "ru": "Гонконг (САР) — 3 ГБ/день, далее 1 Мбит/с (nonhkip)"
     },
     "P34CJYA6C": {
       "en": "Europe(30+ areas) 1.5GB/Day",
@@ -4402,6 +4410,10 @@
       "en": "Faroe Islands 1GB/Day",
       "ru": "Фарерские о-ва — 1 ГБ/день"
     },
+    "P45FNTPV6": {
+      "en": "Hong Kong 1GB/Day FUP1Mbps (nonhkip)",
+      "ru": "Гонконг (САР) — 1 ГБ/день, далее 1 Мбит/с (nonhkip)"
+    },
     "P468CPENH": {
       "en": "China 5GB/Day (nonhkip)",
       "ru": "Китай — 5 ГБ/день (nonhkip)"
@@ -4513,6 +4525,10 @@
     "P4JK39GRP": {
       "en": "Benin 3GB/Day FUP1Mbps",
       "ru": "Бенин — 3 ГБ/день, далее 1 Мбит/с"
+    },
+    "P4JTJ03XD": {
+      "en": "Hong Kong 3GB 30Days (nonhkip)",
+      "ru": "Гонконг (САР) — 3 ГБ, 30 дней (nonhkip)"
     },
     "P4LEV9VCS": {
       "en": "Bangladesh 10GB/Day",
@@ -4713,6 +4729,10 @@
     "P5AHB4R4J": {
       "en": "Macao 500MB/Day",
       "ru": "Макао (САР) — 500 МБ/день"
+    },
+    "P5AJ1XM6J": {
+      "en": "Turkey 1GB 7Days Premium",
+      "ru": "Турция — 1 ГБ, 7 дней Premium"
     },
     "P5BKBFK5M": {
       "en": "Estonia 2GB/Day",
@@ -5109,6 +5129,10 @@
     "P6SDEX48S": {
       "en": "Turkey 10GB/Day",
       "ru": "Турция — 10 ГБ/день"
+    },
+    "P6SMYT71Z": {
+      "en": "Laos 3GB 15Days Premium",
+      "ru": "Лаос — 3 ГБ, 15 дней Premium"
     },
     "P6SW3B9NG": {
       "en": "Hong Kong 500MB/Day",
@@ -5545,6 +5569,10 @@
     "P89ZFJLV3": {
       "en": "Nauru 1GB 7Days",
       "ru": "Науру — 1 ГБ, 7 дней"
+    },
+    "P8AV4Z9PW": {
+      "en": "Laos 20GB 30Days Premium",
+      "ru": "Лаос — 20 ГБ, 30 дней Premium"
     },
     "P8BF7EY3T": {
       "en": "Guadeloupe 10GB/Day",
@@ -6206,6 +6234,10 @@
       "en": "Rwanda 10GB 30Days",
       "ru": "Руанда — 10 ГБ, 30 дней"
     },
+    "PB0Z9F1MA": {
+      "en": "Turkey 5GB 30Days Premium",
+      "ru": "Турция — 5 ГБ, 30 дней Premium"
+    },
     "PB134YYYF": {
       "en": "Cyprus 1GB/Day FUP1Mbps",
       "ru": "Кипр — 1 ГБ/день, далее 1 Мбит/с"
@@ -6226,6 +6258,10 @@
       "en": "Barbados 5GB 30Days",
       "ru": "Барбадос — 5 ГБ, 30 дней"
     },
+    "PB3HK2DQ9": {
+      "en": "Laos 1GB/Day FUP1Mbps Premium",
+      "ru": "Лаос — 1 ГБ/день, далее 1 Мбит/с Premium"
+    },
     "PB3QDD6W7": {
       "en": "Azerbaijan 2GB/Day FUP1Mbps",
       "ru": "Азербайджан — 2 ГБ/день, далее 1 Мбит/с"
@@ -6245,6 +6281,10 @@
     "PB6CYXWPA": {
       "en": "Sri Lanka 1GB/Day",
       "ru": "Шри-Ланка — 1 ГБ/день"
+    },
+    "PB6PGH32B": {
+      "en": "Laos 10GB/Day Premium",
+      "ru": "Лаос — 10 ГБ/день Premium"
     },
     "PB7JKFS95": {
       "en": "kosovo 2GB/Day FUP1Mbps",
@@ -6454,6 +6494,10 @@
       "en": "Indonesia 500MB/Day (nonhkip)",
       "ru": "Индонезия — 500 МБ/день (nonhkip)"
     },
+    "PC3KHT06S": {
+      "en": "Laos 3GB/Day FUP1Mbps Premium",
+      "ru": "Лаос — 3 ГБ/день, далее 1 Мбит/с Premium"
+    },
     "PC3N49FCI": {
       "en": "Curaçao 10GB/Day",
       "ru": "Кюрасао — 10 ГБ/день"
@@ -6481,6 +6525,10 @@
     "PCA9A7LOY": {
       "en": "Gambia 1GB/Day",
       "ru": "Гамбия — 1 ГБ/день"
+    },
+    "PCAV4Y6E7": {
+      "en": "Hong Kong 3GB 15Days (nonhkip)",
+      "ru": "Гонконг (САР) — 3 ГБ, 15 дней (nonhkip)"
     },
     "PCB5J6S8Q": {
       "en": "Belize 1GB 7Days",
@@ -6817,6 +6865,10 @@
     "PDHKH26P5": {
       "en": "South America 10GB/Day",
       "ru": "Южная Америка — 10 ГБ/день"
+    },
+    "PDHX8VL03": {
+      "en": "Laos 10GB 30Days Premium",
+      "ru": "Лаос — 10 ГБ, 30 дней Premium"
     },
     "PDILOEDDK": {
       "en": "Kyrgyzstan 1GB/Day",
@@ -7362,6 +7414,10 @@
       "en": "Libya 20GB 30Days",
       "ru": "Ливия — 20 ГБ, 30 дней"
     },
+    "PFP7Q13LN": {
+      "en": "Laos 3GB 30Days Premium",
+      "ru": "Лаос — 3 ГБ, 30 дней Premium"
+    },
     "PFQ26BA3U": {
       "en": "Central Asia (4 areas) 50GB 180Days",
       "ru": "Центральная Азия (4 направления) — 50 ГБ, 180 дней"
@@ -7562,9 +7618,17 @@
       "en": "Europe (33 areas) 10GB 30Days",
       "ru": "Европа (33 направления) — 10 ГБ, 30 дней"
     },
+    "PGKE83PE7": {
+      "en": "Turkey 3GB/Day FUP1Mbps Premium",
+      "ru": "Турция — 3 ГБ/день, далее 1 Мбит/с Premium"
+    },
     "PGLSEATB8": {
       "en": "Greece 50GB 180Days",
       "ru": "Греция — 50 ГБ, 180 дней"
+    },
+    "PGP4D0AZ7": {
+      "en": "Laos 2GB/Day FUP1Mbps Premium",
+      "ru": "Лаос — 2 ГБ/день, далее 1 Мбит/с Premium"
     },
     "PGP70GWM9": {
       "en": "Sri Lanka 3GB/Day",
@@ -7618,6 +7682,10 @@
       "en": "Australia 100MB 7Days",
       "ru": "Австралия — 100 МБ, 7 дней"
     },
+    "PGXJJ581A": {
+      "en": "Hong Kong 5GB 30Days (nonhkip)",
+      "ru": "Гонконг (САР) — 5 ГБ, 30 дней (nonhkip)"
+    },
     "PGXJN6W2T": {
       "en": "Europe 50GB 180Days",
       "ru": "Европа — 50 ГБ, 180 дней"
@@ -7670,6 +7738,10 @@
       "en": "Europe (40+ areas) & Morocco 5GB 30Days",
       "ru": "Европа (40+ направлений) и Марокко — 5 ГБ, 30 дней"
     },
+    "PH6K8STL2": {
+      "en": "Turkey 3GB 30Days Premium",
+      "ru": "Турция — 3 ГБ, 30 дней Premium"
+    },
     "PH7DVKMPI": {
       "en": "Trinidad and Tobago 20GB 30Days",
       "ru": "Тринидад и Тобаго — 20 ГБ, 30 дней"
@@ -7693,6 +7765,10 @@
     "PH8EK7U3Y": {
       "en": "Nauru 5GB/Day",
       "ru": "Науру — 5 ГБ/день"
+    },
+    "PH9XM6BW7": {
+      "en": "Hong Kong 1GB 7Days (nonhkip)",
+      "ru": "Гонконг (САР) — 1 ГБ, 7 дней (nonhkip)"
     },
     "PH9XM94AL": {
       "en": "Sierra Leone 500MB/Day",
@@ -7817,6 +7893,10 @@
     "PHO29N7QD": {
       "en": "Mexico 1GB/Day",
       "ru": "Мексика — 1 ГБ/день"
+    },
+    "PHR9H67TA": {
+      "en": "Turkey 10GB/Day Premium",
+      "ru": "Турция — 10 ГБ/день Premium"
     },
     "PHS2X3TP1": {
       "en": "South Korea 1GB/Day FUP1Mbps",
@@ -9010,6 +9090,10 @@
       "en": "GCC 2GB/Day FUP1Mbps",
       "ru": "ССАГПЗ — 2 ГБ/день, далее 1 Мбит/с"
     },
+    "PMS4XTB17": {
+      "en": "Hong Kong 5GB/Day (nonhkip)",
+      "ru": "Гонконг (САР) — 5 ГБ/день (nonhkip)"
+    },
     "PMTNXRR64": {
       "en": "Kuwait 2GB/Day",
       "ru": "Кувейт — 2 ГБ/день"
@@ -9081,6 +9165,10 @@
     "PN6QWT0Q4": {
       "en": "China (mainland HK Macao) 500MB/Day",
       "ru": "Китай (материковый, Гонконг, Макао) — 500 МБ/день"
+    },
+    "PN6ZJ4GG5": {
+      "en": "Hong Kong 2GB/Day FUP1Mbps (nonhkip)",
+      "ru": "Гонконг (САР) — 2 ГБ/день, далее 1 Мбит/с (nonhkip)"
     },
     "PN7CXKOWL": {
       "en": "New Zealand 500MB/Day",
@@ -9169,6 +9257,10 @@
     "PNK2J4QS9": {
       "en": "French Polynesia 20GB 30Days",
       "ru": "Французская Полинезия — 20 ГБ, 30 дней"
+    },
+    "PNK9PR1D5": {
+      "en": "Laos 5GB 30Days Premium",
+      "ru": "Лаос — 5 ГБ, 30 дней Premium"
     },
     "PNKWZ683S": {
       "en": "Senegal 5GB/Day",
@@ -10046,6 +10138,10 @@
       "en": "Singapore & Malaysia & Thailand 1GB/Day",
       "ru": "Сингапур, Малайзия и Таиланд — 1 ГБ/день"
     },
+    "PS7K14MMT": {
+      "en": "Laos 1GB 7Days Premium",
+      "ru": "Лаос — 1 ГБ, 7 дней Premium"
+    },
     "PS7S8KJ5D": {
       "en": "Central Asia (4 areas) 1GB 7Days",
       "ru": "Центральная Азия (4 направления) — 1 ГБ, 7 дней"
@@ -10129,6 +10225,10 @@
     "PSRL0F8L5": {
       "en": "Ireland & Slovenia 1GB Daily FUP128Kbps",
       "ru": "Ирландия и Словения — 1 ГБ/день, далее 128 Кбит/с"
+    },
+    "PSS9A6X1R": {
+      "en": "Turkey 2GB/Day FUP1Mbps Premium",
+      "ru": "Турция — 2 ГБ/день, далее 1 Мбит/с Premium"
     },
     "PSU1MDH93": {
       "en": "Ireland 3GB/Day FUP1Mbps",
@@ -10393,6 +10493,10 @@
     "PTN42GL18": {
       "en": "Brazil 100MB 7Days",
       "ru": "Бразилия — 100 МБ, 7 дней"
+    },
+    "PTNB3KZ40": {
+      "en": "Turkey 3GB 15Days Premium",
+      "ru": "Турция — 3 ГБ, 15 дней Premium"
     },
     "PTNO73V6Y": {
       "en": "Bhutan 10GB/Day",
@@ -10674,6 +10778,10 @@
       "en": "Saint Vincent and the Grenadines 500MB/Day",
       "ru": "Сент-Винсент и Гренадины — 500 МБ/день"
     },
+    "PUR7QQ10E": {
+      "en": "Turkey 10GB 30Days Premium",
+      "ru": "Турция — 10 ГБ, 30 дней Premium"
+    },
     "PUS1LIQUY": {
       "en": "Latvia 50GB 180Days",
       "ru": "Латвия — 50 ГБ, 180 дней"
@@ -10890,6 +10998,10 @@
       "en": "Rwanda 3GB 30Days",
       "ru": "Руанда — 3 ГБ, 30 дней"
     },
+    "PVKH1A4D5": {
+      "en": "Turkey 20GB 30Days Premium",
+      "ru": "Турция — 20 ГБ, 30 дней Premium"
+    },
     "PVKJQQHDR": {
       "en": "Sierra Leone 5GB 30Days",
       "ru": "Сьерра-Леоне — 5 ГБ, 30 дней"
@@ -11013,6 +11125,10 @@
     "PW2P30T72": {
       "en": "Benin 10GB 30Days",
       "ru": "Бенин — 10 ГБ, 30 дней"
+    },
+    "PW2QY9J0W": {
+      "en": "Hong Kong 10GB 30Days (nonhkip)",
+      "ru": "Гонконг (САР) — 10 ГБ, 30 дней (nonhkip)"
     },
     "PW3D60JWB": {
       "en": "Bosnia and Herzegovina 10GB/Day",
@@ -11302,6 +11418,10 @@
       "en": "Caribbean (20+ areas) 500MB/Day",
       "ru": "Карибы (20+ направлений) — 500 МБ/день"
     },
+    "PX52B4PKK": {
+      "en": "Turkey 5GB/Day Premium",
+      "ru": "Турция — 5 ГБ/день Premium"
+    },
     "PX5EH6HJ4": {
       "en": "Malaysia 5GB/Day",
       "ru": "Малайзия — 5 ГБ/день"
@@ -11457,6 +11577,10 @@
     "PXO5MHYTD": {
       "en": "Libya 3GB 15Days",
       "ru": "Ливия — 3 ГБ, 15 дней"
+    },
+    "PXP1A9DQ8": {
+      "en": "Turkey 1GB/Day FUP1Mbps Premium",
+      "ru": "Турция — 1 ГБ/день, далее 1 Мбит/с Premium"
     },
     "PXP2S5VG6": {
       "en": "United Arab Emirates 1GB/Day FUP1Mbps",
@@ -11806,6 +11930,10 @@
       "en": "Samoa 500MB/Day",
       "ru": "Самоа — 500 МБ/день"
     },
+    "PZ35KFAS8": {
+      "en": "Hong Kong 10GB/Day (nonhkip)",
+      "ru": "Гонконг (САР) — 10 ГБ/день (nonhkip)"
+    },
     "PZ4SAGHEX": {
       "en": "Europe (40+ areas) & Morocco 1GB 7Days",
       "ru": "Европа (40+ направлений) и Марокко — 1 ГБ, 7 дней"
@@ -11985,6 +12113,10 @@
     "PZS0T2C8H": {
       "en": "Ireland & Slovenia 10GB 30Days",
       "ru": "Ирландия и Словения — 10 ГБ, 30 дней"
+    },
+    "PZS5JA70G": {
+      "en": "Hong Kong 20GB 30Days (nonhkip)",
+      "ru": "Гонконг (САР) — 20 ГБ, 30 дней (nonhkip)"
     },
     "PZSQHE743": {
       "en": "San Marino 10GB/Day",

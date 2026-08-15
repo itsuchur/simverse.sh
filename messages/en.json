@@ -40,7 +40,20 @@
     "title": "Order Confirmation",
     "compatibility": "By confirming this order, you confirm that your device is eSIM compatible and network unlocked.",
     "buyNow": "Buy Now",
+    "buyFailed": "Couldn't start checkout. Open the app from Telegram and try again.",
     "planSummary": "{data} · {duration}"
+  },
+  "Checkout": {
+    "title": "Checkout",
+    "loading": "Loading your plan…",
+    "unavailable": "This plan is temporarily unavailable. Taking you back to the catalog.",
+    "empty": "Your cart is empty.",
+    "authRequired": "Open this app from Telegram to continue.",
+    "backToCatalog": "Back to catalog",
+    "backToApp": "Back to App",
+    "payStars": "Telegram Stars · {price}",
+    "payCard": "Credit Card · {price}",
+    "payCryptomus": "Pay with Cryptomus"
   },
 
   "MyEsims": {
