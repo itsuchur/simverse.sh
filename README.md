@@ -46,6 +46,33 @@ docker compose -f compose.override.yaml up --build
 docker compose -f compose.prod.yaml up -d --build
 ```
 
+### Webhook logs
+
+Inbound webhooks (Telegram, eSIM Access, etc.) are stored in `webhook_logs` before the handler runs. Inspect them from the local Postgres container:
+
+```bash
+# Interactive shell (uses POSTGRES_* from the container env)
+docker compose -f compose.override.yaml exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Then:
+
+```sql
+SELECT id, source, received_at, payload
+FROM webhook_logs
+ORDER BY received_at DESC;
+```
+
+One-shot:
+
+```bash
+docker compose -f compose.override.yaml exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT id, source, received_at, payload FROM webhook_logs ORDER BY received_at DESC;"'
+```
+
+Skip `headers` unless you need them — they can include the Telegram webhook secret.
+
 ### Updating dependencies in local Docker
 
 The dev stack keeps `node_modules` in named volumes (`app_node_modules`, `poller_node_modules`) so host binds do not overwrite them. Rebuilding the image alone does **not** update those volumes.
