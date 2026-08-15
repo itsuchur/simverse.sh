@@ -8,13 +8,15 @@ import {
   fetchUsdRubRate,
   withPriceRub,
 } from "~/server/suppliers/esimaccess/packages";
+import { preferCatalogPackages } from "~/server/suppliers/esimaccess/prefer-packages";
 
 async function syncEsimAccessPackages() {
   const [packages, fx] = await Promise.all([
     fetchEsimAccessPackages(),
     fetchUsdRubRate(),
   ]);
-  const packageList = await withRussianNames(withPriceRub(packages, fx.rate));
+  const preferred = preferCatalogPackages(packages);
+  const packageList = await withRussianNames(withPriceRub(preferred, fx.rate));
   const redis = await getRedis();
 
   await redis.set(
@@ -29,7 +31,7 @@ async function syncEsimAccessPackages() {
   );
 
   console.log(
-    `[cron] synced ${packageList.length} eSIM Access packages to Redis key "${ESIMACCESS_PACKAGES_REDIS_KEY}" (USD/RUB ${fx.rate})`,
+    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to Redis key "${ESIMACCESS_PACKAGES_REDIS_KEY}" (USD/RUB ${fx.rate})`,
   );
 }
 
