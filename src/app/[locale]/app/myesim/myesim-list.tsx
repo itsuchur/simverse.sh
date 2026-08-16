@@ -5,7 +5,6 @@ import { Globe } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
-import { Button } from "~/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,17 +13,15 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { useRouter } from "~/i18n/navigation";
-import {
-  esimProvisioningUrl,
-  lpaCardData,
-} from "~/lib/esim-provisioning";
+import { lpaCardData } from "~/lib/esim-provisioning";
 import { orderStatus } from "~/lib/order-status";
 import {
   detectEsimInstallPlatform,
-  openExternalLink,
   prepareTelegramWebApp,
   type EsimInstallPlatform,
 } from "~/lib/telegram-webapp";
+
+import { InstallationGuide } from "./installation-guide";
 
 export type MyEsimOrder = {
   orderUuid: string;
@@ -73,85 +70,6 @@ function isPreparing(order: MyEsimOrder) {
   }
   const age = Date.now() - new Date(order.createdAt).getTime();
   return age < 15 * 60 * 1000;
-}
-
-function CopyField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  const t = useTranslations("MyEsims");
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="text-muted-foreground text-sm">{label}</p>
-      <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 text-sm break-all">{value}</code>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0"
-          onClick={() => {
-            void navigator.clipboard.writeText(value).then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            });
-          }}
-        >
-          {copied ? t("copied") : t("copy")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function InstallButtons({
-  order,
-  platform,
-}: {
-  order: MyEsimOrder;
-  platform: EsimInstallPlatform | null;
-}) {
-  const t = useTranslations("MyEsims");
-  const cardData = lpaCardData(order.esimSmdpAddress, order.esimActivationCode);
-  if (!cardData || platform === null) return null;
-
-  const showIos = platform === "ios" || platform === "unknown";
-  const showAndroid = platform === "android" || platform === "unknown";
-
-  return (
-    <div className="flex flex-col gap-2">
-      {showAndroid ? (
-        <Button
-          type="button"
-          size="lg"
-          className="w-full"
-          onClick={() =>
-            openExternalLink(esimProvisioningUrl("android", cardData))
-          }
-        >
-          {t("installAndroid")}
-        </Button>
-      ) : null}
-      {showIos ? (
-        <Button
-          type="button"
-          size="lg"
-          className="w-full"
-          variant={showAndroid ? "outline" : "default"}
-          onClick={() =>
-            openExternalLink(esimProvisioningUrl("apple", cardData))
-          }
-        >
-          {t("installIphone")}
-        </Button>
-      ) : null}
-    </div>
-  );
 }
 
 function OrderCard({
@@ -211,17 +129,13 @@ function OrderCard({
                 className="border-border mx-auto size-48 rounded-xl border bg-white p-2"
               />
             ) : null}
-            <InstallButtons order={order} platform={platform} />
-            <CopyField label={t("iccid")} value={order.esimIccid} />
-            {order.esimActivationCode ? (
-              <CopyField
-                label={t("activationCode")}
-                value={order.esimActivationCode}
-              />
-            ) : null}
-            {order.esimSmdpAddress ? (
-              <CopyField label={t("smdp")} value={order.esimSmdpAddress} />
-            ) : null}
+            <InstallationGuide
+              platform={platform}
+              cardData={lpaCardData(
+                order.esimSmdpAddress,
+                order.esimActivationCode,
+              )}
+            />
           </>
         ) : (
           <p className="text-muted-foreground text-base">{t("preparing")}</p>
