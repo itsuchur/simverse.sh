@@ -11,6 +11,7 @@ import {
   UnknownPackageError,
 } from "~/server/cart";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
+import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
 const putBodySchema = z.object({
   packageCode: z.string().min(1),
@@ -24,19 +25,24 @@ function unavailable() {
   return Response.json({ error: "unavailable" }, { status: 503 });
 }
 
-async function requireTelegramId(request: Request) {
+async function requireTelegramSession(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
   const telegramId = session?.user.telegramId;
-  return typeof telegramId === "string" && telegramId.length > 0
-    ? telegramId
-    : null;
+  if (!session || typeof telegramId !== "string" || telegramId.length === 0) {
+    return null;
+  }
+  return { session, telegramId };
 }
 
 export async function PUT(request: Request) {
-  const telegramId = await requireTelegramId(request);
-  if (!telegramId) {
+  const authz = await requireTelegramSession(request);
+  if (!authz) {
     return unauthorized();
   }
+  if (await isUserBanned(authz.session.user.id)) {
+    return forbidden();
+  }
+  const { telegramId } = authz;
 
   let json: unknown;
   try {
@@ -66,7 +72,7 @@ export async function PUT(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const telegramId = await requireTelegramId(request);
+  const telegramId = (await requireTelegramSession(request))?.telegramId;
   if (!telegramId) {
     return unauthorized();
   }
@@ -108,7 +114,7 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const telegramId = await requireTelegramId(request);
+  const telegramId = (await requireTelegramSession(request))?.telegramId;
   if (!telegramId) {
     return unauthorized();
   }

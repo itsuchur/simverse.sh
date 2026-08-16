@@ -39,6 +39,10 @@ model User {
   isPremium        Boolean @default(false)
   /// initData user.allows_write_to_pm
   allowsWriteToPm  Boolean @default(false)
+  /// First FingerprintJS visitorId collected in the Mini App
+  fingerprint      String?
+  /// When true, the user cannot add to cart or start checkout
+  isBanned         Boolean @default(false)
 
   sessions Session[]
   accounts Account[]

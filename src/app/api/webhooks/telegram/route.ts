@@ -57,7 +57,7 @@ export const POST = withWebhookLogging(
       try {
         const order = await db.order.findUnique({
           where: { orderUuid: query.invoice_payload },
-          include: { user: { select: { telegramId: true } } },
+          include: { user: { select: { telegramId: true, isBanned: true } } },
         });
         const telegramId = String(query.from.id);
         const amountOk =
@@ -67,7 +67,13 @@ export const POST = withWebhookLogging(
           query.currency === "XTR" &&
           order.user.telegramId === telegramId;
 
-        if (amountOk) {
+        if (order?.user.isBanned) {
+          await answerPreCheckoutQuery(
+            query.id,
+            false,
+            "Purchases are not available.",
+          );
+        } else if (amountOk) {
           await answerPreCheckoutQuery(query.id, true);
         } else {
           await answerPreCheckoutQuery(

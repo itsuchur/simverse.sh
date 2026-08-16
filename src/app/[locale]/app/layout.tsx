@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { AppBottomNav } from "./_components/app-bottom-nav";
 import { AuthGate } from "./_components/auth-gate";
+import { FingerprintCollector } from "./_components/fingerprint-collector";
 import { getSession } from "~/server/better-auth/server";
 
 export default async function MiniAppLayout({
@@ -22,6 +23,7 @@ export default async function MiniAppLayout({
       </div>
 
       {session ? <AppBottomNav /> : null}
+      {session && !session.user.fingerprint ? <FingerprintCollector /> : null}
     </div>
   );
 }

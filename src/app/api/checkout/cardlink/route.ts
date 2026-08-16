@@ -15,6 +15,7 @@ import {
   createCardlinkBill,
 } from "~/server/payments/cardlink";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
+import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,6 +38,9 @@ export async function POST(request: Request) {
   const telegramId = session.user.telegramId;
   if (typeof telegramId !== "string" || telegramId.length === 0) {
     return unauthorized();
+  }
+  if (await isUserBanned(session.user.id)) {
+    return forbidden();
   }
 
   if (!cardlinkConfigured()) {

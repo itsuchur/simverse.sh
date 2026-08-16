@@ -35,6 +35,17 @@ export const auth = betterAuth({
         defaultValue: false,
         input: false,
       },
+      fingerprint: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+      isBanned: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: false,
+      },
     },
   },
   plugins: [
