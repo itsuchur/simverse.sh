@@ -53,7 +53,7 @@
     "backToApp": "Back to App",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Credit Card · {price}",
-    "payCryptomus": "Pay with Cryptomus",
+    "payCryptomus": "Cryptomus · {price}",
     "payFailed": "Couldn't start payment. Open the app from Telegram and try again."
   },
 

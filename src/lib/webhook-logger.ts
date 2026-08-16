@@ -44,10 +44,17 @@ export function withWebhookLogging(source: string, handler: Handler) {
     let body: unknown = null;
     try {
       const text = await request.text();
-      try {
-        body = text ? JSON.parse(text) : null;
-      } catch {
-        body = text; // not valid JSON, log raw text instead
+      const contentType = request.headers.get("content-type") ?? "";
+      if (contentType.includes("application/x-www-form-urlencoded")) {
+        body = text
+          ? Object.fromEntries(new URLSearchParams(text))
+          : null;
+      } else {
+        try {
+          body = text ? JSON.parse(text) : null;
+        } catch {
+          body = text;
+        }
       }
     } catch (error) {
       captureWebhookError(error, source, "read-body");

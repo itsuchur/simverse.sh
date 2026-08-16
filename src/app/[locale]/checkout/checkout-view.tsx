@@ -10,15 +10,47 @@ import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
 import { openTelegramInvoice, prepareTelegramWebApp } from "~/lib/telegram-webapp";
 
-async function requestStarsInvoice() {
+async function checkoutHeaders() {
   const headers: Record<string, string> = {};
   if (process.env.NODE_ENV === "development") {
     headers["ngrok-skip-browser-warning"] = "true";
   }
-  const response = await fetch("/api/checkout/stars", {
+  return headers;
+}
+
+async function requestInvoice(path: string) {
+  const response = await fetch(path, {
     method: "POST",
     credentials: "include",
-    headers,
+    headers: await checkoutHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("invoice_http");
+  }
+  const body = (await response.json()) as { invoiceUrl?: string };
+  if (!body.invoiceUrl) {
+    throw new Error("invoice_missing");
+  }
+  return body.invoiceUrl;
+}
+
+async function requestStarsInvoice() {
+  return requestInvoice("/api/checkout/stars");
+}
+
+async function requestCryptomusInvoice() {
+  return requestInvoice("/api/checkout/cryptomus");
+}
+
+async function requestCardlinkInvoice(locale: string) {
+  const response = await fetch("/api/checkout/cardlink", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      ...(await checkoutHeaders()),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ locale }),
   });
   if (!response.ok) {
     throw new Error("invoice_http");
@@ -214,6 +246,20 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           size="lg"
           variant="outline"
           className="h-11 w-full text-base"
+          disabled={leaving || paying}
+          onClick={() => {
+            setPaying(true);
+            setPayError(null);
+            void requestCardlinkInvoice(locale)
+              .then((url) => {
+                window.location.assign(url);
+              })
+              .catch((error: unknown) => {
+                console.error("[checkout] cardlink invoice", error);
+                setPayError(t("payFailed"));
+                setPaying(false);
+              });
+          }}
         >
           {t("payCard", { price: cardPrice })}
         </Button>
@@ -222,8 +268,22 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           size="lg"
           variant="outline"
           className="h-11 w-full text-base"
+          disabled={leaving || paying}
+          onClick={() => {
+            setPaying(true);
+            setPayError(null);
+            void requestCryptomusInvoice()
+              .then((url) => {
+                window.location.assign(url);
+              })
+              .catch((error: unknown) => {
+                console.error("[checkout] cryptomus invoice", error);
+                setPayError(t("payFailed"));
+                setPaying(false);
+              });
+          }}
         >
-          {t("payCryptomus")}
+          {t("payCryptomus", { price: cardPrice })}
         </Button>
       </div>
     </main>

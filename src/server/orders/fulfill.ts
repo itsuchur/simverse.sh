@@ -10,12 +10,20 @@ import {
   type EsimAccessProfile,
 } from "~/server/suppliers/esimaccess/order";
 import {
+  CARDLINK_PAYMENT_PROVIDER,
+  CRYPTOMUS_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
 
-export { orderStatus, paymentStatus, STARS_PAYMENT_PROVIDER };
+export {
+  CARDLINK_PAYMENT_PROVIDER,
+  CRYPTOMUS_PAYMENT_PROVIDER,
+  orderStatus,
+  paymentStatus,
+  STARS_PAYMENT_PROVIDER,
+};
 
 type OrderRow = {
   id: bigint;
@@ -114,16 +122,19 @@ export async function placeSupplierOrder(order: OrderRow) {
   }
 }
 
-async function supersedePendingStarsDrafts(order: {
-  id: bigint;
-  userId: string;
-  resellerPlanId: string;
-}) {
+async function supersedePendingDrafts(
+  order: {
+    id: bigint;
+    userId: string;
+    resellerPlanId: string;
+  },
+  provider: string,
+) {
   await db.order.updateMany({
     where: {
       userId: order.userId,
       id: { not: order.id },
-      paymentProvider: STARS_PAYMENT_PROVIDER,
+      paymentProvider: provider,
       paymentStatus: paymentStatus.pending,
       status: orderStatus.created,
       resellerPlanId: order.resellerPlanId,
@@ -148,7 +159,7 @@ export async function fulfillStarsPayment(input: {
     },
   });
   if (alreadyCharged) {
-    await supersedePendingStarsDrafts(alreadyCharged);
+    await supersedePendingDrafts(alreadyCharged, STARS_PAYMENT_PROVIDER);
     await placeSupplierOrder(alreadyCharged);
     return;
   }
@@ -172,7 +183,7 @@ export async function fulfillStarsPayment(input: {
     });
 
     await clearCart(input.telegramId);
-    await supersedePendingStarsDrafts(paid);
+    await supersedePendingDrafts(paid, STARS_PAYMENT_PROVIDER);
     await placeSupplierOrder(paid);
   } catch (error) {
     if (
@@ -188,13 +199,247 @@ export async function fulfillStarsPayment(input: {
         },
       });
       if (charged) {
-        await supersedePendingStarsDrafts(charged);
+        await supersedePendingDrafts(charged, STARS_PAYMENT_PROVIDER);
         await placeSupplierOrder(charged);
       }
       return;
     }
     throw error;
   }
+}
+
+function usdAmountToCents(amount: string) {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return BigInt(Math.round(value * 100));
+}
+
+export async function fulfillCryptomusPayment(input: {
+  orderUuid: string;
+  cryptomusUuid: string;
+  amount: string;
+}) {
+  const alreadyCharged = await db.order.findFirst({
+    where: {
+      paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
+      paymentChargeId: input.cryptomusUuid,
+    },
+    include: { user: { select: { telegramId: true } } },
+  });
+  if (alreadyCharged) {
+    await supersedePendingDrafts(alreadyCharged, CRYPTOMUS_PAYMENT_PROVIDER);
+    await placeSupplierOrder(alreadyCharged);
+    return;
+  }
+
+  const pending = await db.order.findUnique({
+    where: { orderUuid: input.orderUuid },
+    include: { user: { select: { telegramId: true } } },
+  });
+  if (
+    !pending ||
+    pending.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
+    pending.paymentStatus !== paymentStatus.pending
+  ) {
+    return;
+  }
+
+  const cents = usdAmountToCents(input.amount);
+  if (cents === null || cents !== pending.priceAmount) {
+    Sentry.captureMessage("Cryptomus webhook amount mismatch", {
+      level: "error",
+      tags: { component: "cryptomus", reason: "amount_mismatch" },
+      extra: {
+        orderUuid: input.orderUuid,
+        expected: pending.priceAmount.toString(),
+        received: input.amount,
+      },
+    });
+    return;
+  }
+
+  try {
+    const paid = await db.order.update({
+      where: { id: pending.id },
+      data: {
+        paymentStatus: paymentStatus.paid,
+        paymentChargeId: input.cryptomusUuid,
+        paidAt: new Date(),
+        status: orderStatus.paid,
+      },
+    });
+
+    const telegramId = pending.user.telegramId;
+    if (typeof telegramId === "string" && telegramId.length > 0) {
+      await clearCart(telegramId);
+    }
+    await supersedePendingDrafts(paid, CRYPTOMUS_PAYMENT_PROVIDER);
+    await placeSupplierOrder(paid);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      const charged = await db.order.findFirst({
+        where: {
+          paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
+          paymentChargeId: input.cryptomusUuid,
+        },
+      });
+      if (charged) {
+        await supersedePendingDrafts(charged, CRYPTOMUS_PAYMENT_PROVIDER);
+        await placeSupplierOrder(charged);
+      }
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function failCryptomusPayment(orderUuid: string) {
+  const pending = await db.order.findUnique({
+    where: { orderUuid },
+  });
+  if (
+    !pending ||
+    pending.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
+    pending.paymentStatus !== paymentStatus.pending
+  ) {
+    return;
+  }
+
+  await db.order.update({
+    where: { id: pending.id },
+    data: {
+      status: orderStatus.failed,
+      paymentStatus: paymentStatus.failed,
+      failureReason: "payment_failed",
+    },
+  });
+}
+
+export async function fulfillCardlinkPayment(input: {
+  orderUuid: string;
+  billId: string;
+  amount: string;
+  currency: string;
+}) {
+  const alreadyCharged = await db.order.findFirst({
+    where: {
+      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
+      paymentChargeId: input.billId,
+    },
+    include: { user: { select: { telegramId: true } } },
+  });
+  if (alreadyCharged) {
+    await supersedePendingDrafts(alreadyCharged, CARDLINK_PAYMENT_PROVIDER);
+    await placeSupplierOrder(alreadyCharged);
+    return;
+  }
+
+  const pending = await db.order.findUnique({
+    where: { orderUuid: input.orderUuid },
+    include: { user: { select: { telegramId: true } } },
+  });
+  if (
+    !pending ||
+    pending.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
+    pending.paymentStatus !== paymentStatus.pending
+  ) {
+    return;
+  }
+
+  if (input.currency.toUpperCase() !== pending.currency) {
+    Sentry.captureMessage("Cardlink webhook currency mismatch", {
+      level: "error",
+      tags: { component: "cardlink", reason: "currency_mismatch" },
+      extra: {
+        orderUuid: input.orderUuid,
+        expected: pending.currency,
+        received: input.currency,
+      },
+    });
+    return;
+  }
+
+  const cents = usdAmountToCents(input.amount);
+  if (cents === null || cents !== pending.priceAmount) {
+    Sentry.captureMessage("Cardlink webhook amount mismatch", {
+      level: "error",
+      tags: { component: "cardlink", reason: "amount_mismatch" },
+      extra: {
+        orderUuid: input.orderUuid,
+        expected: pending.priceAmount.toString(),
+        received: input.amount,
+      },
+    });
+    return;
+  }
+
+  try {
+    const paid = await db.order.update({
+      where: { id: pending.id },
+      data: {
+        paymentStatus: paymentStatus.paid,
+        paymentChargeId: input.billId,
+        paidAt: new Date(),
+        status: orderStatus.paid,
+      },
+    });
+
+    const telegramId = pending.user.telegramId;
+    if (typeof telegramId === "string" && telegramId.length > 0) {
+      await clearCart(telegramId);
+    }
+    await supersedePendingDrafts(paid, CARDLINK_PAYMENT_PROVIDER);
+    await placeSupplierOrder(paid);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      const charged = await db.order.findFirst({
+        where: {
+          paymentProvider: CARDLINK_PAYMENT_PROVIDER,
+          paymentChargeId: input.billId,
+        },
+      });
+      if (charged) {
+        await supersedePendingDrafts(charged, CARDLINK_PAYMENT_PROVIDER);
+        await placeSupplierOrder(charged);
+      }
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function failCardlinkPayment(orderUuid: string) {
+  const pending = await db.order.findUnique({
+    where: { orderUuid },
+  });
+  if (
+    !pending ||
+    pending.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
+    pending.paymentStatus !== paymentStatus.pending
+  ) {
+    return;
+  }
+
+  await db.order.update({
+    where: { id: pending.id },
+    data: {
+      status: orderStatus.failed,
+      paymentStatus: paymentStatus.failed,
+      failureReason: "payment_failed",
+    },
+  });
 }
 
 export async function syncPendingProfilesForUser(userId: string) {

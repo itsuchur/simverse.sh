@@ -53,7 +53,7 @@
     "backToApp": "Назад в приложение",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Банковская карта · {price}",
-    "payCryptomus": "Pay with Cryptomus",
+    "payCryptomus": "Cryptomus · {price}",
     "payFailed": "Не удалось начать оплату. Откройте приложение в Telegram и попробуйте снова."
   },
 
