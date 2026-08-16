@@ -42,23 +42,24 @@ export default async function CheckoutPage() {
     );
   }
 
+  let hasBalance = false;
   try {
     const balance = await checkBalance();
-    if (balance >= plan.cost * plan.qty) {
-      return <CheckoutView plan={plan} />;
+    hasBalance = balance >= plan.cost * plan.qty;
+    if (!hasBalance) {
+      Sentry.captureMessage("Supplier balance insufficient for checkout", {
+        level: "fatal",
+        tags: {
+          component: "cart",
+          reason: "insufficient_balance",
+        },
+        extra: {
+          packageCode: plan.packageCode,
+          cost: plan.cost,
+          qty: plan.qty,
+        },
+      });
     }
-    Sentry.captureMessage("Supplier balance insufficient for checkout", {
-      level: "fatal",
-      tags: {
-        component: "cart",
-        reason: "insufficient_balance",
-      },
-      extra: {
-        packageCode: plan.packageCode,
-        cost: plan.cost,
-        qty: plan.qty,
-      },
-    });
   } catch (error) {
     Sentry.captureException(error, {
       level: "fatal",
@@ -67,6 +68,10 @@ export default async function CheckoutPage() {
         reason: "balance_check_failed",
       },
     });
+  }
+
+  if (hasBalance) {
+    return <CheckoutView plan={plan} />;
   }
 
   redirect({ href: "/app", locale });
