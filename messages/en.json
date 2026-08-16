@@ -67,7 +67,9 @@
     "smdp": "SM-DP+ address",
     "copy": "Copy",
     "copied": "Copied",
-    "qrAlt": "eSIM QR code"
+    "qrAlt": "eSIM QR code",
+    "installAndroid": "Install eSIM on Android",
+    "installIphone": "Install eSIM on iPhone"
   },
   "Profile": {
     "signedInWithTelegram": "Signed in with Telegram",

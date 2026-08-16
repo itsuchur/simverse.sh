@@ -67,7 +67,9 @@
     "smdp": "Адрес SM-DP+",
     "copy": "Копировать",
     "copied": "Скопировано",
-    "qrAlt": "QR-код eSIM"
+    "qrAlt": "QR-код eSIM",
+    "installAndroid": "Установить eSIM на Android",
+    "installIphone": "Установить eSIM на iPhone"
   },
   "Profile": {
     "signedInWithTelegram": "Вход через Telegram",

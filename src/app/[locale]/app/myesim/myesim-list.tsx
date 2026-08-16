@@ -14,7 +14,17 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { useRouter } from "~/i18n/navigation";
+import {
+  esimProvisioningUrl,
+  lpaCardData,
+} from "~/lib/esim-provisioning";
 import { orderStatus } from "~/lib/order-status";
+import {
+  detectEsimInstallPlatform,
+  openExternalLink,
+  prepareTelegramWebApp,
+  type EsimInstallPlatform,
+} from "~/lib/telegram-webapp";
 
 export type MyEsimOrder = {
   orderUuid: string;
@@ -99,7 +109,58 @@ function CopyField({
   );
 }
 
-function OrderCard({ order }: { order: MyEsimOrder }) {
+function InstallButtons({
+  order,
+  platform,
+}: {
+  order: MyEsimOrder;
+  platform: EsimInstallPlatform | null;
+}) {
+  const t = useTranslations("MyEsims");
+  const cardData = lpaCardData(order.esimSmdpAddress, order.esimActivationCode);
+  if (!cardData || platform === null) return null;
+
+  const showIos = platform === "ios" || platform === "unknown";
+  const showAndroid = platform === "android" || platform === "unknown";
+
+  return (
+    <div className="flex flex-col gap-2">
+      {showAndroid ? (
+        <Button
+          type="button"
+          size="lg"
+          className="w-full"
+          onClick={() =>
+            openExternalLink(esimProvisioningUrl("android", cardData))
+          }
+        >
+          {t("installAndroid")}
+        </Button>
+      ) : null}
+      {showIos ? (
+        <Button
+          type="button"
+          size="lg"
+          className="w-full"
+          variant={showAndroid ? "outline" : "default"}
+          onClick={() =>
+            openExternalLink(esimProvisioningUrl("apple", cardData))
+          }
+        >
+          {t("installIphone")}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function OrderCard({
+  order,
+  platform,
+}: {
+  order: MyEsimOrder;
+  platform: EsimInstallPlatform | null;
+}) {
   const t = useTranslations("MyEsims");
   const tCatalog = useTranslations("Catalog");
   const locale = useLocale();
@@ -150,6 +211,7 @@ function OrderCard({ order }: { order: MyEsimOrder }) {
                 className="border-border mx-auto size-48 rounded-xl border bg-white p-2"
               />
             ) : null}
+            <InstallButtons order={order} platform={platform} />
             <CopyField label={t("iccid")} value={order.esimIccid} />
             {order.esimActivationCode ? (
               <CopyField
@@ -173,6 +235,12 @@ export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
   const t = useTranslations("MyEsims");
   const router = useRouter();
   const preparing = orders.some(isPreparing);
+  const [platform, setPlatform] = useState<EsimInstallPlatform | null>(null);
+
+  useEffect(() => {
+    prepareTelegramWebApp();
+    setPlatform(detectEsimInstallPlatform());
+  }, []);
 
   useEffect(() => {
     if (!preparing) return;
@@ -199,7 +267,11 @@ export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {orders.map((order) => (
-        <OrderCard key={order.orderUuid} order={order} />
+        <OrderCard
+          key={order.orderUuid}
+          order={order}
+          platform={platform}
+        />
       ))}
     </div>
   );
