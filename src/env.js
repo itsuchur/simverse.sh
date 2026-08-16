@@ -43,6 +43,14 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
         : z.string().min(1).optional(),
+    GOOGLE_CLIENT_ID:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
+    GOOGLE_CLIENT_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -75,6 +83,8 @@ export const env = createEnv({
     CRYPTOMUS_API_KEY: process.env.CRYPTOMUS_API_KEY,
     CARDLINK_API_TOKEN: process.env.CARDLINK_API_TOKEN,
     CARDLINK_SHOP_ID: process.env.CARDLINK_SHOP_ID,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**

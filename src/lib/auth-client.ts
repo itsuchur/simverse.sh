@@ -38,6 +38,18 @@ type TelegramMiniAppSignInResult =
  * Better Auth's plugin inference can resolve to an ESLint `error` type
  * under projectService, which trips no-unsafe-* on direct calls.
  */
+export async function signInWithGoogle() {
+  const result = await authClient.signIn.social({
+    provider: "google",
+    callbackURL: "/dashboard",
+    disableRedirect: true,
+  });
+  if (result.data?.url) {
+    window.location.assign(result.data.url);
+  }
+  return result;
+}
+
 export function autoSignInFromMiniApp(): Promise<TelegramMiniAppSignInResult> {
   const client = authClient as unknown as {
     autoSignInFromMiniApp: () => Promise<TelegramMiniAppSignInResult>;

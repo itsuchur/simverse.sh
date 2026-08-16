@@ -50,6 +50,8 @@ services:
       CRYPTOMUS_API_KEY: "${CRYPTOMUS_API_KEY}"
       CARDLINK_API_TOKEN: "${CARDLINK_API_TOKEN}"
       CARDLINK_SHOP_ID: "${CARDLINK_SHOP_ID}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
       NODE_ENV: production
     depends_on:
       postgres:

@@ -1,16 +1,48 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
+import { nextCookies } from "better-auth/next-js";
 import { telegram } from "better-auth-telegram";
 
 import { env } from "~/env";
+import { isAllowedAuthEmail } from "~/server/dashboard/emails";
 import { db } from "~/server/db";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
-  trustedOrigins: [env.BETTER_AUTH_URL],
+  trustedOrigins: [env.BETTER_AUTH_URL, "http://localhost:3000"],
   database: prismaAdapter(db, {
     provider: "postgresql",
   }),
+  // Google's redirect is a cross-site GET. Next.js often never persists the
+  // short-lived OAuth state cookie, so the callback would fail with
+  // `state_mismatch` even though the state row is in `verification`.
+  account: {
+    storeStateStrategy: "database",
+    skipStateCookieCheck: true,
+  },
+  socialProviders:
+    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : undefined,
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          if (!isAllowedAuthEmail(user.email)) {
+            throw new APIError("FORBIDDEN", {
+              message: "This account is not allowed to sign in.",
+            });
+          }
+        },
+      },
+    },
+  },
   user: {
     additionalFields: {
       telegramId: {
@@ -70,6 +102,7 @@ export const auth = betterAuth({
         }),
       },
     }),
+    nextCookies(),
   ],
 });
 

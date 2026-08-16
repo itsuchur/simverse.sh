@@ -29,14 +29,19 @@ Useful scripts: `bun run check` (lint + typecheck), `bun run lint:fix`,
 Testing the Mini App end-to-end requires a public HTTPS URL (e.g. ngrok)
 registered with your Telegram bot; set it as `BETTER_AUTH_URL`.
 
+The internal dashboard at `/dashboard` uses Google OAuth via Better Auth.
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and add
+`{BETTER_AUTH_URL}/api/auth/callback/google` as an authorized redirect URI.
+Only `support@simverse.sh` can access it.
+
 ## Docker Compose
 
 Copy `.env.example` to `.env` and fill in the values before starting either stack.
 
-| File | Purpose |
-| --- | --- |
+| File                    | Purpose                                                                                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `compose.override.yaml` | Local/dev: app, poller, Postgres, Redis. Uses `Dockerfile.dev` / `Dockerfile.poller.dev` with bind mounts for hot reload. No Traefik. Publishes ports `3000`, `5432`, and `6379`. |
-| `compose.prod.yaml` | Production: Traefik (TLS), backups, and segmented networks. Uses `Dockerfile` / `Dockerfile.poller` (multi-stage production images). |
+| `compose.prod.yaml`     | Production: Traefik (TLS), backups, and segmented networks. Uses `Dockerfile` / `Dockerfile.poller` (multi-stage production images).                                              |
 
 ```bash
 # Local
