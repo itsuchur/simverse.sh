@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-import { AppBottomNav } from "./_components/app-bottom-nav";
 import { AuthGate } from "./_components/auth-gate";
 import { FingerprintCollector } from "./_components/fingerprint-collector";
+import { MiniAppChrome } from "./_components/mini-app-chrome";
 import { getSession } from "~/server/better-auth/server";
 
 export default async function MiniAppLayout({
@@ -17,13 +17,9 @@ export default async function MiniAppLayout({
   const session = await getSession();
 
   return (
-    <div className="text-foreground min-h-dvh bg-white">
-      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-white px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[calc(6.25rem+env(safe-area-inset-bottom))]">
-        {session ? children : <AuthGate />}
-      </div>
-
-      {session ? <AppBottomNav /> : null}
+    <MiniAppChrome showNav={Boolean(session)}>
+      {session ? children : <AuthGate />}
       {session && !session.user.fingerprint ? <FingerprintCollector /> : null}
-    </div>
+    </MiniAppChrome>
   );
 }

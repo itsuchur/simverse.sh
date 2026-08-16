@@ -109,7 +109,7 @@ export default function OrderConfirmation({
                     return;
                   }
 
-                  router.push("/checkout");
+                  router.push("/app/checkout");
                 } catch {
                   setError(t("buyFailed"));
                 } finally {

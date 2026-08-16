@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       locale,
       successUrl: `${origin}/api/checkout/cardlink/return?status=success`,
       failUrl: `${origin}/api/checkout/cardlink/return?status=fail`,
-      returnUrl: `${origin}/checkout`,
+      returnUrl: `${origin}/app/checkout`,
     });
     return Response.json({ invoiceUrl: bill.linkPageUrl });
   } catch (error) {

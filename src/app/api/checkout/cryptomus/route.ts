@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       orderId: order.orderUuid,
       urlCallback: `${origin}/api/webhooks/payments/cryptomus`,
       urlSuccess: `${origin}/app/myesim`,
-      urlReturn: `${origin}/checkout`,
+      urlReturn: `${origin}/app/checkout`,
     });
     return Response.json({ invoiceUrl: invoice.url });
   } catch (error) {

@@ -2,7 +2,7 @@ import { env } from "~/env";
 
 function redirectFor(status: string | null) {
   const origin = env.BETTER_AUTH_URL.replace(/\/$/, "");
-  const path = status === "fail" ? "/checkout" : "/app/myesim";
+  const path = status === "fail" ? "/app/checkout" : "/app/myesim";
   return Response.redirect(`${origin}${path}`, 303);
 }
 
