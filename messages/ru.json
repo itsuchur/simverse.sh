@@ -91,5 +91,48 @@
     "label": "Язык",
     "en": "English",
     "ru": "Русский"
+  },
+  "Tos": {
+    "metaTitle": "Условия использования — Simverse",
+    "metaDescription": "Текст 1",
+    "title": "Условия использования",
+    "lastUpdated": "Обновлено: 9 августа 2026",
+    "intro": "Текст 1",
+    "serviceTitle": "Сервис",
+    "service": "Текст 2",
+    "paymentsTitle": "Оплата",
+    "payments": "Текст 3",
+    "acceptableUseTitle": "Использование",
+    "acceptableUse": "Текст 4",
+    "contactTitle": "Контакты",
+    "contact": "Текст 5"
+  },
+  "PrivacyPolicy": {
+    "metaTitle": "Политика конфиденциальности — Simverse",
+    "metaDescription": "Текст 1",
+    "title": "Политика конфиденциальности",
+    "lastUpdated": "Обновлено: 9 августа 2026",
+    "intro": "Текст 1",
+    "collectTitle": "Данные",
+    "collect": "Текст 2",
+    "notCollectTitle": "Не собираем",
+    "notCollect": "Текст 3",
+    "thirdPartiesTitle": "Третьи стороны",
+    "thirdParties": "Текст 4",
+    "contactTitle": "Контакты",
+    "contact": "Текст 5"
+  },
+  "RefundPolicy": {
+    "metaTitle": "Политика возвратов — Simverse",
+    "metaDescription": "Текст 1",
+    "title": "Политика возвратов",
+    "lastUpdated": "Обновлено: 9 августа 2026",
+    "intro": "Текст 1",
+    "eligibleTitle": "Возврат возможен",
+    "eligible": "Текст 2",
+    "notEligibleTitle": "Возврат невозможен",
+    "notEligible": "Текст 3",
+    "requestTitle": "Как запросить",
+    "request": "Текст 4"
   }
 }

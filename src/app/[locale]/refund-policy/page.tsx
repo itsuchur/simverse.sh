@@ -1,41 +1,31 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = {
-  title: "Refund Policy — Simverse",
-  description: "Refund Policy for the Simverse eSIM store.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("RefundPolicy");
 
-export default function RefundPolicy() {
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+  };
+}
+
+export default async function RefundPolicy() {
+  const t = await getTranslations("RefundPolicy");
+
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">Refund Policy</h1>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Last updated: August 9, 2026
-      </p>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <p className="text-muted-foreground mt-2 text-sm">{t("lastUpdated")}</p>
 
       <section className="mt-6 space-y-4 text-sm leading-6">
-        <p>
-          eSIM data packages are digital goods delivered immediately after
-          purchase, so refunds are limited to the cases below.
-        </p>
-        <h2 className="text-lg font-medium">Eligible for a refund</h2>
-        <p>
-          A full refund is available if the eSIM could not be provisioned, or if
-          the eSIM was never installed and never activated and you request the
-          refund within 30 days of purchase.
-        </p>
-        <h2 className="text-lg font-medium">Not eligible</h2>
-        <p>
-          Packages that have been installed on a device, activated, partially
-          used, or have expired are not refundable. Connectivity issues caused
-          by device incompatibility or local network conditions outside the
-          advertised coverage are not grounds for a refund.
-        </p>
-        <h2 className="text-lg font-medium">How to request</h2>
-        <p>
-          Contact support via the Telegram bot with your order number. Approved
-          refunds are returned to the original payment method.
-        </p>
+        <p>{t("intro")}</p>
+        <h2 className="text-lg font-medium">{t("eligibleTitle")}</h2>
+        <p>{t("eligible")}</p>
+        <h2 className="text-lg font-medium">{t("notEligibleTitle")}</h2>
+        <p>{t("notEligible")}</p>
+        <h2 className="text-lg font-medium">{t("requestTitle")}</h2>
+        <p>{t("request")}</p>
       </section>
     </main>
   );
