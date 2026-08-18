@@ -2,23 +2,6 @@ export type InvoiceStatus = "paid" | "cancelled" | "failed" | "pending";
 
 export type EsimInstallPlatform = "ios" | "android" | "unknown";
 
-type TelegramWebApp = {
-  ready?: () => void;
-  expand?: () => void;
-  platform?: string;
-  openLink?: (url: string) => void;
-  openInvoice: (
-    url: string,
-    callback?: (status: InvoiceStatus) => void,
-  ) => void;
-};
-
-declare global {
-  interface Window {
-    Telegram?: { WebApp?: TelegramWebApp };
-  }
-}
-
 export function prepareTelegramWebApp() {
   window.Telegram?.WebApp?.ready?.();
   window.Telegram?.WebApp?.expand?.();

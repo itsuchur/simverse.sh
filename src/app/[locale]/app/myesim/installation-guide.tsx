@@ -12,10 +12,23 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { esimProvisioningUrl } from "~/lib/esim-provisioning";
-import {
-  openExternalLink,
-  type EsimInstallPlatform,
-} from "~/lib/telegram-webapp";
+
+function openProvisioningInstall(
+  os: "apple" | "android",
+  cardData: string,
+): void {
+  const url = esimProvisioningUrl(os, cardData);
+  const telegramOpenLink = (
+    window as Window & {
+      Telegram?: { WebApp?: { openLink?: (link: string) => void } };
+    }
+  ).Telegram?.WebApp?.openLink;
+  if (typeof telegramOpenLink === "function") {
+    telegramOpenLink(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 function StepList({ steps }: { steps: string[] }) {
   return (
@@ -31,7 +44,7 @@ export function InstallationGuide({
   platform,
   cardData,
 }: {
-  platform: EsimInstallPlatform | null;
+  platform: "ios" | "android" | "unknown" | null;
   cardData: string | null;
 }) {
   const t = useTranslations("MyEsims");
@@ -48,9 +61,9 @@ export function InstallationGuide({
             type="button"
             size="lg"
             className="w-full"
-            onClick={() =>
-              openExternalLink(esimProvisioningUrl(os, cardData))
-            }
+            onClick={() => {
+              openProvisioningInstall(os, cardData);
+            }}
           >
             {t("install")}
           </Button>
@@ -92,9 +105,9 @@ export function InstallationGuide({
                 <Button
                   type="button"
                   className="w-full"
-                  onClick={() =>
-                    openExternalLink(esimProvisioningUrl("apple", cardData))
-                  }
+                  onClick={() => {
+                    openProvisioningInstall("apple", cardData);
+                  }}
                 >
                   {t("install")}
                 </Button>
@@ -117,9 +130,9 @@ export function InstallationGuide({
                 <Button
                   type="button"
                   className="w-full"
-                  onClick={() =>
-                    openExternalLink(esimProvisioningUrl("android", cardData))
-                  }
+                  onClick={() => {
+                    openProvisioningInstall("android", cardData);
+                  }}
                 >
                   {t("install")}
                 </Button>
