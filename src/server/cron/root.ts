@@ -1,12 +1,11 @@
 import { Cron } from "croner";
 
-import { getRedis } from "~/server/redis";
 import { withRussianNames } from "~/server/suppliers/esimaccess/localize";
 import {
-  ESIMACCESS_PACKAGES_REDIS_KEY,
   fetchEsimAccessPackages,
   fetchUsdRubRate,
   withPriceRub,
+  writeEsimAccessCatalog,
 } from "~/server/suppliers/esimaccess/packages";
 import { preferCatalogPackages } from "~/server/suppliers/esimaccess/prefer-packages";
 
@@ -17,21 +16,19 @@ async function syncEsimAccessPackages() {
   ]);
   const preferred = preferCatalogPackages(packages);
   const packageList = await withRussianNames(withPriceRub(preferred, fx.rate));
-  const redis = await getRedis();
 
-  await redis.set(
-    ESIMACCESS_PACKAGES_REDIS_KEY,
-    JSON.stringify({
+  const generation = await writeEsimAccessCatalog(
+    {
       syncedAt: new Date().toISOString(),
       count: packageList.length,
       usdRubRate: fx.rate,
       usdRubRateDate: fx.date,
-      packageList,
-    }),
+    },
+    packageList,
   );
 
   console.log(
-    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to Redis key "${ESIMACCESS_PACKAGES_REDIS_KEY}" (USD/RUB ${fx.rate})`,
+    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (USD/RUB ${fx.rate})`,
   );
 }
 

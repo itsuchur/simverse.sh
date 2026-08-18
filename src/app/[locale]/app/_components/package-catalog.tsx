@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Globe, Search } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
@@ -28,6 +29,7 @@ import type {
   PopularCountryPackages,
   RegionPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
+import { api } from "~/trpc/react";
 
 const tabValues = ["popular", "local", "regional", "global"] as const;
 
@@ -40,58 +42,38 @@ function formatVolume(bytes: number) {
   return `${Math.round(mib)} MB`;
 }
 
-function packageMatches(pkg: CatalogPackage, query: string) {
-  return (
-    pkg.name.toLowerCase().includes(query) ||
-    pkg.nameRu?.toLowerCase().includes(query)
-  );
-}
+/**
+ * Search runs server-side via RediSearch (each package document indexes its
+ * names, country/region labels and ISO codes), so filtering here is just an
+ * intersection with the matched package codes. `null` means "do not filter".
+ */
+type MatchedCodes = ReadonlySet<string> | null;
 
 function filterCountryGroups(
   groups: PopularCountryPackages[],
-  query: string,
+  codes: MatchedCodes,
 ): PopularCountryPackages[] {
-  if (!query) return groups;
+  if (!codes) return groups;
 
   return groups
-    .map((group) => {
-      const countryMatch =
-        group.countryName.toLowerCase().includes(query) ||
-        group.countryCode.toLowerCase().includes(query);
-
-      if (countryMatch) {
-        return group;
-      }
-
-      return {
-        ...group,
-        packages: group.packages.filter((pkg) => packageMatches(pkg, query)),
-      };
-    })
+    .map((group) => ({
+      ...group,
+      packages: group.packages.filter((pkg) => codes.has(pkg.packageCode)),
+    }))
     .filter((group) => group.packages.length > 0);
 }
 
 function filterRegionGroups(
   groups: RegionPackages[],
-  query: string,
+  codes: MatchedCodes,
 ): RegionPackages[] {
-  if (!query) return groups;
+  if (!codes) return groups;
 
   return groups
-    .map((group) => {
-      const labelMatch =
-        group.regionLabel.toLowerCase().includes(query) ||
-        group.regionLabelRu?.toLowerCase().includes(query);
-
-      if (labelMatch) {
-        return group;
-      }
-
-      return {
-        ...group,
-        packages: group.packages.filter((pkg) => packageMatches(pkg, query)),
-      };
-    })
+    .map((group) => ({
+      ...group,
+      packages: group.packages.filter((pkg) => codes.has(pkg.packageCode)),
+    }))
     .filter((group) => group.packages.length > 0);
 }
 
@@ -207,7 +189,7 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch] [max-height:calc(min(88vh,42rem)-5.75rem)]">
+        <div className="[max-height:calc(min(88vh,42rem)-5.75rem)] min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch]">
           <div className="flex flex-col gap-6">
             <hr className="border-border" />
 
@@ -256,7 +238,7 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
                           className={cn(
                             "flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left text-base leading-snug transition-colors",
                             selected
-                              ? "bg-muted font-medium ring-1 ring-foreground/20"
+                              ? "bg-muted ring-foreground/20 font-medium ring-1"
                               : "hover:bg-muted/60",
                           )}
                           onClick={() => {
@@ -409,26 +391,52 @@ export function PackageCatalog({
 }) {
   const t = useTranslations("Catalog");
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [tab, setTab] = useState("popular");
 
-  const trimmed = query.trim().toLowerCase();
+  useEffect(() => {
+    const trimmed = query.trim();
+    // Clearing the input resets instantly; typing is debounced.
+    const timer = setTimeout(
+      () => setDebouncedQuery(trimmed),
+      trimmed ? 250 : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const search = api.catalog.search.useQuery(
+    { query: debouncedQuery },
+    {
+      enabled: debouncedQuery.length > 0,
+      placeholderData: keepPreviousData,
+    },
+  );
+
+  // null = show everything: no active query, query still in flight with no
+  // previous result, or the server said the query is too vague to filter.
+  const matchedCodes = useMemo<MatchedCodes>(() => {
+    if (!debouncedQuery || search.data == null) return null;
+    return new Set(search.data);
+  }, [debouncedQuery, search.data]);
 
   const popularGroups = useMemo(
-    () => filterCountryGroups(popular, trimmed),
-    [popular, trimmed],
+    () => filterCountryGroups(popular, matchedCodes),
+    [popular, matchedCodes],
   );
   const localGroups = useMemo(
-    () => filterCountryGroups(local, trimmed),
-    [local, trimmed],
+    () => filterCountryGroups(local, matchedCodes),
+    [local, matchedCodes],
   );
   const regionalGroups = useMemo(
-    () => filterRegionGroups(regional, trimmed),
-    [regional, trimmed],
+    () => filterRegionGroups(regional, matchedCodes),
+    [regional, matchedCodes],
   );
   const globalPackages = useMemo(
     () =>
-      trimmed ? global.filter((pkg) => packageMatches(pkg, trimmed)) : global,
-    [global, trimmed],
+      matchedCodes
+        ? global.filter((pkg) => matchedCodes.has(pkg.packageCode))
+        : global,
+    [global, matchedCodes],
   );
 
   return (

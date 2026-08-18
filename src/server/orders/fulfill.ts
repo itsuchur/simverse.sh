@@ -167,7 +167,7 @@ export async function fulfillStarsPayment(input: {
   const pending = await db.order.findUnique({
     where: { orderUuid: input.orderUuid },
   });
-  if (!pending || pending.paymentStatus !== paymentStatus.pending) {
+  if (pending?.paymentStatus !== paymentStatus.pending) {
     return;
   }
 
@@ -239,8 +239,7 @@ export async function fulfillCryptomusPayment(input: {
     include: { user: { select: { telegramId: true } } },
   });
   if (
-    !pending ||
-    pending.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
+    pending?.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
     pending.paymentStatus !== paymentStatus.pending
   ) {
     return;
@@ -305,8 +304,7 @@ export async function failCryptomusPayment(orderUuid: string) {
     where: { orderUuid },
   });
   if (
-    !pending ||
-    pending.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
+    pending?.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
     pending.paymentStatus !== paymentStatus.pending
   ) {
     return;
@@ -346,8 +344,7 @@ export async function fulfillCardlinkPayment(input: {
     include: { user: { select: { telegramId: true } } },
   });
   if (
-    !pending ||
-    pending.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
+    pending?.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
     pending.paymentStatus !== paymentStatus.pending
   ) {
     return;
@@ -425,8 +422,7 @@ export async function failCardlinkPayment(orderUuid: string) {
     where: { orderUuid },
   });
   if (
-    !pending ||
-    pending.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
+    pending?.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
     pending.paymentStatus !== paymentStatus.pending
   ) {
     return;

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { catalogRouter } from "~/server/api/routers/catalog";
 import { healthRouter } from "~/server/api/routers/health";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
@@ -10,6 +11,7 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  */
 export const appRouter = createTRPCRouter({
   health: healthRouter,
+  catalog: catalogRouter,
 });
 
 // export type definition of API

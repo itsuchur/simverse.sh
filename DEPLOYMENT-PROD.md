@@ -4,6 +4,8 @@ Operator runbook for the production Docker Compose stack in `compose.prod.yaml`.
 
 Services: Traefik (Cloudflare DNS-01 TLS, HTTP→HTTPS), `app` (Next.js standalone on port 3000), `poller` (hourly eSIM Access catalog sync into Redis), Postgres 18, Redis 8, and `offen/docker-volume-backup` (daily dumps to S3).
 
+The app requires the JSON and Search modules that ship with Redis 8 (catalog documents, cart storage, and catalog search). The official `redis:8` image auto-loads every module in `/usr/local/lib/redis/modules/` through its entrypoint, so the plain `redis-server …` command in `compose.prod.yaml` is enough; verify with `redis-cli … module list` if in doubt.
+
 ## 1. Host prerequisites
 
 On the production host:
@@ -129,7 +131,7 @@ docker compose -f compose.prod.yaml logs -f poller
 ```
 
 - Open `https://${APP_DOMAIN}` and confirm TLS (Traefik / Let's Encrypt).
-- Poller logs a catalog sync on start, then hourly (`[cron] synced … packages to Redis`).
+- Poller logs a catalog sync on start, then hourly (`[cron] synced … packages to RedisJSON catalog generation …`).
 - Sign in at `/dashboard` as `support@simverse.sh`.
 
 Webhook log table (skip `headers`; they can include the Telegram secret):
