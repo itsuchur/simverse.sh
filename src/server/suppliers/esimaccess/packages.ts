@@ -1,6 +1,13 @@
 import "server-only";
 
 import { usdToStars } from "~/lib/usd-to-stars";
+import {
+  readCatalogMeta,
+  readCatalogPackage,
+  readCatalogPackages,
+  searchCatalogPackageCodes,
+  writeCatalogGeneration,
+} from "~/server/catalog/store";
 import { getRedis } from "~/server/redis";
 import type {
   CatalogByScope,
@@ -18,7 +25,7 @@ export type {
   RegionPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
 
-export const ESIMACCESS_PACKAGES_REDIS_KEY = "esimaccess:packages";
+export const ESIMACCESS_SUPPLIER = "esimaccess";
 export const POPULAR_COUNTRIES_REDIS_KEY = "popularCountries";
 
 /** Supplier money amounts use 10000 = $1.00 (USD). */
@@ -47,11 +54,14 @@ export type EsimAccessPackage = {
   locationNetworkList?: unknown[];
 };
 
-export type CachedEsimAccessPackages = {
+export type EsimAccessCatalogMeta = {
   syncedAt: string;
   count: number;
   usdRubRate: number;
   usdRubRateDate: string;
+};
+
+export type CachedEsimAccessPackages = EsimAccessCatalogMeta & {
   packageList: EsimAccessPackage[];
 };
 
@@ -167,20 +177,6 @@ export function withPriceRub(
   }));
 }
 
-export async function getCachedEsimAccessPackages() {
-  const redis = await getRedis();
-  const raw = await redis.get(ESIMACCESS_PACKAGES_REDIS_KEY);
-  if (!raw) {
-    return null;
-  }
-  return JSON.parse(raw) as CachedEsimAccessPackages;
-}
-
-export async function getPopularCountryCodes() {
-  const redis = await getRedis();
-  return redis.lRange(POPULAR_COUNTRIES_REDIS_KEY, 0, -1);
-}
-
 function countryDisplayName(countryCode: string, locale: string) {
   try {
     return (
@@ -190,6 +186,75 @@ function countryDisplayName(countryCode: string, locale: string) {
   } catch {
     return countryCode;
   }
+}
+
+/** The Russian region label is the part of `nameRu` before the em dash. */
+function regionLabelRu(pkg: EsimAccessPackage): string | undefined {
+  return pkg.nameRu?.split(" — ")[0];
+}
+
+/**
+ * Everything a customer might type to find this package: names in both
+ * languages, country/region display labels, and the ISO country codes.
+ */
+function buildSearchText(pkg: EsimAccessPackage): string {
+  const codes = pkg.location.split(",").filter(Boolean);
+  const parts = [pkg.name, pkg.nameRu, ...codes];
+
+  if (codes.length === 1 && codes[0]) {
+    parts.push(
+      countryDisplayName(codes[0], "en"),
+      countryDisplayName(codes[0], "ru"),
+    );
+  } else {
+    parts.push(parseName(pkg.name)?.label, regionLabelRu(pkg));
+  }
+
+  return [...new Set(parts.filter(Boolean))].join(" ");
+}
+
+/** Writes the catalog as one RedisJSON document per package (see store.ts). */
+export async function writeEsimAccessCatalog(
+  meta: EsimAccessCatalogMeta,
+  packageList: EsimAccessPackage[],
+) {
+  return writeCatalogGeneration(
+    ESIMACCESS_SUPPLIER,
+    meta,
+    packageList.map((pkg) => ({ ...pkg, searchText: buildSearchText(pkg) })),
+  );
+}
+
+export async function getCachedEsimAccessPackages(): Promise<CachedEsimAccessPackages | null> {
+  const [meta, packageList] = await Promise.all([
+    readCatalogMeta<EsimAccessCatalogMeta>(ESIMACCESS_SUPPLIER),
+    readCatalogPackages<EsimAccessPackage>(ESIMACCESS_SUPPLIER),
+  ]);
+  if (!meta) {
+    return null;
+  }
+  return { ...meta, packageList };
+}
+
+export async function getEsimAccessPackageByCode(packageCode: string) {
+  const [meta, pkg] = await Promise.all([
+    readCatalogMeta<EsimAccessCatalogMeta>(ESIMACCESS_SUPPLIER),
+    readCatalogPackage<EsimAccessPackage>(ESIMACCESS_SUPPLIER, packageCode),
+  ]);
+  if (!meta || !pkg) {
+    return null;
+  }
+  return { meta, pkg };
+}
+
+/** RediSearch-backed catalog search; null means "query too vague to filter". */
+export async function searchEsimAccessPackageCodes(query: string) {
+  return searchCatalogPackageCodes(ESIMACCESS_SUPPLIER, query);
+}
+
+export async function getPopularCountryCodes() {
+  const redis = await getRedis();
+  return redis.lRange(POPULAR_COUNTRIES_REDIS_KEY, 0, -1);
 }
 
 /** Single-country packages whose `location` is listed in `popularCountries`. */
@@ -212,11 +277,6 @@ export async function getPopularPackagesByCountry(
 }
 
 const GLOBAL_COUNTRY_THRESHOLD = 90;
-
-/** The Russian region label is the part of `nameRu` before the em dash. */
-function regionLabelRu(pkg: EsimAccessPackage): string | undefined {
-  return pkg.nameRu?.split(" — ")[0];
-}
 
 /**
  * Splits the full catalog by coverage: single-country packages grouped by

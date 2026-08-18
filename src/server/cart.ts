@@ -4,7 +4,7 @@ import { cartPlanSchema, type CartPlan } from "~/lib/cart-plan";
 import { getRedis } from "~/server/redis";
 import {
   ESIMACCESS_PRICE_SCALE,
-  getCachedEsimAccessPackages,
+  getEsimAccessPackageByCode,
   retailPriceToRub,
   retailPriceToStars,
   type EsimAccessPackage,
@@ -107,7 +107,7 @@ export async function replaceCartPlan(telegramId: string, plan: CartPlan) {
   await redis
     .multi()
     .del(key)
-    .hSet(key, `plan:${plan.slug}`, JSON.stringify(plan))
+    .json.set(key, "$", plan)
     .expire(key, CART_TTL_SECONDS)
     .exec();
 }
@@ -121,31 +121,20 @@ export async function getCartPlan(
   telegramId: string,
 ): Promise<CartPlan | null> {
   const redis = await getRedis();
-  const fields = await redis.hGetAll(cartKey(telegramId));
-  const entry = Object.entries(fields).find(([field]) =>
-    field.startsWith("plan:"),
-  );
-  if (!entry) {
+  const value = await redis.json.get(cartKey(telegramId));
+  if (value === null) {
     return null;
   }
-
-  try {
-    const parsed = cartPlanSchema.safeParse(JSON.parse(entry[1]));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  const parsed = cartPlanSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 export async function cartPlanForPackageCode(
   packageCode: string,
 ): Promise<CartPlan> {
-  const cached = await getCachedEsimAccessPackages();
-  const pkg = cached?.packageList.find(
-    (item) => item.packageCode === packageCode,
-  );
-  if (!cached || !pkg) {
+  const found = await getEsimAccessPackageByCode(packageCode);
+  if (!found) {
     throw new UnknownPackageError();
   }
-  return cartPlanFromPackage(pkg, cached.usdRubRate);
+  return cartPlanFromPackage(found.pkg, found.meta.usdRubRate);
 }

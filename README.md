@@ -12,7 +12,7 @@ Built on the [T3 Stack](https://create.t3.gg/):
 - [Prisma](https://prisma.io) + PostgreSQL
 - [Tailwind CSS](https://tailwindcss.com) + shadcn/ui
 - [tRPC](https://trpc.io)
-- Redis (catalog cache), Sentry (monitoring)
+- Redis 8 (catalog as RedisJSON documents + RediSearch catalog search, carts), Sentry (monitoring)
 
 ## Development
 
