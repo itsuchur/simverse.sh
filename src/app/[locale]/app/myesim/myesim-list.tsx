@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Globe } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
@@ -145,15 +145,24 @@ function OrderCard({
   );
 }
 
+function subscribeNever() {
+  return () => undefined;
+}
+
 export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
   const t = useTranslations("MyEsims");
   const router = useRouter();
   const preparing = orders.some(isPreparing);
-  const [platform, setPlatform] = useState<EsimInstallPlatform | null>(null);
+  // Platform never changes during a session; the store only exists to read it
+  // client-side (null during SSR/hydration).
+  const platform = useSyncExternalStore<EsimInstallPlatform | null>(
+    subscribeNever,
+    detectEsimInstallPlatform,
+    () => null,
+  );
 
   useEffect(() => {
     prepareTelegramWebApp();
-    setPlatform(detectEsimInstallPlatform());
   }, []);
 
   useEffect(() => {
@@ -181,11 +190,7 @@ export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {orders.map((order) => (
-        <OrderCard
-          key={order.orderUuid}
-          order={order}
-          platform={platform}
-        />
+        <OrderCard key={order.orderUuid} order={order} platform={platform} />
       ))}
     </div>
   );

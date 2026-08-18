@@ -17,7 +17,11 @@ const messagesByLocale: Record<
 
 export default getRequestConfig(async ({ locale }) => {
   if (!locale) {
-    const paramValue = await rootParams.locale();
+    // next/root-params ships a bare module declaration; the real types are
+    // generated into .next/types by `next dev`, so lint from a clean checkout
+    // sees `any` here.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const paramValue: unknown = await rootParams.locale();
     if (hasLocale(routing.locales, paramValue)) {
       locale = paramValue;
     } else {
