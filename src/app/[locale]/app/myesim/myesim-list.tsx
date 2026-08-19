@@ -14,6 +14,7 @@ import {
 } from "~/components/ui/card";
 import { useRouter } from "~/i18n/navigation";
 import { lpaCardData } from "~/lib/esim-provisioning";
+import { esimStatusBadge } from "~/lib/esim-status";
 import { orderStatus } from "~/lib/order-status";
 import {
   detectEsimInstallPlatform,
@@ -32,6 +33,8 @@ export type MyEsimOrder = {
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
+  esimStatus: string | null;
+  esimSmdpStatus: string | null;
   esimActivationCode: string | null;
   esimQrUrl: string | null;
   esimSmdpAddress: string | null;
@@ -89,6 +92,7 @@ function OrderCard({
     countryCode && !countryCode.includes(",")
       ? countryDisplayName(countryCode, locale)
       : order.packageName;
+  const statusBadge = esimStatusBadge(order.esimStatus, order.esimSmdpStatus);
 
   return (
     <Card>
@@ -111,9 +115,18 @@ function OrderCard({
           )}
           <span className="min-w-0">{title}</span>
         </CardTitle>
-        <CardDescription className="text-base">
-          {[data, duration].filter(Boolean).join(" · ")}
-        </CardDescription>
+        <div className="flex flex-col gap-1">
+          <CardDescription className="text-base">
+            {[data, duration].filter(Boolean).join(" · ")}
+          </CardDescription>
+          {order.esimIccid && statusBadge ? (
+            <span
+              className={`w-fit rounded-lg px-2 py-1 text-xs font-bold tracking-wide text-foreground ${statusBadge.className}`}
+            >
+              {statusBadge.text}
+            </span>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {order.status === orderStatus.failed ? (

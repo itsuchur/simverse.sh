@@ -5,7 +5,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import { env } from "~/env";
-import { attachGotResource } from "~/server/orders/fulfill";
+import { applyEsimStatus, attachGotResource } from "~/server/orders/fulfill";
 
 /**
  * eSIM Access webhook notifications.
@@ -84,7 +84,21 @@ export async function handleEsimAccessNotification(
       return;
     }
     case "ESIM_STATUS":
-    case "SMDP_EVENT":
+    case "SMDP_EVENT": {
+      const esimStatus = contentString(notification.content, "esimStatus");
+      const smdpStatus = contentString(notification.content, "smdpStatus");
+      if (!esimStatus && !smdpStatus) {
+        return;
+      }
+      await applyEsimStatus({
+        iccid: contentString(notification.content, "iccid"),
+        orderNo: contentString(notification.content, "orderNo"),
+        transactionId: contentString(notification.content, "transactionId"),
+        esimStatus,
+        smdpStatus,
+      });
+      return;
+    }
     case "DATA_USAGE":
     case "VALIDITY_USAGE":
       return;

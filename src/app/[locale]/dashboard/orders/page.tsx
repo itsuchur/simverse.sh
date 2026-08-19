@@ -51,6 +51,8 @@ function toOrderRecord(order: {
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
+  esimStatus: string | null;
+  esimSmdpStatus: string | null;
   esimActivationCode: string | null;
   esimQrUrl: string | null;
   esimSmdpAddress: string | null;
@@ -82,6 +84,8 @@ function toOrderRecord(order: {
     status: order.status,
     failureReason: order.failureReason,
     esimIccid: order.esimIccid,
+    esimStatus: order.esimStatus,
+    esimSmdpStatus: order.esimSmdpStatus,
     esimActivationCode: order.esimActivationCode,
     esimQrUrl: order.esimQrUrl,
     esimSmdpAddress: order.esimSmdpAddress,

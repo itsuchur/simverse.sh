@@ -32,6 +32,8 @@ export default async function AppMyESIms() {
     status: row.status,
     failureReason: row.failureReason,
     esimIccid: row.esimIccid,
+    esimStatus: row.esimStatus,
+    esimSmdpStatus: row.esimSmdpStatus,
     esimActivationCode: row.esimActivationCode,
     esimQrUrl: row.esimQrUrl,
     esimSmdpAddress: row.esimSmdpAddress,

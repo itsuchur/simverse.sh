@@ -132,6 +132,8 @@ model Order {
   failureReason String? @map("failure_reason")
 
   esimIccid           String? @map("esim_iccid")
+  esimStatus          String? @map("esim_status")
+  esimSmdpStatus      String? @map("esim_smdp_status")
   esimActivationCode  String? @map("esim_activation_code")
   esimQrUrl           String? @map("esim_qr_url")
   esimSmdpAddress     String? @map("esim_smdp_address")
@@ -148,6 +150,7 @@ model Order {
   @@index([status], map: "idx_orders_status")
   @@index([resellerCode], map: "idx_orders_reseller_code")
   @@index([createdAt(sort: Desc)], map: "idx_orders_created_at")
+  @@index([esimIccid], map: "idx_orders_esim_iccid")
   /// Partial unique index `uq_payment_charge` is defined in the migration SQL
   /// (payment_provider, payment_charge_id) WHERE payment_charge_id IS NOT NULL.
   @@map("orders")

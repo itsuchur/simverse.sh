@@ -32,6 +32,8 @@ export type OrderRecord = {
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
+  esimStatus: string | null;
+  esimSmdpStatus: string | null;
   esimActivationCode: string | null;
   esimQrUrl: string | null;
   esimSmdpAddress: string | null;
@@ -67,6 +69,8 @@ const ORDER_FIELDS: {
   { column: "status", value: (order) => order.status },
   { column: "failure_reason", value: (order) => order.failureReason },
   { column: "esim_iccid", value: (order) => order.esimIccid },
+  { column: "esim_status", value: (order) => order.esimStatus },
+  { column: "esim_smdp_status", value: (order) => order.esimSmdpStatus },
   {
     column: "esim_activation_code",
     value: (order) => order.esimActivationCode,

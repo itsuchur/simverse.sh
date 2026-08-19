@@ -16,6 +16,7 @@ import {
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
+import { isEsimLifecycleStatus } from "~/lib/esim-status";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
@@ -46,6 +47,11 @@ function applyProfile(
       status: orderStatus.issued,
       issuedAt: new Date(),
       esimIccid: profile.iccid,
+      esimStatus:
+        profile.esimStatus && isEsimLifecycleStatus(profile.esimStatus)
+          ? profile.esimStatus
+          : undefined,
+      esimSmdpStatus: profile.smdpStatus,
       esimActivationCode: profile.ac,
       esimQrUrl: profile.qrCodeUrl,
       esimSmdpAddress: profile.smdpAddress,
@@ -463,7 +469,7 @@ export async function syncPendingProfilesForUser(userId: string) {
   }
 }
 
-async function findOrderForResource(input: {
+export async function findOrderForResource(input: {
   orderNo: string | null;
   transactionId: string | null;
 }) {
@@ -519,5 +525,42 @@ export async function attachGotResource(input: {
     ...order,
     resellerOrderId,
     status: order.resellerOrderId ? order.status : orderStatus.ordering,
+  });
+}
+
+export async function applyEsimStatus(input: {
+  iccid: string | null;
+  orderNo: string | null;
+  transactionId: string | null;
+  esimStatus: string | null;
+  smdpStatus: string | null;
+}) {
+  let order = input.iccid
+    ? await db.order.findFirst({ where: { esimIccid: input.iccid } })
+    : null;
+
+  if (!order) {
+    order = await findOrderForResource({
+      orderNo: input.orderNo,
+      transactionId: input.transactionId,
+    });
+  }
+
+  if (!order) {
+    return;
+  }
+
+  const esimStatus =
+    input.esimStatus && isEsimLifecycleStatus(input.esimStatus)
+      ? input.esimStatus
+      : undefined;
+
+  await db.order.update({
+    where: { id: order.id },
+    data: {
+      ...(esimStatus ? { esimStatus } : {}),
+      ...(input.smdpStatus ? { esimSmdpStatus: input.smdpStatus } : {}),
+      ...(input.iccid && !order.esimIccid ? { esimIccid: input.iccid } : {}),
+    },
   });
 }

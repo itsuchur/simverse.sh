@@ -12,6 +12,8 @@ export type EsimAccessProfile = {
   ac?: string;
   qrCodeUrl?: string;
   smdpAddress?: string;
+  esimStatus?: string;
+  smdpStatus?: string;
 };
 
 type OrderResponse = {
@@ -48,6 +50,8 @@ function mapProfile(raw: unknown): EsimAccessProfile | null {
     ac,
     qrCodeUrl: asString(row.qrCodeUrl),
     smdpAddress: asString(row.smdpAddress) ?? smdpFromActivationCode(ac),
+    esimStatus: asString(row.esimStatus),
+    smdpStatus: asString(row.smdpStatus),
   };
 }
 
