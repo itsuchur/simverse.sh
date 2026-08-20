@@ -81,6 +81,8 @@
     "premium": "Premium",
     "preferences": "Настройки",
     "transactionHistory": "История транзакций",
+    "transactionHistoryEmpty": "Покупок пока нет.",
+    "starsAmount": "{amount} Stars",
     "refundPolicy": "Политика возвратов",
     "termsOfService": "Условия использования",
     "privacyPolicy": "Политика конфиденциальности",

@@ -3,7 +3,6 @@
 import {
   ChevronRight,
   FileText,
-  History,
   RotateCcw,
   Settings,
   Shield,
@@ -11,6 +10,7 @@ import {
 import { getTranslations } from "next-intl/server";
 
 import { LocaleSwitcher } from "../_components/locale-switcher";
+import { TransactionHistory, type HistoryOrder } from "./transaction-history";
 import {
   Card,
   CardDescription,
@@ -18,7 +18,11 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Link } from "~/i18n/navigation";
+import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
+import { db } from "~/server/db";
+
+export const dynamic = "force-dynamic";
 
 type ProfileOption = {
   label: string;
@@ -34,7 +38,7 @@ function ProfileOptionCard({ option }: { option: ProfileOption }) {
     <Card
       size="sm"
       className={
-        option.href ? "transition-colors hover:bg-muted/40" : undefined
+        option.href ? "hover:bg-muted/40 transition-colors" : undefined
       }
     >
       <div className="flex items-center gap-3 px-(--card-spacing)">
@@ -75,15 +79,41 @@ export default async function AppProfile() {
   const t = await getTranslations("Profile");
   const { user } = session;
 
-  const profileOptions: ProfileOption[] = [
-    {
-      label: t("preferences"),
-      icon: Settings,
+  const rows = await db.order.findMany({
+    where: { userId: session.user.id, paymentStatus: paymentStatus.paid },
+    orderBy: { createdAt: "desc" },
+    select: {
+      orderUuid: true,
+      packageName: true,
+      countryCode: true,
+      dataAmountMb: true,
+      validityDays: true,
+      priceAmount: true,
+      currency: true,
+      paymentProvider: true,
+      paidAt: true,
+      createdAt: true,
     },
-    {
-      label: t("transactionHistory"),
-      icon: History,
-    },
+  });
+
+  const orders: HistoryOrder[] = rows.map((row) => ({
+    orderUuid: row.orderUuid,
+    packageName: row.packageName,
+    countryCode: row.countryCode,
+    dataAmountMb: row.dataAmountMb,
+    validityDays: row.validityDays,
+    priceAmount: row.priceAmount.toString(),
+    currency: row.currency,
+    paymentProvider: row.paymentProvider,
+    purchasedAt: (row.paidAt ?? row.createdAt).toISOString(),
+  }));
+
+  const preferenceOption: ProfileOption = {
+    label: t("preferences"),
+    icon: Settings,
+  };
+
+  const legalOptions: ProfileOption[] = [
     {
       label: t("refundPolicy"),
       icon: RotateCcw,
@@ -130,7 +160,9 @@ export default async function AppProfile() {
 
       <LocaleSwitcher />
 
-      {profileOptions.map((option) => (
+      <ProfileOptionCard option={preferenceOption} />
+      <TransactionHistory orders={orders} />
+      {legalOptions.map((option) => (
         <ProfileOptionCard key={option.label} option={option} />
       ))}
     </main>

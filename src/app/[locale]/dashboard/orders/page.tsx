@@ -1,4 +1,4 @@
-import { STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
+import { formatOrderPrice } from "~/lib/format-order-price";
 import { db } from "~/server/db";
 
 import { OrderRow, type OrderRecord } from "./order-row";
@@ -6,14 +6,6 @@ import { OrderRow, type OrderRecord } from "./order-row";
 export const dynamic = "force-dynamic";
 
 const ORDER_LIMIT = 200;
-
-function formatPrice(amount: bigint, currency: string, provider: string) {
-  if (provider === STARS_PAYMENT_PROVIDER) {
-    return `${amount.toString()} Stars`;
-  }
-  const major = Number(amount) / 100;
-  return `${major.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
-}
 
 function formatUser(user: {
   name: string;
@@ -167,7 +159,7 @@ export default async function DashboardOrdersPage() {
                     {order.countryCode ?? "—"}
                   </td>
                   <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                    {formatPrice(
+                    {formatOrderPrice(
                       order.priceAmount,
                       order.currency,
                       order.paymentProvider,

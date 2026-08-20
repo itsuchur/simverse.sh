@@ -81,6 +81,8 @@
     "premium": "Premium",
     "preferences": "Preferences",
     "transactionHistory": "Transaction History",
+    "transactionHistoryEmpty": "No purchases yet.",
+    "starsAmount": "{amount} Stars",
     "refundPolicy": "Refund Policy",
     "termsOfService": "Terms of Service",
     "privacyPolicy": "Privacy Policy",
