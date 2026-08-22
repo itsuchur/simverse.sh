@@ -32,6 +32,15 @@ export function openExternalLink(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+export function openTelegramLink(url: string) {
+  const openLink = window.Telegram?.WebApp?.openTelegramLink;
+  if (typeof openLink === "function") {
+    openLink(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 export function openTelegramInvoice(url: string): Promise<InvoiceStatus> {
   const webApp = window.Telegram?.WebApp;
   if (typeof webApp?.openInvoice !== "function") {

@@ -89,6 +89,13 @@
     "refundPolicy": "Refund Policy",
     "termsOfService": "Terms of Service",
     "privacyPolicy": "Privacy Policy",
+    "help": "Help",
+    "contactSupport": "Contact Support",
+    "acknowledgments": "Acknowledgments",
+    "acknowledgmentsIntro": "This application is built with open-source software and a licensed typeface. The notices below cover attribution and disclosure required for commercial use.",
+    "acknowledgmentsOpenSource": "Open-source software",
+    "acknowledgmentsFonts": "Typeface",
+    "acknowledgmentsGeist": "Geist by Vercel is licensed under the <ofl>SIL Open Font License, Version 1.1</ofl>. Commercial use is allowed if the font is not sold by itself and this license notice is included.",
     "language": "Language",
     "languageDescription": "Choose the language for the app."
   },

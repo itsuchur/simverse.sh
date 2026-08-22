@@ -3,6 +3,7 @@ type TelegramWebApp = {
   expand?: () => void;
   platform?: string;
   openLink?: (url: string) => void;
+  openTelegramLink?: (url: string) => void;
   openInvoice: (
     url: string,
     callback?: (status: "paid" | "cancelled" | "failed" | "pending") => void,

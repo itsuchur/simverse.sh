@@ -1,15 +1,18 @@
 /* eslint-disable @next/next/no-img-element -- Telegram avatar URLs are
    remote and short-lived; next/image optimization adds no value here. */
 import {
-  ChevronRight,
+  CircleHelp,
   FileText,
+  MessageCircle,
   RotateCcw,
   Settings,
   Shield,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
+import { Acknowledgments } from "./acknowledgments";
 import { LocaleSwitcher } from "../_components/locale-switcher";
+import { ProfileOptionCard, type ProfileOption } from "./profile-option-card";
 import { TransactionHistory, type HistoryOrder } from "./transaction-history";
 import {
   Card,
@@ -17,55 +20,14 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Link } from "~/i18n/navigation";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
 
 export const dynamic = "force-dynamic";
 
-type ProfileOption = {
-  label: string;
-  icon: typeof Settings;
-  href?: "/refund-policy" | "/tos" | "/privacy-policy";
-};
-
-function ProfileOptionCard({ option }: { option: ProfileOption }) {
-  const Icon = option.icon;
-  // Use a plain flex row — nesting CardDescription inside CardHeader trips
-  // the header's has-[slot] auto-grid and misplaces the icon/chevron.
-  const body = (
-    <Card
-      size="sm"
-      className={
-        option.href ? "hover:bg-muted/40 transition-colors" : undefined
-      }
-    >
-      <div className="flex items-center gap-3 px-(--card-spacing)">
-        <span className="bg-muted text-foreground flex size-9 shrink-0 items-center justify-center rounded-full">
-          <Icon className="size-4" aria-hidden />
-        </span>
-        <CardTitle className="min-w-0 flex-1">{option.label}</CardTitle>
-        {option.href ? (
-          <ChevronRight
-            className="text-muted-foreground size-4 shrink-0"
-            aria-hidden
-          />
-        ) : null}
-      </div>
-    </Card>
-  );
-
-  if (option.href) {
-    return (
-      <Link href={option.href} className="block">
-        {body}
-      </Link>
-    );
-  }
-
-  return body;
-}
+const HELP_URL = "https://help.simverse.sh";
+const SUPPORT_URL = "https://t.me/simversesupport";
 
 export default async function AppProfile() {
   // The /app layout gates rendering, but pages showing user data must not
@@ -113,6 +75,12 @@ export default async function AppProfile() {
     icon: Settings,
   };
 
+  const helpOption: ProfileOption = {
+    label: t("help"),
+    icon: CircleHelp,
+    externalHref: HELP_URL,
+  };
+
   const legalOptions: ProfileOption[] = [
     {
       label: t("refundPolicy"),
@@ -130,6 +98,12 @@ export default async function AppProfile() {
       href: "/privacy-policy",
     },
   ];
+
+  const supportOption: ProfileOption = {
+    label: t("contactSupport"),
+    icon: MessageCircle,
+    telegramHref: SUPPORT_URL,
+  };
 
   return (
     <main className="space-y-3 pt-2">
@@ -162,9 +136,12 @@ export default async function AppProfile() {
 
       <ProfileOptionCard option={preferenceOption} />
       <TransactionHistory orders={orders} />
+      <ProfileOptionCard option={helpOption} />
       {legalOptions.map((option) => (
         <ProfileOptionCard key={option.label} option={option} />
       ))}
+      <ProfileOptionCard option={supportOption} />
+      <Acknowledgments />
     </main>
   );
 }

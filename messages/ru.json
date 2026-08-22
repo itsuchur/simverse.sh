@@ -89,6 +89,13 @@
     "refundPolicy": "Политика возвратов",
     "termsOfService": "Условия использования",
     "privacyPolicy": "Политика конфиденциальности",
+    "help": "Помощь",
+    "contactSupport": "Связаться с поддержкой",
+    "acknowledgments": "Лицензии",
+    "acknowledgmentsIntro": "Это приложение собрано из открытого программного обеспечения и лицензированного шрифта. Ниже — уведомления, которые требуются при коммерческом использовании.",
+    "acknowledgmentsOpenSource": "Открытое ПО",
+    "acknowledgmentsFonts": "Шрифт",
+    "acknowledgmentsGeist": "Geist от Vercel распространяется по лицензии <ofl>SIL Open Font License, Version 1.1</ofl>. Коммерческое использование разрешено, если шрифт не продаётся отдельно и это уведомление сохраняется.",
     "language": "Язык",
     "languageDescription": "Выберите язык приложения."
   },
