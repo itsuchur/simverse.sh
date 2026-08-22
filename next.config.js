@@ -15,6 +15,9 @@ const config = {
   // Emit .next/standalone so the production Docker image can run without the
   // full node_modules tree (see Dockerfile runner stage).
   output: "standalone",
+  outputFileTracingIncludes: {
+    "/**": ["./TOS.md", "./PRIVACY-POLICY.md", "./REFUNDS.md"],
+  },
   // Allow the ngrok tunnel host to hit the Next.js dev server (HMR/assets/API).
   allowedDevOrigins: ["magical-guinea-utterly.ngrok-free.app"],
   // PostHog ingest paths use trailing slashes; do not 308 them away.

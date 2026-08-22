@@ -105,46 +105,21 @@
     "ru": "Русский"
   },
   "Tos": {
-    "metaTitle": "Terms of Service — Simverse",
-    "metaDescription": "Text 1",
+    "metaTitle": "Terms of Service",
+    "metaDescription": "simverse terms of service",
     "title": "Terms of Service",
-    "lastUpdated": "Last updated: August 9, 2026",
-    "intro": "Text 1",
-    "serviceTitle": "Service",
-    "service": "Text 2",
-    "paymentsTitle": "Payments",
-    "payments": "Text 3",
-    "acceptableUseTitle": "Acceptable use",
-    "acceptableUse": "Text 4",
-    "contactTitle": "Contact",
-    "contact": "Text 5"
+    "lastUpdated": "Last updated: August 23rd, 2026"
   },
   "PrivacyPolicy": {
-    "metaTitle": "Privacy Policy — Simverse",
-    "metaDescription": "Text 1",
+    "metaTitle": "Privacy Policy",
+    "metaDescription": "simverse privacy policy",
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: August 9, 2026",
-    "intro": "Text 1",
-    "collectTitle": "Data we collect",
-    "collect": "Text 2",
-    "notCollectTitle": "What we do not collect",
-    "notCollect": "Text 3",
-    "thirdPartiesTitle": "Third parties",
-    "thirdParties": "Text 4",
-    "contactTitle": "Contact",
-    "contact": "Text 5"
+    "lastUpdated": "Last updated: August 23rd, 2026"
   },
   "RefundPolicy": {
-    "metaTitle": "Refund Policy — Simverse",
-    "metaDescription": "Text 1",
+    "metaTitle": "Refund Policy",
+    "metaDescription": "simverse refund policy",
     "title": "Refund Policy",
-    "lastUpdated": "Last updated: August 9, 2026",
-    "intro": "Text 1",
-    "eligibleTitle": "Eligible for a refund",
-    "eligible": "Text 2",
-    "notEligibleTitle": "Not eligible",
-    "notEligible": "Text 3",
-    "requestTitle": "How to request",
-    "request": "Text 4"
+    "lastUpdated": "Last updated: August 23rd, 2026"
   }
 }

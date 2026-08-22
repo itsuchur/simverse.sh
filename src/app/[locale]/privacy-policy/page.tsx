@@ -1,39 +1,11 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
 
-import { LegalCloseButton } from "../_components/legal-close-button";
+import { LegalPage, legalMetadata } from "../_components/legal-page";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("PrivacyPolicy");
-
-  return {
-    title: t("metaTitle"),
-    description: t("metaDescription"),
-  };
+  return legalMetadata("PrivacyPolicy");
 }
 
-export default async function PrivacyPolicy() {
-  const t = await getTranslations("PrivacyPolicy");
-
-  return (
-    <>
-      <LegalCloseButton />
-      <main className="mx-auto w-full max-w-2xl px-4 py-10 pr-14">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground mt-2 text-sm">{t("lastUpdated")}</p>
-
-        <section className="mt-6 space-y-4 text-sm leading-6">
-          <p>{t("intro")}</p>
-          <h2 className="text-lg font-medium">{t("collectTitle")}</h2>
-          <p>{t("collect")}</p>
-          <h2 className="text-lg font-medium">{t("notCollectTitle")}</h2>
-          <p>{t("notCollect")}</p>
-          <h2 className="text-lg font-medium">{t("thirdPartiesTitle")}</h2>
-          <p>{t("thirdParties")}</p>
-          <h2 className="text-lg font-medium">{t("contactTitle")}</h2>
-          <p>{t("contact")}</p>
-        </section>
-      </main>
-    </>
-  );
+export default function PrivacyPolicy() {
+  return <LegalPage namespace="PrivacyPolicy" document="privacy" />;
 }
