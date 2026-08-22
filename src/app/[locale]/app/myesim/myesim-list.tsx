@@ -121,7 +121,7 @@ function OrderCard({
           </CardDescription>
           {order.esimIccid && statusBadge ? (
             <span
-              className={`w-fit rounded-lg px-2 py-1 text-xs font-bold tracking-wide text-foreground ${statusBadge.className}`}
+              className={`text-foreground w-fit rounded-lg px-2 py-1 text-xs font-bold tracking-wide ${statusBadge.className}`}
             >
               {statusBadge.text}
             </span>

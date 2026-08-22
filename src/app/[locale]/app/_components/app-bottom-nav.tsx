@@ -37,7 +37,7 @@ export function AppBottomNav() {
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40"
     >
       <div className="pointer-events-auto mx-auto w-full max-w-lg px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-1 rounded-full border border-border/70 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-black/5 backdrop-blur-xl supports-backdrop-filter:bg-white/75">
+        <div className="border-border/70 flex items-center gap-1 rounded-full border bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.08)] ring-1 ring-black/5 backdrop-blur-xl supports-backdrop-filter:bg-white/75">
           {items.map(({ href, label, icon: Icon, match }) => {
             const active = match(pathname);
             return (

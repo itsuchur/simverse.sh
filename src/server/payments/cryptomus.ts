@@ -100,7 +100,12 @@ export async function createCryptomusInvoice(input: {
   });
 
   const body = (await response.json()) as CryptomusCreateResponse;
-  if (!response.ok || body.state !== 0 || !body.result?.url || !body.result.uuid) {
+  if (
+    !response.ok ||
+    body.state !== 0 ||
+    !body.result?.url ||
+    !body.result.uuid
+  ) {
     throw new Error(
       `Cryptomus payment failed: ${body.message ?? response.statusText}`,
     );

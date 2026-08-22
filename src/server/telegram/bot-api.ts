@@ -57,7 +57,9 @@ export async function answerPreCheckoutQuery(
   await botMethod<boolean>("answerPreCheckoutQuery", {
     pre_checkout_query_id: preCheckoutQueryId,
     ok,
-    ...(ok || !errorMessage ? {} : { error_message: errorMessage.slice(0, 200) }),
+    ...(ok || !errorMessage
+      ? {}
+      : { error_message: errorMessage.slice(0, 200) }),
   });
 }
 

@@ -88,9 +88,7 @@ export async function POST(request: Request) {
     return unavailable();
   }
 
-  const countryCode = plan.country.includes(",")
-    ? null
-    : plan.country || null;
+  const countryCode = plan.country.includes(",") ? null : plan.country || null;
 
   const priceAmount = BigInt(cents);
   const existing = await db.order.findFirst({

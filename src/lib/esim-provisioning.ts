@@ -31,7 +31,6 @@ export function esimProvisioningUrl(
   os: EsimProvisioningOs,
   cardData: string,
 ): string {
-  const host =
-    os === "apple" ? "esimsetup.apple.com" : "esimsetup.android.com";
+  const host = os === "apple" ? "esimsetup.apple.com" : "esimsetup.android.com";
   return `https://${host}/esim_qrcode_provisioning?carddata=${encodeURIComponent(cardData)}`;
 }

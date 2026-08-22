@@ -46,9 +46,7 @@ export function withWebhookLogging(source: string, handler: Handler) {
       const text = await request.text();
       const contentType = request.headers.get("content-type") ?? "";
       if (contentType.includes("application/x-www-form-urlencoded")) {
-        body = text
-          ? Object.fromEntries(new URLSearchParams(text))
-          : null;
+        body = text ? Object.fromEntries(new URLSearchParams(text)) : null;
       } else {
         try {
           body = text ? JSON.parse(text) : null;
