@@ -39,6 +39,7 @@ Copy [`.env.example`](.env.example) and set production values. `BETTER_AUTH_URL`
 | `CRYPTOMUS_MERCHANT_ID`, `CRYPTOMUS_API_KEY` | Required in production. |
 | `CARDLINK_API_TOKEN`, `CARDLINK_SHOP_ID` | Required in production. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Internal `/dashboard`. |
+| `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Optional Mini App analytics. Host is ingest (`https://us.i.posthog.com` or `https://eu.i.posthog.com`). Keys are baked into the client at **image build**; change them with `--build`. |
 
 Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the example defaults.
 
@@ -55,10 +56,10 @@ Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the
 
 ### What Compose actually injects
 
-- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, Telegram, eSIM Access, Cryptomus, Cardlink, Google OAuth, `NODE_ENV=production`.
+- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, Telegram, eSIM Access, Cryptomus, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`poller`:** `DATABASE_URL`, `REDIS_URL`, `ESIMACCESS_ACCESS_CODE`, `OPENROUTER_KEY`.
 
-`NEXT_PUBLIC_POSTHOG_*` and `TONCONSOLE_KEY` appear in `.env.example` but are **not** passed through `compose.prod.yaml`.
+`TONCONSOLE_KEY` appears in `.env.example` but is **not** passed through `compose.prod.yaml`.
 
 ## 3. Apply migrations before serving traffic
 

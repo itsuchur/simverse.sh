@@ -3,6 +3,9 @@ import type { ReactNode } from "react";
 import { AuthGate } from "./_components/auth-gate";
 import { FingerprintCollector } from "./_components/fingerprint-collector";
 import { MiniAppChrome } from "./_components/mini-app-chrome";
+import { PostHogIdentify } from "./_components/posthog-identify";
+import { PostHogPageView } from "./_components/posthog-page-view";
+import { PostHogProvider } from "./_components/posthog-provider";
 import { getSession } from "~/server/better-auth/server";
 
 export default async function MiniAppLayout({
@@ -17,9 +20,20 @@ export default async function MiniAppLayout({
   const session = await getSession();
 
   return (
-    <MiniAppChrome showNav={Boolean(session)}>
-      {session ? children : <AuthGate />}
-      {session && !session.user.fingerprint ? <FingerprintCollector /> : null}
-    </MiniAppChrome>
+    <PostHogProvider>
+      <PostHogPageView />
+      <MiniAppChrome showNav={Boolean(session)}>
+        {session ? children : <AuthGate />}
+        {session ? (
+          <PostHogIdentify
+            telegramId={session.user.telegramId ?? null}
+            languageCode={session.user.languageCode ?? null}
+            isPremium={Boolean(session.user.isPremium)}
+            fingerprint={session.user.fingerprint ?? null}
+          />
+        ) : null}
+        {session && !session.user.fingerprint ? <FingerprintCollector /> : null}
+      </MiniAppChrome>
+    </PostHogProvider>
   );
 }

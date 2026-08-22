@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { esimProvisioningUrl } from "~/lib/esim-provisioning";
+import { captureAppEvent } from "~/lib/posthog/browser";
 
 function openProvisioningInstall(
   os: "apple" | "android",
@@ -54,7 +55,15 @@ export function InstallationGuide({
     platform === "ios" ? "apple" : platform === "android" ? "android" : null;
 
   return (
-    <Dialog>
+    <Dialog
+      onOpenChange={(open) => {
+        if (open) {
+          captureAppEvent("install_guide_opened", {
+            platform: platform ?? "unknown",
+          });
+        }
+      }}
+    >
       <div className="flex w-full flex-col items-center gap-2">
         {cardData && os ? (
           <Button
@@ -117,7 +126,9 @@ export function InstallationGuide({
           {showAndroid ? (
             <section className="flex flex-col gap-3">
               {showIos ? (
-                <h3 className="text-sm font-medium">{t("guideAndroidTitle")}</h3>
+                <h3 className="text-sm font-medium">
+                  {t("guideAndroidTitle")}
+                </h3>
               ) : null}
               <StepList
                 steps={[

@@ -17,6 +17,7 @@ import {
   STARS_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
+import { captureServerEvent } from "~/lib/posthog/server";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
@@ -36,12 +37,12 @@ type OrderRow = {
   esimIccid: string | null;
 };
 
-function applyProfile(
+async function applyProfile(
   orderId: bigint,
   profile: EsimAccessProfile,
   extra?: { resellerOrderId?: string },
 ) {
-  return db.order.update({
+  const updated = await db.order.update({
     where: { id: orderId },
     data: {
       status: orderStatus.issued,
@@ -58,6 +59,33 @@ function applyProfile(
       ...(extra?.resellerOrderId
         ? { resellerOrderId: extra.resellerOrderId }
         : {}),
+    },
+    include: { user: { select: { telegramId: true } } },
+  });
+
+  captureServerEvent({
+    event: "esim_issued",
+    distinctId: updated.user.telegramId,
+    orderUuid: updated.orderUuid,
+    properties: { packageCode: updated.resellerPlanId },
+  });
+}
+
+function captureOrderPaid(input: {
+  distinctId: string | null | undefined;
+  orderUuid: string;
+  paymentProvider: string;
+  priceAmount: bigint;
+  currency: string;
+}) {
+  captureServerEvent({
+    event: "order_paid",
+    distinctId: input.distinctId,
+    orderUuid: input.orderUuid,
+    properties: {
+      paymentProvider: input.paymentProvider,
+      priceAmount: input.priceAmount.toString(),
+      currency: input.currency,
     },
   });
 }
@@ -117,6 +145,16 @@ export async function placeSupplierOrder(order: OrderRow) {
       level: "fatal",
       tags: { component: "esimaccess", reason: "order_failed" },
       extra: { orderUuid: order.orderUuid, packageCode: order.resellerPlanId },
+    });
+    const user = await db.user.findUnique({
+      where: { id: order.userId },
+      select: { telegramId: true },
+    });
+    captureServerEvent({
+      event: "esim_issue_failed",
+      distinctId: user?.telegramId,
+      orderUuid: order.orderUuid,
+      properties: { packageCode: order.resellerPlanId },
     });
     await db.order.update({
       where: { id: order.id },
@@ -189,6 +227,13 @@ export async function fulfillStarsPayment(input: {
     });
 
     await clearCart(input.telegramId);
+    captureOrderPaid({
+      distinctId: input.telegramId,
+      orderUuid: paid.orderUuid,
+      paymentProvider: STARS_PAYMENT_PROVIDER,
+      priceAmount: pending.priceAmount,
+      currency: pending.currency,
+    });
     await supersedePendingDrafts(paid, STARS_PAYMENT_PROVIDER);
     await placeSupplierOrder(paid);
   } catch (error) {
@@ -280,6 +325,13 @@ export async function fulfillCryptomusPayment(input: {
     if (typeof telegramId === "string" && telegramId.length > 0) {
       await clearCart(telegramId);
     }
+    captureOrderPaid({
+      distinctId: telegramId,
+      orderUuid: paid.orderUuid,
+      paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
+      priceAmount: pending.priceAmount,
+      currency: pending.currency,
+    });
     await supersedePendingDrafts(paid, CRYPTOMUS_PAYMENT_PROVIDER);
     await placeSupplierOrder(paid);
   } catch (error) {
@@ -398,6 +450,13 @@ export async function fulfillCardlinkPayment(input: {
     if (typeof telegramId === "string" && telegramId.length > 0) {
       await clearCart(telegramId);
     }
+    captureOrderPaid({
+      distinctId: telegramId,
+      orderUuid: paid.orderUuid,
+      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
+      priceAmount: pending.priceAmount,
+      currency: pending.currency,
+    });
     await supersedePendingDrafts(paid, CARDLINK_PAYMENT_PROVIDER);
     await placeSupplierOrder(paid);
   } catch (error) {
@@ -539,12 +598,10 @@ export async function applyEsimStatus(input: {
     ? await db.order.findFirst({ where: { esimIccid: input.iccid } })
     : null;
 
-  if (!order) {
-    order = await findOrderForResource({
-      orderNo: input.orderNo,
-      transactionId: input.transactionId,
-    });
-  }
+  order ??= await findOrderForResource({
+    orderNo: input.orderNo,
+    transactionId: input.transactionId,
+  });
 
   if (!order) {
     return;

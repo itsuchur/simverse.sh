@@ -18,6 +18,11 @@ COPY . .
 # is not part of the build context (see .dockerignore).
 COPY --from=deps /app/generated ./generated
 # Runtime env is injected by compose; the image build must not require it.
+# NEXT_PUBLIC_* is inlined at build time — pass via compose build.args.
+ARG NEXT_PUBLIC_POSTHOG_KEY
+ARG NEXT_PUBLIC_POSTHOG_HOST
+ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
+ENV NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST
 ENV SKIP_ENV_VALIDATION=1
 RUN bun run build
 

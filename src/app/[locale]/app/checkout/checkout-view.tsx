@@ -8,7 +8,11 @@ import ReactCountryFlag from "react-country-flag";
 import { Button } from "~/components/ui/button";
 import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
-import { openTelegramInvoice, prepareTelegramWebApp } from "~/lib/telegram-webapp";
+import { captureAppEvent } from "~/lib/posthog/browser";
+import {
+  openTelegramInvoice,
+  prepareTelegramWebApp,
+} from "~/lib/telegram-webapp";
 
 async function checkoutHeaders() {
   const headers: Record<string, string> = {};
@@ -136,6 +140,26 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
     prepareTelegramWebApp();
   }, []);
 
+  useEffect(() => {
+    captureAppEvent("checkout_started", {
+      packageCode: plan.packageCode,
+      country: plan.country,
+      dataGb: plan.data_gb,
+      validityDays: plan.validity_days,
+      priceUsd: plan.price,
+      priceRub: plan.price_rub,
+      priceStars: plan.price_stars,
+    });
+  }, [
+    plan.packageCode,
+    plan.country,
+    plan.data_gb,
+    plan.validity_days,
+    plan.price,
+    plan.price_rub,
+    plan.price_stars,
+  ]);
+
   const cardPrice =
     locale === "ru"
       ? format.number(plan.price_rub, {
@@ -219,19 +243,37 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           onClick={() => {
             setPaying(true);
             setPayError(null);
+            captureAppEvent("checkout_method_selected", {
+              method: "stars",
+              packageCode: plan.packageCode,
+            });
             void requestStarsInvoice()
-              .then((url) => openTelegramInvoice(url))
+              .then((url) => {
+                captureAppEvent("checkout_invoice_opened", {
+                  method: "stars",
+                  packageCode: plan.packageCode,
+                });
+                return openTelegramInvoice(url);
+              })
               .then((status) => {
                 if (status === "paid" || status === "pending") {
                   router.push("/app/myesim");
                   return;
                 }
                 if (status === "failed") {
+                  captureAppEvent("checkout_invoice_failed", {
+                    method: "stars",
+                    packageCode: plan.packageCode,
+                  });
                   setPayError(t("payFailed"));
                 }
               })
               .catch((error: unknown) => {
                 console.error("[checkout] stars invoice", error);
+                captureAppEvent("checkout_invoice_failed", {
+                  method: "stars",
+                  packageCode: plan.packageCode,
+                });
                 setPayError(t("payFailed"));
               })
               .finally(() => {
@@ -250,12 +292,24 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           onClick={() => {
             setPaying(true);
             setPayError(null);
+            captureAppEvent("checkout_method_selected", {
+              method: "cardlink",
+              packageCode: plan.packageCode,
+            });
             void requestCardlinkInvoice(locale)
               .then((url) => {
+                captureAppEvent("checkout_invoice_opened", {
+                  method: "cardlink",
+                  packageCode: plan.packageCode,
+                });
                 window.location.assign(url);
               })
               .catch((error: unknown) => {
                 console.error("[checkout] cardlink invoice", error);
+                captureAppEvent("checkout_invoice_failed", {
+                  method: "cardlink",
+                  packageCode: plan.packageCode,
+                });
                 setPayError(t("payFailed"));
                 setPaying(false);
               });
@@ -272,12 +326,24 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           onClick={() => {
             setPaying(true);
             setPayError(null);
+            captureAppEvent("checkout_method_selected", {
+              method: "cryptomus",
+              packageCode: plan.packageCode,
+            });
             void requestCryptomusInvoice()
               .then((url) => {
+                captureAppEvent("checkout_invoice_opened", {
+                  method: "cryptomus",
+                  packageCode: plan.packageCode,
+                });
                 window.location.assign(url);
               })
               .catch((error: unknown) => {
                 console.error("[checkout] cryptomus invoice", error);
+                captureAppEvent("checkout_invoice_failed", {
+                  method: "cryptomus",
+                  packageCode: plan.packageCode,
+                });
                 setPayError(t("payFailed"));
                 setPaying(false);
               });

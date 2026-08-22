@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Button } from "~/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { useRouter } from "~/i18n/navigation";
+import { captureAppEvent } from "~/lib/posthog/browser";
 import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types";
 
 function formatVolume(bytes: number) {
@@ -42,6 +43,18 @@ export default function OrderConfirmation({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    captureAppEvent("plan_selected", {
+      packageCode: pkg.packageCode,
+      volume: pkg.volume,
+      duration: pkg.duration,
+      priceRub: pkg.priceRub,
+    });
+  }, [open, pkg.packageCode, pkg.volume, pkg.duration, pkg.priceRub]);
+
   const price =
     typeof pkg.priceRub === "number"
       ? format.number(pkg.priceRub, {
@@ -60,7 +73,9 @@ export default function OrderConfirmation({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 data-open:zoom-in-100 data-closed:zoom-out-100 top-auto bottom-0 left-1/2 max-h-[min(88vh,36rem)] w-full max-w-[calc(100%-0rem)] translate-x-[-50%] translate-y-0 gap-6 rounded-t-2xl rounded-b-none p-6 pb-0 text-base sm:max-w-md">
         <DialogHeader className="gap-4 pr-10">
-          <DialogTitle className="text-lg leading-snug">{t("title")}</DialogTitle>
+          <DialogTitle className="text-lg leading-snug">
+            {t("title")}
+          </DialogTitle>
           <p className="text-foreground text-base leading-snug font-medium">
             {destinationLabel ? `${destinationLabel} · ` : null}
             {t("planSummary", {
@@ -109,6 +124,12 @@ export default function OrderConfirmation({
                     return;
                   }
 
+                  captureAppEvent("cart_updated", {
+                    packageCode: pkg.packageCode,
+                    volume: pkg.volume,
+                    duration: pkg.duration,
+                    priceRub: pkg.priceRub,
+                  });
                   router.push("/app/checkout");
                 } catch {
                   setError(t("buyFailed"));

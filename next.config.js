@@ -6,6 +6,10 @@ import "./src/env.js";
 import { withSentryConfig } from "@sentry/nextjs";
 import createNextIntlPlugin from "next-intl/plugin";
 
+const posthogIngestHost = (
+  process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com"
+).replace(/\/$/, "");
+
 /** @type {import("next").NextConfig} */
 const config = {
   // Emit .next/standalone so the production Docker image can run without the
@@ -13,6 +17,20 @@ const config = {
   output: "standalone",
   // Allow the ngrok tunnel host to hit the Next.js dev server (HMR/assets/API).
   allowedDevOrigins: ["magical-guinea-utterly.ngrok-free.app"],
+  // PostHog ingest paths use trailing slashes; do not 308 them away.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      {
+        source: "/ingest/static/:path*",
+        destination: `${posthogIngestHost}/static/:path*`,
+      },
+      {
+        source: "/ingest/:path*",
+        destination: `${posthogIngestHost}/:path*`,
+      },
+    ];
+  },
 };
 
 const withNextIntl = createNextIntlPlugin({
