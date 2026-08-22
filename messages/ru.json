@@ -51,9 +51,12 @@
     "authRequired": "Откройте приложение через Telegram, чтобы продолжить.",
     "backToCatalog": "Назад в каталог",
     "backToApp": "Назад в приложение",
+    "coverage": "Покрытие",
+    "data": "Данные",
+    "validity": "Срок действия",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Банковская карта · {price}",
-    "payCryptomus": "Cryptomus · {price}",
+    "payCryptomus": "Криптовалюта · {price}",
     "payFailed": "Не удалось начать оплату. Откройте приложение в Telegram и попробуйте снова."
   },
 

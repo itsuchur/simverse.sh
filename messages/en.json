@@ -51,9 +51,12 @@
     "authRequired": "Open this app from Telegram to continue.",
     "backToCatalog": "Back to catalog",
     "backToApp": "Back to App",
+    "coverage": "Coverage",
+    "data": "Data",
+    "validity": "Validity",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Credit Card · {price}",
-    "payCryptomus": "Cryptomus · {price}",
+    "payCryptomus": "Cryptocurrency · {price}",
     "payFailed": "Couldn't start payment. Open the app from Telegram and try again."
   },
 

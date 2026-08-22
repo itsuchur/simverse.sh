@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, Globe } from "lucide-react";
+import { Astroid, Bitcoin, ChevronLeft, CreditCard, Globe } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -9,6 +9,7 @@ import { Button } from "~/components/ui/button";
 import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
 import { captureAppEvent } from "~/lib/posthog/browser";
+import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 import {
   openTelegramInvoice,
   prepareTelegramWebApp,
@@ -86,6 +87,17 @@ function countryDisplayName(countryCode: string, locale: string) {
   }
 }
 
+function coverageLabel(plan: CartPlan, locale: string) {
+  const codes = plan.country.split(",").filter(Boolean);
+  if (codes.length === 1 && codes[0]) {
+    return countryDisplayName(codes[0], locale);
+  }
+  if (locale === "ru" && plan.nameRu) {
+    return plan.nameRu.split(" — ")[0] ?? plan.nameRu;
+  }
+  return parseName(plan.name)?.label ?? plan.name;
+}
+
 function DestinationHeader({
   plan,
   locale,
@@ -105,14 +117,14 @@ function DestinationHeader({
           countryCode={countryCode}
           svg
           style={{
-            width: "1.75em",
-            height: "1.75em",
+            width: "2.25em",
+            height: "2.25em",
             flexShrink: 0,
             display: "block",
           }}
           aria-label={name}
         />
-        <h1 className="min-w-0 text-2xl leading-snug font-semibold">{name}</h1>
+        <h1 className="min-w-0 text-3xl leading-snug font-semibold">{name}</h1>
       </div>
     );
   }
@@ -120,8 +132,8 @@ function DestinationHeader({
   const label = locale === "ru" && plan.nameRu ? plan.nameRu : plan.name;
   return (
     <div className="flex items-center gap-4">
-      <Globe className="size-7 shrink-0" aria-hidden />
-      <h1 className="min-w-0 text-2xl leading-snug font-semibold">{label}</h1>
+      <Globe className="size-9 shrink-0" aria-hidden />
+      <h1 className="min-w-0 text-3xl leading-snug font-semibold">{label}</h1>
     </div>
   );
 }
@@ -175,70 +187,66 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
   const starsPrice = format.number(plan.price_stars);
   const duration = tCatalog("duration.day", { count: plan.validity_days });
   const data = formatDataGb(plan.data_gb);
+  const coverage = coverageLabel(plan, locale);
 
   return (
     <main className="flex flex-1 flex-col gap-8 py-4">
-      <Button
-        type="button"
-        variant="ghost"
-        size="lg"
-        className="-ml-2.5 h-11 px-3 text-base"
-        disabled={leaving}
-        onClick={() => {
-          void (async () => {
-            setLeaving(true);
-            try {
-              const headers: Record<string, string> = {};
-              if (process.env.NODE_ENV === "development") {
-                headers["ngrok-skip-browser-warning"] = "true";
+      <div className="flex flex-col gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="-ml-1.5 text-foreground"
+          disabled={leaving || paying}
+          aria-label={t("backToApp")}
+          onClick={() => {
+            void (async () => {
+              setLeaving(true);
+              try {
+                await fetch("/api/cart", {
+                  method: "DELETE",
+                  credentials: "include",
+                  headers: await checkoutHeaders(),
+                });
+              } finally {
+                router.push("/app");
               }
-              await fetch("/api/cart", {
-                method: "DELETE",
-                credentials: "include",
-                headers,
-              });
-            } finally {
-              router.push("/app");
-            }
-          })();
-        }}
-      >
-        <ChevronLeft data-icon="inline-start" className="size-5" />
-        {t("backToApp")}
-      </Button>
+            })();
+          }}
+        >
+          <ChevronLeft className="size-6" strokeWidth={2.5} />
+        </Button>
 
-      <DestinationHeader plan={plan} locale={locale} />
+        <DestinationHeader plan={plan} locale={locale} />
+      </div>
 
-      {plan.networks.length > 0 ? (
-        plan.networks.length > 3 ? (
-          <p className="text-muted-foreground text-base leading-7">
-            {tCatalog("countriesAndNetworks", {
-              count: String(plan.networks.length),
-            })}
-          </p>
-        ) : (
-          <ul className="text-muted-foreground list-inside list-disc space-y-1 text-base leading-7">
-            {plan.networks.map((name) => (
-              <li key={name}>{name}</li>
-            ))}
-          </ul>
-        )
-      ) : null}
+      <hr className="border-border" />
 
-      <p className="text-foreground text-lg leading-snug font-medium">
-        {data} · {duration}
-      </p>
+      <dl className="flex flex-col gap-4 text-lg leading-snug">
+        <div className="flex items-baseline justify-between gap-6">
+          <dt className="text-muted-foreground shrink-0">{t("coverage")}</dt>
+          <dd className="min-w-0 text-right font-medium">{coverage}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-6">
+          <dt className="text-muted-foreground shrink-0">{t("data")}</dt>
+          <dd className="font-medium">{data}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-6">
+          <dt className="text-muted-foreground shrink-0">{t("validity")}</dt>
+          <dd className="font-medium">{duration}</dd>
+        </div>
+      </dl>
 
       <div className="mt-auto flex flex-col gap-3">
         {payError ? (
-          <p className="text-destructive w-full text-center text-base">
+          <p className="text-destructive w-full text-center text-lg">
             {payError}
           </p>
         ) : null}
         <Button
           type="button"
           size="lg"
-          className="h-11 w-full text-base"
+          className="h-12 w-full text-lg"
           disabled={leaving || paying}
           onClick={() => {
             setPaying(true);
@@ -281,13 +289,14 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
               });
           }}
         >
+          <Astroid data-icon="inline-start" className="size-6" />
           {t("payStars", { price: starsPrice })}
         </Button>
         <Button
           type="button"
           size="lg"
           variant="outline"
-          className="h-11 w-full text-base"
+          className="h-12 w-full text-lg"
           disabled={leaving || paying}
           onClick={() => {
             setPaying(true);
@@ -315,13 +324,14 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
               });
           }}
         >
+          <CreditCard data-icon="inline-start" className="size-6" />
           {t("payCard", { price: cardPrice })}
         </Button>
         <Button
           type="button"
           size="lg"
           variant="outline"
-          className="h-11 w-full text-base"
+          className="h-12 w-full text-lg"
           disabled={leaving || paying}
           onClick={() => {
             setPaying(true);
@@ -349,6 +359,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
               });
           }}
         >
+          <Bitcoin data-icon="inline-start" className="size-6" />
           {t("payCryptomus", { price: cardPrice })}
         </Button>
       </div>
