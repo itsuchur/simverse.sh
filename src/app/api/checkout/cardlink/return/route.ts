@@ -1,7 +1,7 @@
-import { env } from "~/env";
+import { miniappOrigin } from "~/server/urls";
 
 function redirectFor(status: string | null) {
-  const origin = env.BETTER_AUTH_URL.replace(/\/$/, "");
+  const origin = miniappOrigin();
   const path = status === "fail" ? "/app/checkout" : "/app/myesim";
   return Response.redirect(`${origin}${path}`, 303);
 }

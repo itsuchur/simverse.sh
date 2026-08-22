@@ -7,10 +7,13 @@ import { telegram } from "better-auth-telegram";
 import { env } from "~/env";
 import { isAllowedAuthEmail } from "~/server/dashboard/emails";
 import { db } from "~/server/db";
+import { dashboardOrigin, miniappOrigin } from "~/server/urls";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
-  trustedOrigins: [env.BETTER_AUTH_URL, "http://localhost:3000"],
+  trustedOrigins: Array.from(
+    new Set([dashboardOrigin(), miniappOrigin(), "http://localhost:3000"]),
+  ),
   database: prismaAdapter(db, {
     provider: "postgresql",
   }),

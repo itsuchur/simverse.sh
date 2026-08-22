@@ -2,7 +2,17 @@
 
 Operator runbook for the production Docker Compose stack in `compose.prod.yaml`. Local development uses `compose.override.yaml` instead; see [README.md](README.md).
 
-Services: Traefik (Cloudflare DNS-01 TLS, HTTP→HTTPS), `app` (Next.js standalone on port 3000), `poller` (hourly eSIM Access catalog sync into Redis), Postgres 18, Redis 8, and `offen/docker-volume-backup` (daily dumps to S3).
+Services: `app` (Next.js standalone on port 3000, attached to the host Traefik network `traefik-public`), `poller` (hourly eSIM Access catalog sync into Redis), Postgres 18, Redis 8, and `offen/docker-volume-backup` (daily dumps to S3). TLS and HTTP→HTTPS live on the VPS Traefik stack (Cloudflare DNS-01, wildcard `*.simverse.sh`), not in this compose file.
+
+Public hostnames (DNS already in Cloudflare):
+
+| Host | Serves |
+| --- | --- |
+| `https://dashboard.simverse.sh` | Internal dashboard (`/dashboard`, pretty-rooted) |
+| `https://miniapp.simverse.sh` | Telegram Mini App (`/app`, pretty-rooted) |
+| `https://api.simverse.sh` | Webhooks and other route handlers (`/webhooks/...` publicly; Traefik prefixes `/api` for Next.js). Same-origin `/api` stays on the two UI hosts. |
+
+Internal Compose services can call the app at `http://app:3000/api/...` on the `internal` network. Internet callers (Telegram, eSIM Access, Cryptomus, Cardlink) must use `https://api.simverse.sh/webhooks/...` (no extra `/api` in the path).
 
 The app requires the JSON and Search modules that ship with Redis 8 (catalog documents, cart storage, and catalog search). The official `redis:8` image auto-loads every module in `/usr/local/lib/redis/modules/` through its entrypoint, so the plain `redis-server …` command in `compose.prod.yaml` is enough; verify with `redis-cli … module list` if in doubt.
 
@@ -12,21 +22,24 @@ On the production host:
 
 1. Clone this repository (or pull the release you intend to run).
 2. Install Docker Engine and Docker Compose.
-3. Point a Cloudflare DNS record for `${APP_DOMAIN}` at the host (Traefik uses Cloudflare DNS-01).
-4. Create `.env` in the same directory as `compose.prod.yaml` (the compose project directory).
+3. Confirm Traefik is running and attached to the external Docker network `traefik-public`.
+4. Confirm Cloudflare DNS for `dashboard.simverse.sh`, `miniapp.simverse.sh`, and `api.simverse.sh` points at this host.
+5. Create `.env` in the same directory as `compose.prod.yaml` (the compose project directory).
 
 All commands below are run from that directory.
 
 ## 2. Fill `.env`
 
-Copy [`.env.example`](.env.example) and set production values. `BETTER_AUTH_URL` is the public origin with **no trailing slash**, typically `https://${APP_DOMAIN}`.
+Copy [`.env.example`](.env.example) and set production values. Origins have **no trailing slash**.
 
 ### App / database (also listed in `.env.example`)
 
 | Variable | Notes |
 | --- | --- |
 | `BETTER_AUTH_SECRET` | Required in production. |
-| `BETTER_AUTH_URL` | Public HTTPS origin (auth callbacks, trusted origin). |
+| `BETTER_AUTH_URL` | Dashboard origin: `https://dashboard.simverse.sh` (Google OAuth `baseURL`). |
+| `MINIAPP_URL` | Mini App origin: `https://miniapp.simverse.sh`. |
+| `API_URL` | Public API origin: `https://api.simverse.sh`. |
 | `TELEGRAM_BOT_TOKEN` | Production bot. |
 | `TELEGRAM_BOT_USERNAME` | Production bot username. |
 | `TELEGRAM_WEBHOOK_SECRET` | ≥ 16 chars; `A-Z a-z 0-9 _ -` only. `openssl rand -hex 24` |
@@ -38,7 +51,7 @@ Copy [`.env.example`](.env.example) and set production values. `BETTER_AUTH_URL`
 | `ESIMACCESS_WEBHOOK_SECRET` | ≥ 16 chars. Query token on the supplier webhook URL. |
 | `CRYPTOMUS_MERCHANT_ID`, `CRYPTOMUS_API_KEY` | Required in production. |
 | `CARDLINK_API_TOKEN`, `CARDLINK_SHOP_ID` | Required in production. |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Internal `/dashboard`. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Internal dashboard. |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Optional Mini App analytics. Host is ingest (`https://us.i.posthog.com` or `https://eu.i.posthog.com`). Keys are baked into the client at **image build**; change them with `--build`. |
 
 Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the example defaults.
@@ -47,16 +60,15 @@ Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the
 
 | Variable | Used by |
 | --- | --- |
-| `APP_DOMAIN` | Traefik `Host()` rule (no scheme). |
-| `ACME_EMAIL` | Let's Encrypt account email. |
-| `CF_DNS_API_TOKEN` | Cloudflare DNS-01. |
 | `AWS_S3_BUCKET_NAME` | Backup archives. |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | S3 credentials for backups. |
 | `OPENROUTER_KEY` | Poller (Russian package names). |
 
+`ACME_EMAIL` and `CF_DNS_API_TOKEN` belong to the host Traefik stack, not this compose file.
+
 ### What Compose actually injects
 
-- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, Telegram, eSIM Access, Cryptomus, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
+- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, Telegram, eSIM Access, Cryptomus, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`poller`:** `DATABASE_URL`, `REDIS_URL`, `ESIMACCESS_ACCESS_CODE`, `OPENROUTER_KEY`.
 
 `TONCONSOLE_KEY` appears in `.env.example` but is **not** passed through `compose.prod.yaml`.
@@ -92,11 +104,11 @@ Do not use `docker compose down -v` as a normal step; `-v` destroys the Postgres
 
 ### Telegram webhook and Mini App
 
-Mini App URL = `BETTER_AUTH_URL`. Register the webhook (same `secret_token` as `TELEGRAM_WEBHOOK_SECRET`):
+BotFather Mini App URL = `https://miniapp.simverse.sh`. Register the webhook (same `secret_token` as `TELEGRAM_WEBHOOK_SECRET`):
 
 ```bash
 curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
-  -d "url=https://${APP_DOMAIN}/api/webhooks/telegram" \
+  -d "url=https://api.simverse.sh/webhooks/telegram" \
   -d "secret_token=${TELEGRAM_WEBHOOK_SECRET}" \
   -d 'allowed_updates=["message","pre_checkout_query"]'
 ```
@@ -106,20 +118,20 @@ curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
 Webhook URL in the eSIM Access console:
 
 ```
-https://<APP_DOMAIN>/api/webhooks/suppliers/esimaccess?token=<ESIMACCESS_WEBHOOK_SECRET>
+https://api.simverse.sh/webhooks/suppliers/esimaccess?token=<ESIMACCESS_WEBHOOK_SECRET>
 ```
 
 ### Payments
 
-- **Cardlink:** shop Result URL `https://<APP_DOMAIN>/api/webhooks/payments/cardlink`
-- **Cryptomus:** `url_callback` is sent per invoice to `/api/webhooks/payments/cryptomus`; no dashboard URL is required.
+- **Cardlink:** shop Result URL `https://api.simverse.sh/webhooks/payments/cardlink`
+- **Cryptomus:** `url_callback` is sent per invoice to `https://api.simverse.sh/webhooks/payments/cryptomus`; browser return URLs use `MINIAPP_URL`.
 
-### Google OAuth (`/dashboard`)
+### Google OAuth (dashboard)
 
-Authorized JavaScript origin: `BETTER_AUTH_URL` (no path). Redirect URI:
+Authorized JavaScript origin: `https://dashboard.simverse.sh` (no path). Redirect URI:
 
 ```
-{BETTER_AUTH_URL}/api/auth/callback/google
+https://dashboard.simverse.sh/api/auth/callback/google
 ```
 
 Only `support@simverse.sh` can access the dashboard. Details: [src/app/[locale]/dashboard/README.md](src/app/[locale]/dashboard/README.md).
@@ -131,9 +143,9 @@ docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f poller
 ```
 
-- Open `https://${APP_DOMAIN}` and confirm TLS (Traefik / Let's Encrypt).
+- Open `https://dashboard.simverse.sh` and `https://miniapp.simverse.sh` and confirm TLS (Traefik / Let's Encrypt).
 - Poller logs a catalog sync on start, then hourly (`[cron] synced … packages to RedisJSON catalog generation …`).
-- Sign in at `/dashboard` as `support@simverse.sh`.
+- Sign in at `https://dashboard.simverse.sh` as `support@simverse.sh`.
 
 Webhook log table (skip `headers`; they can include the Telegram secret):
 

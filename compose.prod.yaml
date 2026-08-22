@@ -1,35 +1,5 @@
-# Production Compose stack (Traefik, backups, segmented networks).
 # Usage: docker compose -f compose.prod.yaml up -d
-
 services:
-  traefik:
-    image: traefik:v3.7.10
-    container_name: traefik
-    restart: unless-stopped
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.cloudflare.acme.dnschallenge=true
-      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
-      - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
-      - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
-      # Uncomment while testing to avoid Let's Encrypt rate limits:
-      # - --certificatesresolvers.cloudflare.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
-    environment:
-      CF_DNS_API_TOKEN: "${CF_DNS_API_TOKEN}"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_letsencrypt:/letsencrypt
-    networks:
-      - edge
-
   app:
     build:
       context: .
@@ -44,6 +14,8 @@ services:
       REDIS_URL: "${REDIS_URL}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
       BETTER_AUTH_URL: "${BETTER_AUTH_URL}"
+      MINIAPP_URL: "${MINIAPP_URL}"
+      API_URL: "${API_URL}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_BOT_USERNAME: "${TELEGRAM_BOT_USERNAME}"
       TELEGRAM_WEBHOOK_SECRET: "${TELEGRAM_WEBHOOK_SECRET}"
@@ -64,15 +36,45 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - edge
       - internal
+      - traefik-public
     labels:
       - traefik.enable=true
-      - traefik.docker.network=edge
-      - traefik.http.routers.app.rule=Host(`${APP_DOMAIN}`)
-      - traefik.http.routers.app.entrypoints=websecure
-      - traefik.http.routers.app.tls.certresolver=cloudflare
-      - traefik.http.services.app.loadbalancer.server.port=3000
+      - traefik.docker.network=traefik-public
+      - traefik.http.services.simverse.loadbalancer.server.port=3000
+
+      - "traefik.http.routers.simverse-dashboard.rule=Host(`dashboard.simverse.sh`)"
+      - traefik.http.routers.simverse-dashboard.entrypoints=websecure
+      - traefik.http.routers.simverse-dashboard.service=simverse
+      - traefik.http.routers.simverse-dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.simverse-dashboard.tls.domains[0].main=simverse.sh
+      - traefik.http.routers.simverse-dashboard.tls.domains[0].sans=*.simverse.sh
+
+      - "traefik.http.routers.simverse-miniapp.rule=Host(`miniapp.simverse.sh`)"
+      - traefik.http.routers.simverse-miniapp.entrypoints=websecure
+      - traefik.http.routers.simverse-miniapp.service=simverse
+      - traefik.http.routers.simverse-miniapp.tls.certresolver=letsencrypt
+      - traefik.http.routers.simverse-miniapp.tls.domains[0].main=simverse.sh
+      - traefik.http.routers.simverse-miniapp.tls.domains[0].sans=*.simverse.sh
+
+      # Public paths omit /api (https://api.simverse.sh/webhooks/...). Traefik
+      # prefixes /api so Next.js still serves src/app/api/*. Bare /api/... still works.
+      - traefik.http.middlewares.simverse-api-prefix.addprefix.prefix=/api
+
+      - "traefik.http.routers.simverse-api.rule=Host(`api.simverse.sh`) && !PathPrefix(`/api`)"
+      - traefik.http.routers.simverse-api.entrypoints=websecure
+      - traefik.http.routers.simverse-api.service=simverse
+      - traefik.http.routers.simverse-api.middlewares=simverse-api-prefix
+      - traefik.http.routers.simverse-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.simverse-api.tls.domains[0].main=simverse.sh
+      - traefik.http.routers.simverse-api.tls.domains[0].sans=*.simverse.sh
+
+      - "traefik.http.routers.simverse-api-raw.rule=Host(`api.simverse.sh`) && PathPrefix(`/api`)"
+      - traefik.http.routers.simverse-api-raw.entrypoints=websecure
+      - traefik.http.routers.simverse-api-raw.service=simverse
+      - traefik.http.routers.simverse-api-raw.tls.certresolver=letsencrypt
+      - traefik.http.routers.simverse-api-raw.tls.domains[0].main=simverse.sh
+      - traefik.http.routers.simverse-api-raw.tls.domains[0].sans=*.simverse.sh
 
   poller:
     build:
@@ -156,13 +158,13 @@ services:
       - internal
 
 networks:
-  edge:
   internal:
     internal: true
   egress:
+  traefik-public:
+    external: true
 
 volumes:
   postgres_data:
   redis_data:
   pg_dumps:
-  traefik_letsencrypt:
