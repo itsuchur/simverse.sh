@@ -3,18 +3,18 @@ import { z } from "zod";
 
 import { auth } from "~/server/better-auth";
 import { getCartPlan } from "~/server/cart";
-import {
-  CARDLINK_PAYMENT_PROVIDER,
-  orderStatus,
-  paymentStatus,
-} from "~/lib/order-status";
-import { db } from "~/server/db";
+import { CARDLINK_PAYMENT_PROVIDER } from "~/lib/order-status";
 import { env } from "~/env";
+import {
+  failPendingInvoice,
+  findOrCreatePendingOrder,
+} from "~/server/orders/draft";
 import {
   cardlinkConfigured,
   createCardlinkBill,
 } from "~/server/payments/cardlink";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
+import { miniappOrigin } from "~/server/urls";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
 function unauthorized() {
@@ -90,42 +90,21 @@ export async function POST(request: Request) {
 
   const countryCode = plan.country.includes(",") ? null : plan.country || null;
 
-  const priceAmount = BigInt(cents);
-  const existing = await db.order.findFirst({
-    where: {
-      userId: session.user.id,
-      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
-      paymentStatus: paymentStatus.pending,
-      status: orderStatus.created,
-      resellerPlanId: plan.packageCode,
-      priceAmount,
-      currency,
-    },
-    orderBy: { createdAt: "desc" },
+  const order = await findOrCreatePendingOrder({
+    userId: session.user.id,
+    resellerPlanId: plan.packageCode,
+    packageName: plan.name,
+    countryCode,
+    dataAmountMb: Math.round(plan.data_gb * 1024),
+    validityDays: plan.validity_days,
+    priceAmount: BigInt(cents),
+    currency,
+    costAmount: BigInt(Math.round(plan.cost)),
+    costCurrency: "USD",
+    paymentProvider: CARDLINK_PAYMENT_PROVIDER,
   });
 
-  const order =
-    existing ??
-    (await db.order.create({
-      data: {
-        userId: session.user.id,
-        resellerCode: "esimaccess",
-        resellerPlanId: plan.packageCode,
-        packageName: plan.name,
-        countryCode,
-        dataAmountMb: Math.round(plan.data_gb * 1024),
-        validityDays: plan.validity_days,
-        priceAmount,
-        currency,
-        costAmount: BigInt(Math.round(plan.cost)),
-        costCurrency: "USD",
-        paymentProvider: CARDLINK_PAYMENT_PROVIDER,
-        paymentStatus: paymentStatus.pending,
-        status: orderStatus.created,
-      },
-    }));
-
-  const origin = env.BETTER_AUTH_URL.replace(/\/$/, "");
+  const origin = miniappOrigin();
 
   try {
     const bill = await createCardlinkBill({
@@ -145,14 +124,7 @@ export async function POST(request: Request) {
       tags: { component: "cardlink", reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
-    await db.order.update({
-      where: { id: order.id },
-      data: {
-        status: orderStatus.failed,
-        paymentStatus: paymentStatus.failed,
-        failureReason: "invoice_failed",
-      },
-    });
+    await failPendingInvoice(order.id, "invoice_failed");
     return unavailable();
   }
 }

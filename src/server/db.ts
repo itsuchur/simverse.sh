@@ -2,6 +2,15 @@ import "server-only";
 
 import { PrismaClient } from "../../generated/prisma";
 
+export function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
+
 const createPrismaClient = () =>
   new PrismaClient({
     log:

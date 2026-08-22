@@ -153,6 +153,9 @@ model Order {
   @@index([esimIccid], map: "idx_orders_esim_iccid")
   /// Partial unique index `uq_payment_charge` is defined in the migration SQL
   /// (payment_provider, payment_charge_id) WHERE payment_charge_id IS NOT NULL.
+  /// Partial unique index `uq_pending_draft` is defined in the migration SQL
+  /// (user_id, payment_provider, reseller_plan_id, price_amount, currency)
+  /// WHERE payment_status = 'pending' AND status = 'created'.
   @@map("orders")
 }
 

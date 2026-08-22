@@ -2,12 +2,11 @@ import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "~/server/better-auth";
 import { getCartPlan } from "~/server/cart";
+import { STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
-  orderStatus,
-  paymentStatus,
-  STARS_PAYMENT_PROVIDER,
-} from "~/lib/order-status";
-import { db } from "~/server/db";
+  failPendingInvoice,
+  findOrCreatePendingOrder,
+} from "~/server/orders/draft";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { createInvoiceLink } from "~/server/telegram/bot-api";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
@@ -64,39 +63,19 @@ export async function POST(request: Request) {
 
   const countryCode = plan.country.includes(",") ? null : plan.country || null;
 
-  const priceAmount = BigInt(stars);
-  const existing = await db.order.findFirst({
-    where: {
-      userId: session.user.id,
-      paymentProvider: STARS_PAYMENT_PROVIDER,
-      paymentStatus: paymentStatus.pending,
-      status: orderStatus.created,
-      resellerPlanId: plan.packageCode,
-      priceAmount,
-    },
-    orderBy: { createdAt: "desc" },
+  const order = await findOrCreatePendingOrder({
+    userId: session.user.id,
+    resellerPlanId: plan.packageCode,
+    packageName: plan.name,
+    countryCode,
+    dataAmountMb: Math.round(plan.data_gb * 1024),
+    validityDays: plan.validity_days,
+    priceAmount: BigInt(stars),
+    currency: "XTR",
+    costAmount: BigInt(Math.round(plan.cost)),
+    costCurrency: "USD",
+    paymentProvider: STARS_PAYMENT_PROVIDER,
   });
-
-  const order =
-    existing ??
-    (await db.order.create({
-      data: {
-        userId: session.user.id,
-        resellerCode: "esimaccess",
-        resellerPlanId: plan.packageCode,
-        packageName: plan.name,
-        countryCode,
-        dataAmountMb: Math.round(plan.data_gb * 1024),
-        validityDays: plan.validity_days,
-        priceAmount,
-        currency: "XTR",
-        costAmount: BigInt(Math.round(plan.cost)),
-        costCurrency: "USD",
-        paymentProvider: STARS_PAYMENT_PROVIDER,
-        paymentStatus: paymentStatus.pending,
-        status: orderStatus.created,
-      },
-    }));
 
   try {
     const invoiceUrl = await createInvoiceLink({
@@ -112,14 +91,7 @@ export async function POST(request: Request) {
       tags: { component: "telegram", reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
-    await db.order.update({
-      where: { id: order.id },
-      data: {
-        status: orderStatus.failed,
-        paymentStatus: paymentStatus.failed,
-        failureReason: "invoice_failed",
-      },
-    });
+    await failPendingInvoice(order.id, "invoice_failed");
     return unavailable();
   }
 }

@@ -3,7 +3,7 @@ import "server-only";
 import * as Sentry from "@sentry/nextjs";
 
 import { clearCart } from "~/server/cart";
-import { db } from "~/server/db";
+import { db, isUniqueConstraintError } from "~/server/db";
 import {
   orderEsimAccessPackage,
   queryEsimAccessProfiles,
@@ -27,6 +27,8 @@ export {
   STARS_PAYMENT_PROVIDER,
 };
 
+const STALE_SUPPLIER_CLAIM_MS = 60_000;
+
 type OrderRow = {
   id: bigint;
   orderUuid: string;
@@ -42,8 +44,11 @@ async function applyProfile(
   profile: EsimAccessProfile,
   extra?: { resellerOrderId?: string },
 ) {
-  const updated = await db.order.update({
-    where: { id: orderId },
+  const result = await db.order.updateMany({
+    where: {
+      id: orderId,
+      status: { in: [orderStatus.paid, orderStatus.ordering] },
+    },
     data: {
       status: orderStatus.issued,
       issuedAt: new Date(),
@@ -60,8 +65,18 @@ async function applyProfile(
         ? { resellerOrderId: extra.resellerOrderId }
         : {}),
     },
+  });
+  if (result.count === 0) {
+    return;
+  }
+
+  const updated = await db.order.findUnique({
+    where: { id: orderId },
     include: { user: { select: { telegramId: true } } },
   });
+  if (!updated) {
+    return;
+  }
 
   captureServerEvent({
     event: "esim_issued",
@@ -90,6 +105,23 @@ function captureOrderPaid(input: {
   });
 }
 
+function alertSecondCharge(input: {
+  provider: string;
+  orderUuid: string;
+  existingChargeId: string | null;
+  incomingChargeId: string;
+}) {
+  Sentry.captureMessage("Duplicate payment charge for already-paid order", {
+    level: "error",
+    tags: { component: input.provider, reason: "second_charge" },
+    extra: {
+      orderUuid: input.orderUuid,
+      existingChargeId: input.existingChargeId,
+      incomingChargeId: input.incomingChargeId,
+    },
+  });
+}
+
 export async function syncEsimProfile(order: OrderRow) {
   if (order.status === orderStatus.issued && order.esimIccid) {
     return;
@@ -107,9 +139,51 @@ export async function syncEsimProfile(order: OrderRow) {
   await applyProfile(order.id, profile);
 }
 
+async function claimSupplierOrder(orderId: bigint): Promise<boolean> {
+  const claimed = await db.order.updateMany({
+    where: {
+      id: orderId,
+      resellerOrderId: null,
+      status: orderStatus.paid,
+      paymentStatus: paymentStatus.paid,
+    },
+    data: {
+      status: orderStatus.ordering,
+    },
+  });
+  if (claimed.count > 0) {
+    return true;
+  }
+
+  const staleBefore = new Date(Date.now() - STALE_SUPPLIER_CLAIM_MS);
+  const reclaimed = await db.order.updateMany({
+    where: {
+      id: orderId,
+      resellerOrderId: null,
+      status: orderStatus.ordering,
+      paymentStatus: paymentStatus.paid,
+      updatedAt: { lt: staleBefore },
+    },
+    data: {
+      status: orderStatus.ordering,
+      updatedAt: new Date(),
+    },
+  });
+  return reclaimed.count > 0;
+}
+
 export async function placeSupplierOrder(order: OrderRow) {
   if (order.resellerOrderId) {
     await syncEsimProfile(order);
+    return;
+  }
+
+  const claimed = await claimSupplierOrder(order.id);
+  if (!claimed) {
+    const current = await db.order.findUnique({ where: { id: order.id } });
+    if (current?.resellerOrderId) {
+      await syncEsimProfile(current);
+    }
     return;
   }
 
@@ -156,8 +230,12 @@ export async function placeSupplierOrder(order: OrderRow) {
       orderUuid: order.orderUuid,
       properties: { packageCode: order.resellerPlanId },
     });
-    await db.order.update({
-      where: { id: order.id },
+    await db.order.updateMany({
+      where: {
+        id: order.id,
+        esimIccid: null,
+        status: { in: [orderStatus.ordering, orderStatus.paid] },
+      },
       data: {
         status: orderStatus.failed,
         failureReason: error instanceof Error ? error.message : "order_failed",
@@ -191,72 +269,166 @@ async function supersedePendingDrafts(
   });
 }
 
-export async function fulfillStarsPayment(input: {
-  orderUuid: string;
-  telegramPaymentChargeId: string;
-  telegramId: string;
-}) {
-  const alreadyCharged = await db.order.findFirst({
+async function findOrderByCharge(provider: string, chargeId: string) {
+  return db.order.findFirst({
     where: {
-      paymentProvider: STARS_PAYMENT_PROVIDER,
-      paymentChargeId: input.telegramPaymentChargeId,
+      paymentProvider: provider,
+      paymentChargeId: chargeId,
+    },
+    include: { user: { select: { telegramId: true } } },
+  });
+}
+
+async function markOrderPaid(input: {
+  orderId: bigint;
+  provider: string;
+  chargeId: string;
+}) {
+  const result = await db.order.updateMany({
+    where: {
+      id: input.orderId,
+      paymentProvider: input.provider,
+      paymentStatus: paymentStatus.pending,
+      status: orderStatus.created,
+    },
+    data: {
+      paymentStatus: paymentStatus.paid,
+      paymentChargeId: input.chargeId,
+      paidAt: new Date(),
+      status: orderStatus.paid,
     },
   });
+  if (result.count === 0) {
+    return null;
+  }
+  return db.order.findUniqueOrThrow({
+    where: { id: input.orderId },
+    include: { user: { select: { telegramId: true } } },
+  });
+}
+
+async function continueFulfillment(order: OrderRow, provider: string) {
+  await supersedePendingDrafts(order, provider);
+  await placeSupplierOrder(order);
+}
+
+async function fulfillPayment(input: {
+  provider: string;
+  orderUuid: string;
+  chargeId: string;
+  telegramId?: string | null;
+  validate?: (order: {
+    priceAmount: bigint;
+    currency: string;
+  }) => boolean;
+}) {
+  const alreadyCharged = await findOrderByCharge(input.provider, input.chargeId);
   if (alreadyCharged) {
-    await supersedePendingDrafts(alreadyCharged, STARS_PAYMENT_PROVIDER);
-    await placeSupplierOrder(alreadyCharged);
+    await continueFulfillment(alreadyCharged, input.provider);
     return;
   }
 
-  const pending = await db.order.findUnique({
+  const order = await db.order.findUnique({
     where: { orderUuid: input.orderUuid },
+    include: { user: { select: { telegramId: true } } },
   });
-  if (pending?.paymentStatus !== paymentStatus.pending) {
+  if (!order) {
+    return;
+  }
+  if (order.paymentProvider !== input.provider) {
+    return;
+  }
+
+  const telegramId = input.telegramId ?? order.user.telegramId;
+
+  if (order.paymentStatus === paymentStatus.paid) {
+    if (order.paymentChargeId === input.chargeId) {
+      await continueFulfillment(order, input.provider);
+      return;
+    }
+    alertSecondCharge({
+      provider: input.provider,
+      orderUuid: order.orderUuid,
+      existingChargeId: order.paymentChargeId,
+      incomingChargeId: input.chargeId,
+    });
+    return;
+  }
+
+  if (
+    order.paymentStatus !== paymentStatus.pending ||
+    order.status !== orderStatus.created
+  ) {
+    return;
+  }
+
+  if (input.validate && !input.validate(order)) {
     return;
   }
 
   try {
-    const paid = await db.order.update({
-      where: { id: pending.id },
-      data: {
-        paymentStatus: paymentStatus.paid,
-        paymentChargeId: input.telegramPaymentChargeId,
-        paidAt: new Date(),
-        status: orderStatus.paid,
-      },
+    const paid = await markOrderPaid({
+      orderId: order.id,
+      provider: input.provider,
+      chargeId: input.chargeId,
     });
-
-    await clearCart(input.telegramId);
-    captureOrderPaid({
-      distinctId: input.telegramId,
-      orderUuid: paid.orderUuid,
-      paymentProvider: STARS_PAYMENT_PROVIDER,
-      priceAmount: pending.priceAmount,
-      currency: pending.currency,
-    });
-    await supersedePendingDrafts(paid, STARS_PAYMENT_PROVIDER);
-    await placeSupplierOrder(paid);
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      const charged = await db.order.findFirst({
-        where: {
-          paymentProvider: STARS_PAYMENT_PROVIDER,
-          paymentChargeId: input.telegramPaymentChargeId,
-        },
-      });
+    if (!paid) {
+      const charged = await findOrderByCharge(input.provider, input.chargeId);
       if (charged) {
-        await supersedePendingDrafts(charged, STARS_PAYMENT_PROVIDER);
-        await placeSupplierOrder(charged);
+        await continueFulfillment(charged, input.provider);
+        return;
+      }
+      const current = await db.order.findUnique({
+        where: { id: order.id },
+      });
+      if (
+        current?.paymentStatus === paymentStatus.paid &&
+        current.paymentChargeId !== input.chargeId
+      ) {
+        alertSecondCharge({
+          provider: input.provider,
+          orderUuid: current.orderUuid,
+          existingChargeId: current.paymentChargeId,
+          incomingChargeId: input.chargeId,
+        });
+      }
+      return;
+    }
+
+    captureOrderPaid({
+      distinctId: telegramId,
+      orderUuid: paid.orderUuid,
+      paymentProvider: input.provider,
+      priceAmount: order.priceAmount,
+      currency: order.currency,
+    });
+    if (typeof telegramId === "string" && telegramId.length > 0) {
+      await clearCart(telegramId);
+    }
+    await continueFulfillment(paid, input.provider);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      const charged = await findOrderByCharge(input.provider, input.chargeId);
+      if (charged) {
+        await continueFulfillment(charged, input.provider);
       }
       return;
     }
     throw error;
   }
+}
+
+export async function fulfillStarsPayment(input: {
+  orderUuid: string;
+  telegramPaymentChargeId: string;
+  telegramId: string;
+}) {
+  await fulfillPayment({
+    provider: STARS_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.telegramPaymentChargeId,
+    telegramId: input.telegramId,
+  });
 }
 
 function usdAmountToCents(amount: string) {
@@ -272,110 +444,47 @@ export async function fulfillCryptomusPayment(input: {
   cryptomusUuid: string;
   amount: string;
 }) {
-  const alreadyCharged = await db.order.findFirst({
-    where: {
-      paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
-      paymentChargeId: input.cryptomusUuid,
-    },
-    include: { user: { select: { telegramId: true } } },
-  });
-  if (alreadyCharged) {
-    await supersedePendingDrafts(alreadyCharged, CRYPTOMUS_PAYMENT_PROVIDER);
-    await placeSupplierOrder(alreadyCharged);
-    return;
-  }
-
-  const pending = await db.order.findUnique({
-    where: { orderUuid: input.orderUuid },
-    include: { user: { select: { telegramId: true } } },
-  });
-  if (
-    pending?.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
-    pending.paymentStatus !== paymentStatus.pending
-  ) {
-    return;
-  }
-
-  const cents = usdAmountToCents(input.amount);
-  if (cents === null || cents !== pending.priceAmount) {
-    Sentry.captureMessage("Cryptomus webhook amount mismatch", {
-      level: "error",
-      tags: { component: "cryptomus", reason: "amount_mismatch" },
-      extra: {
-        orderUuid: input.orderUuid,
-        expected: pending.priceAmount.toString(),
-        received: input.amount,
-      },
-    });
-    return;
-  }
-
-  try {
-    const paid = await db.order.update({
-      where: { id: pending.id },
-      data: {
-        paymentStatus: paymentStatus.paid,
-        paymentChargeId: input.cryptomusUuid,
-        paidAt: new Date(),
-        status: orderStatus.paid,
-      },
-    });
-
-    const telegramId = pending.user.telegramId;
-    if (typeof telegramId === "string" && telegramId.length > 0) {
-      await clearCart(telegramId);
-    }
-    captureOrderPaid({
-      distinctId: telegramId,
-      orderUuid: paid.orderUuid,
-      paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
-      priceAmount: pending.priceAmount,
-      currency: pending.currency,
-    });
-    await supersedePendingDrafts(paid, CRYPTOMUS_PAYMENT_PROVIDER);
-    await placeSupplierOrder(paid);
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      const charged = await db.order.findFirst({
-        where: {
-          paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
-          paymentChargeId: input.cryptomusUuid,
-        },
-      });
-      if (charged) {
-        await supersedePendingDrafts(charged, CRYPTOMUS_PAYMENT_PROVIDER);
-        await placeSupplierOrder(charged);
+  await fulfillPayment({
+    provider: CRYPTOMUS_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.cryptomusUuid,
+    validate: (order) => {
+      const cents = usdAmountToCents(input.amount);
+      if (cents === null || cents !== order.priceAmount) {
+        Sentry.captureMessage("Cryptomus webhook amount mismatch", {
+          level: "error",
+          tags: { component: "cryptomus", reason: "amount_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.priceAmount.toString(),
+            received: input.amount,
+          },
+        });
+        return false;
       }
-      return;
-    }
-    throw error;
-  }
+      return true;
+    },
+  });
 }
 
-export async function failCryptomusPayment(orderUuid: string) {
-  const pending = await db.order.findUnique({
-    where: { orderUuid },
-  });
-  if (
-    pending?.paymentProvider !== CRYPTOMUS_PAYMENT_PROVIDER ||
-    pending.paymentStatus !== paymentStatus.pending
-  ) {
-    return;
-  }
-
-  await db.order.update({
-    where: { id: pending.id },
+async function failPendingPayment(orderUuid: string, provider: string) {
+  await db.order.updateMany({
+    where: {
+      orderUuid,
+      paymentProvider: provider,
+      paymentStatus: paymentStatus.pending,
+      status: orderStatus.created,
+    },
     data: {
       status: orderStatus.failed,
       paymentStatus: paymentStatus.failed,
       failureReason: "payment_failed",
     },
   });
+}
+
+export async function failCryptomusPayment(orderUuid: string) {
+  await failPendingPayment(orderUuid, CRYPTOMUS_PAYMENT_PROVIDER);
 }
 
 export async function fulfillCardlinkPayment(input: {
@@ -384,123 +493,44 @@ export async function fulfillCardlinkPayment(input: {
   amount: string;
   currency: string;
 }) {
-  const alreadyCharged = await db.order.findFirst({
-    where: {
-      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
-      paymentChargeId: input.billId,
-    },
-    include: { user: { select: { telegramId: true } } },
-  });
-  if (alreadyCharged) {
-    await supersedePendingDrafts(alreadyCharged, CARDLINK_PAYMENT_PROVIDER);
-    await placeSupplierOrder(alreadyCharged);
-    return;
-  }
-
-  const pending = await db.order.findUnique({
-    where: { orderUuid: input.orderUuid },
-    include: { user: { select: { telegramId: true } } },
-  });
-  if (
-    pending?.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
-    pending.paymentStatus !== paymentStatus.pending
-  ) {
-    return;
-  }
-
-  if (input.currency.toUpperCase() !== pending.currency) {
-    Sentry.captureMessage("Cardlink webhook currency mismatch", {
-      level: "error",
-      tags: { component: "cardlink", reason: "currency_mismatch" },
-      extra: {
-        orderUuid: input.orderUuid,
-        expected: pending.currency,
-        received: input.currency,
-      },
-    });
-    return;
-  }
-
-  const cents = usdAmountToCents(input.amount);
-  if (cents === null || cents !== pending.priceAmount) {
-    Sentry.captureMessage("Cardlink webhook amount mismatch", {
-      level: "error",
-      tags: { component: "cardlink", reason: "amount_mismatch" },
-      extra: {
-        orderUuid: input.orderUuid,
-        expected: pending.priceAmount.toString(),
-        received: input.amount,
-      },
-    });
-    return;
-  }
-
-  try {
-    const paid = await db.order.update({
-      where: { id: pending.id },
-      data: {
-        paymentStatus: paymentStatus.paid,
-        paymentChargeId: input.billId,
-        paidAt: new Date(),
-        status: orderStatus.paid,
-      },
-    });
-
-    const telegramId = pending.user.telegramId;
-    if (typeof telegramId === "string" && telegramId.length > 0) {
-      await clearCart(telegramId);
-    }
-    captureOrderPaid({
-      distinctId: telegramId,
-      orderUuid: paid.orderUuid,
-      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
-      priceAmount: pending.priceAmount,
-      currency: pending.currency,
-    });
-    await supersedePendingDrafts(paid, CARDLINK_PAYMENT_PROVIDER);
-    await placeSupplierOrder(paid);
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      const charged = await db.order.findFirst({
-        where: {
-          paymentProvider: CARDLINK_PAYMENT_PROVIDER,
-          paymentChargeId: input.billId,
-        },
-      });
-      if (charged) {
-        await supersedePendingDrafts(charged, CARDLINK_PAYMENT_PROVIDER);
-        await placeSupplierOrder(charged);
+  await fulfillPayment({
+    provider: CARDLINK_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.billId,
+    validate: (order) => {
+      if (input.currency.toUpperCase() !== order.currency) {
+        Sentry.captureMessage("Cardlink webhook currency mismatch", {
+          level: "error",
+          tags: { component: "cardlink", reason: "currency_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.currency,
+            received: input.currency,
+          },
+        });
+        return false;
       }
-      return;
-    }
-    throw error;
-  }
+
+      const cents = usdAmountToCents(input.amount);
+      if (cents === null || cents !== order.priceAmount) {
+        Sentry.captureMessage("Cardlink webhook amount mismatch", {
+          level: "error",
+          tags: { component: "cardlink", reason: "amount_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.priceAmount.toString(),
+            received: input.amount,
+          },
+        });
+        return false;
+      }
+      return true;
+    },
+  });
 }
 
 export async function failCardlinkPayment(orderUuid: string) {
-  const pending = await db.order.findUnique({
-    where: { orderUuid },
-  });
-  if (
-    pending?.paymentProvider !== CARDLINK_PAYMENT_PROVIDER ||
-    pending.paymentStatus !== paymentStatus.pending
-  ) {
-    return;
-  }
-
-  await db.order.update({
-    where: { id: pending.id },
-    data: {
-      status: orderStatus.failed,
-      paymentStatus: paymentStatus.failed,
-      failureReason: "payment_failed",
-    },
-  });
+  await failPendingPayment(orderUuid, CARDLINK_PAYMENT_PROVIDER);
 }
 
 export async function syncPendingProfilesForUser(userId: string) {
@@ -574,8 +604,12 @@ export async function attachGotResource(input: {
   }
 
   if (!order.resellerOrderId && input.orderNo) {
-    await db.order.update({
-      where: { id: order.id },
+    await db.order.updateMany({
+      where: {
+        id: order.id,
+        resellerOrderId: null,
+        status: { in: [orderStatus.paid, orderStatus.ordering] },
+      },
       data: { resellerOrderId: input.orderNo, status: orderStatus.ordering },
     });
   }

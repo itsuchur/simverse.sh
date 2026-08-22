@@ -2,18 +2,17 @@ import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "~/server/better-auth";
 import { getCartPlan } from "~/server/cart";
+import { CRYPTOMUS_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
-  CRYPTOMUS_PAYMENT_PROVIDER,
-  orderStatus,
-  paymentStatus,
-} from "~/lib/order-status";
-import { db } from "~/server/db";
-import { env } from "~/env";
+  failPendingInvoice,
+  findOrCreatePendingOrder,
+} from "~/server/orders/draft";
 import {
   createOrRefreshCryptomusInvoice,
   cryptomusConfigured,
 } from "~/server/payments/cryptomus";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
+import { apiPublicUrl, miniappOrigin } from "~/server/urls";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
 function unauthorized() {
@@ -72,49 +71,29 @@ export async function POST(request: Request) {
 
   const countryCode = plan.country.includes(",") ? null : plan.country || null;
 
-  const priceAmount = BigInt(cents);
-  const existing = await db.order.findFirst({
-    where: {
-      userId: session.user.id,
-      paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
-      paymentStatus: paymentStatus.pending,
-      status: orderStatus.created,
-      resellerPlanId: plan.packageCode,
-      priceAmount,
-    },
-    orderBy: { createdAt: "desc" },
+  const order = await findOrCreatePendingOrder({
+    userId: session.user.id,
+    resellerPlanId: plan.packageCode,
+    packageName: plan.name,
+    countryCode,
+    dataAmountMb: Math.round(plan.data_gb * 1024),
+    validityDays: plan.validity_days,
+    priceAmount: BigInt(cents),
+    currency: "USD",
+    costAmount: BigInt(Math.round(plan.cost)),
+    costCurrency: "USD",
+    paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
   });
 
-  const order =
-    existing ??
-    (await db.order.create({
-      data: {
-        userId: session.user.id,
-        resellerCode: "esimaccess",
-        resellerPlanId: plan.packageCode,
-        packageName: plan.name,
-        countryCode,
-        dataAmountMb: Math.round(plan.data_gb * 1024),
-        validityDays: plan.validity_days,
-        priceAmount,
-        currency: "USD",
-        costAmount: BigInt(Math.round(plan.cost)),
-        costCurrency: "USD",
-        paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
-        paymentStatus: paymentStatus.pending,
-        status: orderStatus.created,
-      },
-    }));
-
-  const origin = env.BETTER_AUTH_URL.replace(/\/$/, "");
+  const appOrigin = miniappOrigin();
 
   try {
     const invoice = await createOrRefreshCryptomusInvoice({
       amount: (cents / 100).toFixed(2),
       orderId: order.orderUuid,
-      urlCallback: `${origin}/api/webhooks/payments/cryptomus`,
-      urlSuccess: `${origin}/app/myesim`,
-      urlReturn: `${origin}/app/checkout`,
+      urlCallback: apiPublicUrl("/webhooks/payments/cryptomus"),
+      urlSuccess: `${appOrigin}/app/myesim`,
+      urlReturn: `${appOrigin}/app/checkout`,
     });
     return Response.json({ invoiceUrl: invoice.url });
   } catch (error) {
@@ -122,14 +101,7 @@ export async function POST(request: Request) {
       tags: { component: "cryptomus", reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
-    await db.order.update({
-      where: { id: order.id },
-      data: {
-        status: orderStatus.failed,
-        paymentStatus: paymentStatus.failed,
-        failureReason: "invoice_failed",
-      },
-    });
+    await failPendingInvoice(order.id, "invoice_failed");
     return unavailable();
   }
 }
