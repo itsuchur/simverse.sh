@@ -2,7 +2,8 @@ import { miniappOrigin } from "~/server/urls";
 
 function redirectFor(status: string | null) {
   const origin = miniappOrigin();
-  const path = status === "fail" ? "/app/checkout" : "/app/myesim";
+  const path =
+    status === "fail" ? "/app/failed-payment" : "/app/successful-payment";
   return Response.redirect(`${origin}${path}`, 303);
 }
 

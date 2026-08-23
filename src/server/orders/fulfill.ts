@@ -12,6 +12,7 @@ import {
 import {
   CARDLINK_PAYMENT_PROVIDER,
   CRYPTOMUS_PAYMENT_PROVIDER,
+  TRYBIT_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -22,6 +23,7 @@ import { captureServerEvent } from "~/lib/posthog/server";
 export {
   CARDLINK_PAYMENT_PROVIDER,
   CRYPTOMUS_PAYMENT_PROVIDER,
+  TRYBIT_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -485,6 +487,45 @@ async function failPendingPayment(orderUuid: string, provider: string) {
 
 export async function failCryptomusPayment(orderUuid: string) {
   await failPendingPayment(orderUuid, CRYPTOMUS_PAYMENT_PROVIDER);
+}
+
+function usdNumberToCents(amount: number) {
+  if (!Number.isFinite(amount)) {
+    return null;
+  }
+  return BigInt(Math.round(amount * 100));
+}
+
+export async function fulfillTrybitPayment(input: {
+  orderUuid: string;
+  invoiceUuid: string;
+  amountUsd: number;
+}) {
+  await fulfillPayment({
+    provider: TRYBIT_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.invoiceUuid,
+    validate: (order) => {
+      const cents = usdNumberToCents(input.amountUsd);
+      if (cents === null || cents !== order.priceAmount) {
+        Sentry.captureMessage("Trybit webhook amount mismatch", {
+          level: "error",
+          tags: { component: "trybit", reason: "amount_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.priceAmount.toString(),
+            received: input.amountUsd,
+          },
+        });
+        return false;
+      }
+      return true;
+    },
+  });
+}
+
+export async function failTrybitPayment(orderUuid: string) {
+  await failPendingPayment(orderUuid, TRYBIT_PAYMENT_PROVIDER);
 }
 
 export async function fulfillCardlinkPayment(input: {

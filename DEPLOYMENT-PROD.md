@@ -12,7 +12,7 @@ Public hostnames (DNS already in Cloudflare):
 | `https://miniapp.simverse.sh` | Telegram Mini App (`/app`, pretty-rooted) |
 | `https://api.simverse.sh` | Webhooks and other route handlers (`/webhooks/...` publicly; Traefik prefixes `/api` for Next.js). Same-origin `/api` stays on the two UI hosts. |
 
-Internal Compose services can call the app at `http://app:3000/api/...` on the `internal` network. Internet callers (Telegram, eSIM Access, Cryptomus, Cardlink) must use `https://api.simverse.sh/webhooks/...` (no extra `/api` in the path).
+Internal Compose services can call the app at `http://app:3000/api/...` on the `internal` network. Internet callers (Telegram, eSIM Access, Cryptomus, Trybit, Cardlink) must use `https://api.simverse.sh/webhooks/...` (no extra `/api` in the path).
 
 The app requires the JSON and Search modules that ship with Redis 8 (catalog documents, cart storage, and catalog search). The official `redis:8` image auto-loads every module in `/usr/local/lib/redis/modules/` through its entrypoint, so the plain `redis-server …` command in `compose.prod.yaml` is enough; verify with `redis-cli … module list` if in doubt.
 
@@ -49,7 +49,8 @@ Copy [`.env.example`](.env.example) and set production values. Origins have **no
 | `REDIS_URL` | Compose: `redis://:PASSWORD@redis:6379` |
 | `ESIMACCESS_ACCESS_CODE` | eSIM Access API. |
 | `ESIMACCESS_WEBHOOK_SECRET` | ≥ 16 chars. Query token on the supplier webhook URL. |
-| `CRYPTOMUS_MERCHANT_ID`, `CRYPTOMUS_API_KEY` | Required in production. |
+| `CRYPTOMUS_MERCHANT_ID`, `CRYPTOMUS_API_KEY` | Required in production (legacy Cryptomus webhooks). |
+| `TRYBIT_API_KEY`, `TRYBIT_SHOP_ID`, `TRYBIT_SECRET_KEY` | Required in production. Checkout crypto invoices. |
 | `CARDLINK_API_TOKEN`, `CARDLINK_SHOP_ID` | Required in production. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Internal dashboard. |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Optional Mini App analytics. Host is ingest (`https://us.i.posthog.com` or `https://eu.i.posthog.com`). Keys are baked into the client at **image build**; change them with `--build`. |
@@ -68,7 +69,7 @@ Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the
 
 ### What Compose actually injects
 
-- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, Telegram, eSIM Access, Cryptomus, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
+- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, Telegram, eSIM Access, Cryptomus, Trybit, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`poller`:** `DATABASE_URL`, `REDIS_URL`, `ESIMACCESS_ACCESS_CODE`, `OPENROUTER_KEY`.
 
 `TONCONSOLE_KEY` appears in `.env.example` but is **not** passed through `compose.prod.yaml`.
@@ -124,7 +125,8 @@ https://api.simverse.sh/webhooks/suppliers/esimaccess?token=<ESIMACCESS_WEBHOOK_
 ### Payments
 
 - **Cardlink:** shop Result URL `https://api.simverse.sh/webhooks/payments/cardlink`
-- **Cryptomus:** `url_callback` is sent per invoice to `https://api.simverse.sh/webhooks/payments/cryptomus`; browser return URLs use `MINIAPP_URL`.
+- **Trybit:** project notification URL `https://api.simverse.sh/webhooks/payments/trybit` (JSON postbacks). Success URL `https://miniapp.simverse.sh/app/successful-payment`, fail URL `https://miniapp.simverse.sh/app/failed-payment`.
+- **Cryptomus (legacy):** `url_callback` is sent per invoice to `https://api.simverse.sh/webhooks/payments/cryptomus`; browser return URLs use `MINIAPP_URL`.
 
 ### Google OAuth (dashboard)
 

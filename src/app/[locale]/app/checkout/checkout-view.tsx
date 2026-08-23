@@ -40,8 +40,8 @@ async function requestStarsInvoice() {
   return requestInvoice("/api/checkout/stars");
 }
 
-async function requestCryptomusInvoice() {
-  return requestInvoice("/api/checkout/cryptomus");
+async function requestTrybitInvoice() {
+  return requestInvoice("/api/checkout/trybit");
 }
 
 async function requestCardlinkInvoice(locale: string) {
@@ -330,21 +330,21 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
             setPaying(true);
             setPayError(null);
             captureAppEvent("checkout_method_selected", {
-              method: "cryptomus",
+              method: "trybit",
               packageCode: plan.packageCode,
             });
-            void requestCryptomusInvoice()
+            void requestTrybitInvoice()
               .then((url) => {
                 captureAppEvent("checkout_invoice_opened", {
-                  method: "cryptomus",
+                  method: "trybit",
                   packageCode: plan.packageCode,
                 });
                 window.location.assign(url);
               })
               .catch((error: unknown) => {
-                console.error("[checkout] cryptomus invoice", error);
+                console.error("[checkout] trybit invoice", error);
                 captureAppEvent("checkout_invoice_failed", {
-                  method: "cryptomus",
+                  method: "trybit",
                   packageCode: plan.packageCode,
                 });
                 setPayError(t("payFailed"));

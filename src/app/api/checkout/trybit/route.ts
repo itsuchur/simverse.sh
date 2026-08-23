@@ -2,17 +2,16 @@ import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "~/server/better-auth";
 import { getCartPlan } from "~/server/cart";
-import { CRYPTOMUS_PAYMENT_PROVIDER } from "~/lib/order-status";
+import { TRYBIT_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
   failPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
 import {
-  createOrRefreshCryptomusInvoice,
-  cryptomusConfigured,
-} from "~/server/payments/cryptomus";
+  createTrybitInvoice,
+  trybitConfigured,
+} from "~/server/payments/trybit";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
-import { apiPublicUrl, miniappOrigin } from "~/server/urls";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
 function unauthorized() {
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
     return forbidden();
   }
 
-  if (!cryptomusConfigured()) {
+  if (!trybitConfigured()) {
     return unavailable();
   }
 
@@ -82,23 +81,18 @@ export async function POST(request: Request) {
     currency: "USD",
     costAmount: BigInt(Math.round(plan.cost)),
     costCurrency: "USD",
-    paymentProvider: CRYPTOMUS_PAYMENT_PROVIDER,
+    paymentProvider: TRYBIT_PAYMENT_PROVIDER,
   });
 
-  const appOrigin = miniappOrigin();
-
   try {
-    const invoice = await createOrRefreshCryptomusInvoice({
-      amount: (cents / 100).toFixed(2),
+    const invoice = await createTrybitInvoice({
+      amount: cents / 100,
       orderId: order.orderUuid,
-      urlCallback: apiPublicUrl("/webhooks/payments/cryptomus"),
-      urlSuccess: `${appOrigin}/app/myesim`,
-      urlReturn: `${appOrigin}/app/checkout`,
     });
-    return Response.json({ invoiceUrl: invoice.url });
+    return Response.json({ invoiceUrl: invoice.link });
   } catch (error) {
     Sentry.captureException(error, {
-      tags: { component: "cryptomus", reason: "invoice_failed" },
+      tags: { component: "trybit", reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
     await failPendingInvoice(order.id, "invoice_failed");
