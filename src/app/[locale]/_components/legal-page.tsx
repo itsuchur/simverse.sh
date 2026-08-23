@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { LegalCloseButton } from "./legal-close-button";
+import { FullScreenDocument } from "./full-screen-document";
 import { LegalMarkdown } from "./legal-markdown";
 import { type LegalDocumentId, readLegalMarkdown } from "~/lib/legal-document";
 
@@ -29,13 +29,9 @@ export async function LegalPage({
   const content = await readLegalMarkdown(document);
 
   return (
-    <>
-      <LegalCloseButton />
-      <main className="mx-auto w-full max-w-2xl px-4 py-10 pr-14">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground mt-2 text-sm">{t("lastUpdated")}</p>
-        <LegalMarkdown blocks={content} />
-      </main>
-    </>
+    <FullScreenDocument title={t("title")}>
+      <p className="text-muted-foreground text-sm">{t("lastUpdated")}</p>
+      <LegalMarkdown blocks={content} />
+    </FullScreenDocument>
   );
 }

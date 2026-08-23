@@ -14,7 +14,7 @@ export function LegalCloseButton() {
     <Button
       variant="ghost"
       size="icon-sm"
-      className="fixed top-3 right-3 z-50"
+      className="absolute top-3 right-3 z-50"
       onClick={() => {
         if (window.history.length > 1) {
           router.back();
