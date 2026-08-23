@@ -116,6 +116,20 @@
     "title": "Privacy Policy",
     "lastUpdated": "Last updated: August 23rd, 2026"
   },
+  "Help": {
+    "metaTitle": "Help",
+    "metaDescription": "Answers to common questions about eSIM, device compatibility, fees, and what Simverse plans include.",
+    "title": "Help",
+    "intro": "Answers to the questions we hear most about eSIM.",
+    "whatIsEsimTitle": "What is an eSIM?",
+    "whatIsEsim": "An eSIM is a digital SIM built into your phone. You install a data plan with a QR code or a tap — no plastic card to insert or swap.",
+    "deviceSupportTitle": "How do I know if my phone supports eSIM?",
+    "deviceSupport": "Open the phone app and dial <code>*#06#</code>. If an EID (eSIM identifier) appears, your device supports eSIM. You can also look in Settings for an “Add eSIM” option. The phone must be unlocked from its original carrier.",
+    "feesTitle": "Are there hidden or extra fees?",
+    "fees": "No. The price shown at checkout is what you pay. We do not add activation, roaming, or other hidden charges.",
+    "callsAndSmsTitle": "Can I receive calls and SMS on the eSIM?",
+    "callsAndSms": "Our eSIMs are data-only. They do not receive calls or SMS, including one-time verification codes. Keep your regular SIM for voice and text."
+  },
   "RefundPolicy": {
     "metaTitle": "Refund Policy",
     "metaDescription": "simverse refund policy",

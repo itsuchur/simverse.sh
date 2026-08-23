@@ -26,7 +26,6 @@ import { db } from "~/server/db";
 
 export const dynamic = "force-dynamic";
 
-const HELP_URL = "https://help.simverse.sh";
 const SUPPORT_URL = "https://t.me/simversesupport";
 
 export default async function AppProfile() {
@@ -78,7 +77,7 @@ export default async function AppProfile() {
   const helpOption: ProfileOption = {
     label: t("help"),
     icon: CircleHelp,
-    externalHref: HELP_URL,
+    href: "/help",
   };
 
   const legalOptions: ProfileOption[] = [
