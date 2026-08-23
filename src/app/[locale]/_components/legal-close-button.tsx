@@ -4,9 +4,11 @@ import { XIcon } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { useRouter } from "~/i18n/navigation";
+import { useMiniappPath } from "~/lib/use-miniapp-path";
 
 export function LegalCloseButton() {
   const router = useRouter();
+  const profileHref = useMiniappPath("/profile");
 
   return (
     <Button
@@ -17,7 +19,7 @@ export function LegalCloseButton() {
         if (window.history.length > 1) {
           router.back();
         } else {
-          router.push("/app/profile");
+          router.push(profileHref);
         }
       }}
     >

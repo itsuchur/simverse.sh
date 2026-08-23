@@ -9,7 +9,7 @@ Public hostnames (DNS already in Cloudflare):
 | Host | Serves |
 | --- | --- |
 | `https://dashboard.simverse.sh` | Internal dashboard (`/dashboard`, pretty-rooted) |
-| `https://miniapp.simverse.sh` | Telegram Mini App (`/app`, pretty-rooted) |
+| `https://miniapp.simverse.sh` | Telegram Mini App (pretty-rooted: `/` is the catalog, not `/app`) |
 | `https://api.simverse.sh` | Webhooks and other route handlers (`/webhooks/...` publicly; Traefik prefixes `/api` for Next.js). Same-origin `/api` stays on the two UI hosts. |
 
 Internal Compose services can call the app at `http://app:3000/api/...` on the `internal` network. Internet callers (Telegram, eSIM Access, Cryptomus, Trybit, Cardlink) must use `https://api.simverse.sh/webhooks/...` (no extra `/api` in the path).
@@ -125,7 +125,7 @@ https://api.simverse.sh/webhooks/suppliers/esimaccess?token=<ESIMACCESS_WEBHOOK_
 ### Payments
 
 - **Cardlink:** shop Result URL `https://api.simverse.sh/webhooks/payments/cardlink`
-- **Trybit:** project notification URL `https://api.simverse.sh/webhooks/payments/trybit` (JSON postbacks). Success URL `https://miniapp.simverse.sh/app/successful-payment`, fail URL `https://miniapp.simverse.sh/app/failed-payment`.
+- **Trybit:** project notification URL `https://api.simverse.sh/webhooks/payments/trybit` (JSON postbacks). Success URL `https://miniapp.simverse.sh/successful-payment`, fail URL `https://miniapp.simverse.sh/failed-payment`.
 - **Cryptomus (legacy):** `url_callback` is sent per invoice to `https://api.simverse.sh/webhooks/payments/cryptomus`; browser return URLs use `MINIAPP_URL`.
 
 ### Google OAuth (dashboard)

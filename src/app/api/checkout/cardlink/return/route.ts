@@ -1,10 +1,10 @@
+import { miniappPublicUrl } from "~/lib/miniapp-path";
 import { miniappOrigin } from "~/server/urls";
 
 function redirectFor(status: string | null) {
   const origin = miniappOrigin();
-  const path =
-    status === "fail" ? "/app/failed-payment" : "/app/successful-payment";
-  return Response.redirect(`${origin}${path}`, 303);
+  const page = status === "fail" ? "/failed-payment" : "/successful-payment";
+  return Response.redirect(miniappPublicUrl(origin, page), 303);
 }
 
 export async function GET(request: Request) {

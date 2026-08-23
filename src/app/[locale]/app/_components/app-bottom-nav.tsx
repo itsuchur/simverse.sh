@@ -4,30 +4,39 @@ import { CardSim, Home, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Link, usePathname } from "~/i18n/navigation";
+import {
+  isMiniappHomePath,
+  isMiniappSectionPath,
+} from "~/lib/miniapp-path";
+import { useMiniappPath } from "~/lib/use-miniapp-path";
 import { cn } from "~/lib/utils";
 
 export function AppBottomNav() {
   const t = useTranslations("Nav");
   const pathname = usePathname();
 
+  const homeHref = useMiniappPath("/");
+  const myEsimHref = useMiniappPath("/myesim");
+  const profileHref = useMiniappPath("/profile");
+
   const items = [
     {
-      href: "/app",
+      href: homeHref,
       label: t("home"),
       icon: Home,
-      match: (path: string) => path === "/app",
+      match: isMiniappHomePath,
     },
     {
-      href: "/app/myesim",
+      href: myEsimHref,
       label: t("myEsims"),
       icon: CardSim,
-      match: (path: string) => path.startsWith("/app/myesim"),
+      match: (path: string) => isMiniappSectionPath(path, "myesim"),
     },
     {
-      href: "/app/profile",
+      href: profileHref,
       label: t("profile"),
       icon: User,
-      match: (path: string) => path.startsWith("/app/profile"),
+      match: (path: string) => isMiniappSectionPath(path, "profile"),
     },
   ] as const;
 

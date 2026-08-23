@@ -59,6 +59,9 @@ services:
       - traefik.http.routers.simverse-miniapp.tls.certresolver=letsencrypt
       - traefik.http.routers.simverse-miniapp.tls.domains[0].main=simverse.sh
       - traefik.http.routers.simverse-miniapp.tls.domains[0].sans=*.simverse.sh
+      # Do not addPrefix /app here. Pretty URLs (/successful-payment, /checkout)
+      # are rewritten in src/proxy.ts so /api, /_next, /help, and legal pages stay
+      # unprefixed. Traefik prefixing would break those.
 
       # Public paths omit /api (https://api.simverse.sh/webhooks/...). Traefik
       # prefixes /api so Next.js still serves src/app/api/*. Bare /api/... still works.

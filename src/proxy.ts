@@ -5,15 +5,52 @@ import { routing } from "./i18n/routing";
 
 const handleI18n = createMiddleware(routing);
 
-const HOST_APP_PREFIX: Record<string, string> = {
-  "dashboard.simverse.sh": "dashboard",
-  "miniapp.simverse.sh": "app",
-};
+/** Routes that live at the locale root, not under `/app`. */
+const MINIAPP_PASSTHROUGH = [
+  "/help",
+  "/tos",
+  "/privacy-policy",
+  "/refund-policy",
+];
+
+function hostnameFromEnv(url: string | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
 
 function requestHost(request: NextRequest): string {
   const raw =
     request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
   return raw.split(",")[0]?.trim().split(":")[0]?.toLowerCase() ?? "";
+}
+
+function hostAppPrefix(host: string): string | undefined {
+  const map: Record<string, string> = {
+    "dashboard.simverse.sh": "dashboard",
+    "miniapp.simverse.sh": "app",
+  };
+  const miniapp = hostnameFromEnv(process.env.MINIAPP_URL);
+  const dashboard = hostnameFromEnv(process.env.BETTER_AUTH_URL);
+  // Pretty-root only when Mini App and dashboard are different hosts.
+  // Local ngrok uses one host for both: MINIAPP_URL is unset (or equal to
+  // BETTER_AUTH_URL), so /app and /dashboard must stay in the path.
+  if (miniapp && dashboard && miniapp !== dashboard) {
+    map[miniapp] = "app";
+    map[dashboard] = "dashboard";
+  }
+  return map[host];
+}
+
+function isMiniappPassthrough(rest: string): boolean {
+  return MINIAPP_PASSTHROUGH.some(
+    (path) => rest === path || rest.startsWith(`${path}/`),
+  );
 }
 
 function splitLocalePrefix(pathname: string): {
@@ -42,7 +79,7 @@ function joinLocalePath(
 }
 
 export default function proxy(request: NextRequest) {
-  const prefix = HOST_APP_PREFIX[requestHost(request)];
+  const prefix = hostAppPrefix(requestHost(request));
   if (!prefix) {
     return handleI18n(request);
   }
@@ -58,14 +95,15 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
+  if (prefix === "app" && isMiniappPassthrough(rest)) {
+    return handleI18n(request);
+  }
+
   const rewrittenRest = rest === "/" ? prefixPath : `${prefixPath}${rest}`;
   request.nextUrl.pathname = joinLocalePath(locale, rewrittenRest);
   return handleI18n(request);
 }
 
 export const config = {
-  // Match all pathnames except for
-  // - … if they start with `/api`, `/monitoring`, `/ingest`, `/_next` or `/_vercel`
-  // - … the ones containing a dot (e.g. `favicon.ico`)
   matcher: "/((?!api|monitoring|ingest|_next|_vercel|.*\\..*).*)",
 };

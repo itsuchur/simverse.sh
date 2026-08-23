@@ -1,8 +1,9 @@
 import { getLocale } from "next-intl/server";
 
 import { redirect } from "~/i18n/navigation";
+import { miniappPathForRequest } from "~/server/miniapp-path";
 
 export default async function CheckoutRedirectPage() {
   const locale = await getLocale();
-  redirect({ href: "/app/checkout", locale });
+  redirect({ href: await miniappPathForRequest("/checkout"), locale });
 }

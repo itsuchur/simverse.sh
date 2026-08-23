@@ -13,6 +13,7 @@ import {
   cardlinkConfigured,
   createCardlinkBill,
 } from "~/server/payments/cardlink";
+import { miniappPublicUrl } from "~/lib/miniapp-path";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { miniappOrigin } from "~/server/urls";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
       locale,
       successUrl: `${origin}/api/checkout/cardlink/return?status=success`,
       failUrl: `${origin}/api/checkout/cardlink/return?status=fail`,
-      returnUrl: `${origin}/app/checkout`,
+      returnUrl: miniappPublicUrl(origin, "/checkout"),
     });
     return Response.json({ invoiceUrl: bill.linkPageUrl });
   } catch (error) {

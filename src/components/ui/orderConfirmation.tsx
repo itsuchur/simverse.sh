@@ -18,6 +18,7 @@ import {
   catalogPriceAmount,
 } from "~/lib/catalog-price";
 import { captureAppEvent } from "~/lib/posthog/browser";
+import { useMiniappPath } from "~/lib/use-miniapp-path";
 import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types";
 
 function formatVolume(bytes: number) {
@@ -45,6 +46,7 @@ export default function OrderConfirmation({
   const format = useFormatter();
   const locale = useLocale();
   const router = useRouter();
+  const checkoutHref = useMiniappPath("/checkout");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,7 +134,7 @@ export default function OrderConfirmation({
                     duration: pkg.duration,
                     priceRub: pkg.priceRub,
                   });
-                  router.push("/app/checkout");
+                  router.push(checkoutHref);
                 } catch {
                   setError(t("buyFailed"));
                 } finally {

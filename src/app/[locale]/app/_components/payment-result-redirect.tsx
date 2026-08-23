@@ -4,17 +4,20 @@ import { useEffect } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 
 import { useRouter } from "~/i18n/navigation";
+import type { MiniappPage } from "~/lib/miniapp-path";
+import { useMiniappPath } from "~/lib/use-miniapp-path";
 
 const REDIRECT_MS = 2500;
 
 export function PaymentResultRedirect({
   src,
-  href,
+  page,
 }: {
   src: string;
-  href: "/app" | "/app/checkout" | "/app/myesim";
+  page: MiniappPage;
 }) {
   const router = useRouter();
+  const href = useMiniappPath(page);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {

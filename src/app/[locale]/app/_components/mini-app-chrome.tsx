@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import { AppBottomNav } from "./app-bottom-nav";
 import { usePathname } from "~/i18n/navigation";
 import { prepareTelegramWebApp } from "~/lib/telegram-webapp";
+import { isMiniappCheckoutPath } from "~/lib/miniapp-path";
 import { cn } from "~/lib/utils";
 
 export function MiniAppChrome({
@@ -15,7 +16,7 @@ export function MiniAppChrome({
   showNav: boolean;
 }) {
   const pathname = usePathname();
-  const isCheckout = pathname.startsWith("/app/checkout");
+  const isCheckout = isMiniappCheckoutPath(pathname);
   const navVisible = showNav && !isCheckout;
 
   useEffect(() => {

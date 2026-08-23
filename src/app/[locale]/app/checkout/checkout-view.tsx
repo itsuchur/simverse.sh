@@ -11,6 +11,7 @@ import type { CartPlan } from "~/lib/cart-plan";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 import { openTelegramInvoice } from "~/lib/telegram-webapp";
+import { useMiniappPath } from "~/lib/use-miniapp-path";
 
 async function checkoutHeaders() {
   const headers: Record<string, string> = {};
@@ -141,6 +142,8 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
   const format = useFormatter();
   const locale = useLocale();
   const router = useRouter();
+  const homeHref = useMiniappPath("/");
+  const myEsimHref = useMiniappPath("/myesim");
   const [leaving, setLeaving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -202,7 +205,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
                   headers: await checkoutHeaders(),
                 });
               } finally {
-                router.push("/app");
+                router.push(homeHref);
               }
             })();
           }}
@@ -258,7 +261,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
               })
               .then((status) => {
                 if (status === "paid" || status === "pending") {
-                  router.push("/app/myesim");
+                  router.push(myEsimHref);
                   return;
                 }
                 if (status === "failed") {

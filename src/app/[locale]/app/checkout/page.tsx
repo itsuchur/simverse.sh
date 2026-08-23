@@ -6,6 +6,7 @@ import { buttonVariants } from "~/components/ui/button";
 import { Link, redirect } from "~/i18n/navigation";
 import { getSession } from "~/server/better-auth/server";
 import { getCartPlan } from "~/server/cart";
+import { miniappPathForRequest } from "~/server/miniapp-path";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function CheckoutPage() {
       <main className="flex flex-1 flex-col items-center justify-center gap-6 py-24 text-center">
         <p className="text-base leading-7">{t("empty")}</p>
         <Link
-          href="/app"
+          href={await miniappPathForRequest("/")}
           className={buttonVariants({
             variant: "outline",
             size: "lg",
@@ -74,5 +75,5 @@ export default async function CheckoutPage() {
     return <CheckoutView plan={plan} />;
   }
 
-  redirect({ href: "/app", locale });
+  redirect({ href: await miniappPathForRequest("/"), locale });
 }
