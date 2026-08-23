@@ -15,6 +15,8 @@ export type CatalogPackage = {
   durationUnit: string;
   location: string;
   priceRub?: number;
+  /** Customer-facing price in USD, from retailPrice / 10000. */
+  priceUsd?: number;
   /** Customer-facing price in whole Telegram Stars, from retailPrice. */
   priceStars?: number;
   currencyCode: string;

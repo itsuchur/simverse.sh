@@ -105,6 +105,9 @@ function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
     durationUnit: pkg.durationUnit,
     location: pkg.location,
     priceRub: pkg.priceRub,
+    priceUsd: Number.isFinite(pkg.retailPrice)
+      ? pkg.retailPrice / ESIMACCESS_PRICE_SCALE
+      : undefined,
     priceStars: pkg.priceStars,
     currencyCode: pkg.currencyCode,
     networks: extractNetworks(pkg.locationNetworkList),

@@ -23,6 +23,11 @@ import {
 } from "~/components/ui/dialog";
 import OrderConfirmation from "~/components/ui/orderConfirmation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import {
+  catalogNumberFormatOptions,
+  catalogPriceAmount,
+  lowestCatalogPrice,
+} from "~/lib/catalog-price";
 import { cn } from "~/lib/utils";
 import type {
   CatalogPackage,
@@ -77,16 +82,6 @@ function filterRegionGroups(
     .filter((group) => group.packages.length > 0);
 }
 
-function lowestPriceRub(packages: CatalogPackage[]) {
-  const prices = packages
-    .map((pkg) => pkg.priceRub)
-    .filter((price): price is number => typeof price === "number");
-  if (prices.length === 0) {
-    return undefined;
-  }
-  return Math.min(...prices);
-}
-
 function uniqueOperators(packages: CatalogPackage[]): string[] {
   const seen = new Set<string>();
   const names: string[] = [];
@@ -139,12 +134,14 @@ type DestinationGroup = {
 function DestinationDialog({ group }: { group: DestinationGroup }) {
   const t = useTranslations("Catalog");
   const format = useFormatter();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<CatalogPackage | null>(null);
   const [confirming, setConfirming] = useState(false);
   const operators = uniqueOperators(group.packages);
   const durationGroups = groupPackagesByDuration(group.packages);
-  const fromPrice = lowestPriceRub(group.packages);
+  const fromPrice = lowestCatalogPrice(group.packages, locale);
+  const priceFormat = catalogNumberFormatOptions(locale);
 
   return (
     <Dialog
@@ -171,11 +168,7 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
               {fromPrice === undefined
                 ? "—"
                 : t("fromPrice", {
-                    price: format.number(fromPrice, {
-                      style: "currency",
-                      currency: "RUB",
-                      maximumFractionDigits: 0,
-                    }),
+                    price: format.number(fromPrice, priceFormat),
                   })}
             </span>
           </CardAction>
@@ -219,14 +212,11 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
                   </h2>
                   <div className="space-y-2">
                     {packages.map((pkg) => {
+                      const amount = catalogPriceAmount(pkg, locale);
                       const price =
-                        typeof pkg.priceRub === "number"
-                          ? format.number(pkg.priceRub, {
-                              style: "currency",
-                              currency: "RUB",
-                              maximumFractionDigits: 0,
-                            })
-                          : "—";
+                        amount === undefined
+                          ? "—"
+                          : format.number(amount, priceFormat);
                       const selected =
                         selectedPkg?.packageCode === pkg.packageCode;
 

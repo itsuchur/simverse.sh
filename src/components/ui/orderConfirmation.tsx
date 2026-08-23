@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -13,6 +13,10 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { useRouter } from "~/i18n/navigation";
+import {
+  catalogNumberFormatOptions,
+  catalogPriceAmount,
+} from "~/lib/catalog-price";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types";
 
@@ -39,6 +43,7 @@ export default function OrderConfirmation({
   const t = useTranslations("OrderConfirmation");
   const tCatalog = useTranslations("Catalog");
   const format = useFormatter();
+  const locale = useLocale();
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,14 +60,11 @@ export default function OrderConfirmation({
     });
   }, [open, pkg.packageCode, pkg.volume, pkg.duration, pkg.priceRub]);
 
+  const amount = catalogPriceAmount(pkg, locale);
   const price =
-    typeof pkg.priceRub === "number"
-      ? format.number(pkg.priceRub, {
-          style: "currency",
-          currency: "RUB",
-          maximumFractionDigits: 0,
-        })
-      : "—";
+    amount === undefined
+      ? "—"
+      : format.number(amount, catalogNumberFormatOptions(locale));
 
   const duration =
     pkg.durationUnit.toLowerCase() === "day"
