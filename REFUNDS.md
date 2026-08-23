@@ -151,19 +151,22 @@ Approved refunds will normally be returned using the original payment method.
 Payments may be processed through third-party providers including:
 
 - **Cardlink** — [https://cardlink.link/en](https://cardlink.link/en)
-- **Cryptomus** — [https://cryptomus.com](https://cryptomus.com)
+- **Trybit** — [https://trybit.com](https://trybit.com)
+- **Telegram Stars** — processed through Telegram; [https://telegram.org/tos/stars](https://telegram.org/tos/stars)
 
-The processing of a refund by Cardlink, Cryptomus, a bank, card network, cryptocurrency network, wallet provider, or other financial intermediary may also be governed by that provider's own terms, policies, technical rules, and processing times.
+The processing of a refund by Cardlink, Trybit, Telegram, a bank, card network, cryptocurrency network, wallet provider, or other financial intermediary may also be governed by that provider's own terms, policies, technical rules, and processing times.
 
 simverse may approve and initiate a refund, but the time required for funds to appear in your account or wallet may depend on the relevant third-party provider.
 
-## 11. Cryptocurrency Payments
+## 11. Cryptocurrency and Telegram Stars Payments
 
-Where a purchase was paid using cryptocurrency, the refund process may be subject to the technical and operational rules of the relevant payment provider.
+Where a purchase was paid using cryptocurrency through Trybit, the refund process may be subject to the technical and operational rules of the relevant payment provider.
 
 Unless otherwise required by law, any approved refund will be processed according to the amount and method supported by the payment provider at the time the refund is issued.
 
 Network fees, exchange-rate movements, blockchain confirmation times, or wallet-provider rules may affect the final amount or timing of a cryptocurrency refund where such effects are outside the reasonable control of simverse.
+
+Where a purchase was paid using Telegram Stars, the refund process may also be subject to Telegram's Terms of Service for Telegram Stars and Telegram's technical and operational rules.
 
 ## 12. Chargebacks and Payment Disputes
 

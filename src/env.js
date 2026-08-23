@@ -29,14 +29,6 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(16)
         : z.string().min(16).optional(),
-    CRYPTOMUS_MERCHANT_ID:
-      process.env.NODE_ENV === "production"
-        ? z.string().min(1)
-        : z.string().min(1).optional(),
-    CRYPTOMUS_API_KEY:
-      process.env.NODE_ENV === "production"
-        ? z.string().min(1)
-        : z.string().min(1).optional(),
     TRYBIT_API_KEY:
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
@@ -96,8 +88,6 @@ export const env = createEnv({
     REDIS_URL: process.env.REDIS_URL,
     ESIMACCESS_ACCESS_CODE: process.env.ESIMACCESS_ACCESS_CODE,
     ESIMACCESS_WEBHOOK_SECRET: process.env.ESIMACCESS_WEBHOOK_SECRET,
-    CRYPTOMUS_MERCHANT_ID: process.env.CRYPTOMUS_MERCHANT_ID,
-    CRYPTOMUS_API_KEY: process.env.CRYPTOMUS_API_KEY,
     TRYBIT_API_KEY: process.env.TRYBIT_API_KEY,
     TRYBIT_SHOP_ID: process.env.TRYBIT_SHOP_ID,
     TRYBIT_SECRET_KEY: process.env.TRYBIT_SECRET_KEY,

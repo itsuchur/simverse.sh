@@ -60,8 +60,6 @@ Point Trybit’s notification URL at that tunnel while testing. Mini App success
 - Postback: require JWT `token` signed with `TRYBIT_SECRET_KEY`. Fulfill on invoice `paid` / `overpaid` (or `invoice_status: success`). Fail pending order on `canceled`. Ignore `partial`.
 - Dashboard → Webhooks → **Trybit** lists raw postbacks.
 
-Cryptomus checkout is gone. `CRYPTOMUS_*` remains so old Cryptomus invoices can still hit `/webhooks/payments/cryptomus`.
-
 ## After changing keys
 
 Restart `app` so `src/env.js` picks up the new values. Production Compose: `docker compose -f compose.prod.yaml up -d` (rebuild only if you also changed code).

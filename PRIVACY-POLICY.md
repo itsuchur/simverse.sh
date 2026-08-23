@@ -217,11 +217,12 @@ Where processing legally requires consent, we will request it separately. Where 
 Payments may be processed by third-party payment providers, including:
 
 - **Cardlink** — [https://cardlink.link/en](https://cardlink.link/en)
-- **Cryptomus** — [https://cryptomus.com](https://cryptomus.com)
+- **Trybit** — [https://trybit.com](https://trybit.com)
+- **Telegram Stars** — processed through Telegram; [https://telegram.org/tos/stars](https://telegram.org/tos/stars)
 
 When you choose a payment provider, that provider may independently collect and process payment information, identity information, technical information, fraud-prevention information, wallet information, financial information, or other information necessary to process the transaction and comply with its own legal obligations.
 
-Your relationship with Cardlink or Cryptomus is also governed by that provider's own terms of service, privacy policy, and other applicable policies.
+Your relationship with Cardlink, Trybit, or Telegram (for Telegram Stars) is also governed by that provider's own terms of service, privacy policy, and other applicable policies.
 
 We may receive from payment providers information such as payment status, transaction identifiers, amount, currency, risk or fraud signals, refund status, and other information necessary to reconcile and manage your purchase.
 
@@ -252,7 +253,7 @@ A provisioning partner may also process certain network or telecommunications in
 We may disclose or make personal data available to categories of recipients including:
 
 - eSIM provisioning partners and telecommunications providers;
-- Cardlink and Cryptomus;
+- Cardlink, Trybit, and Telegram;
 - hosting and infrastructure providers;
 - Amazon Web Services for backup storage;
 - Cloudflare for security, network protection, and delivery;

@@ -11,7 +11,6 @@ import {
 } from "~/server/suppliers/esimaccess/order";
 import {
   CARDLINK_PAYMENT_PROVIDER,
-  CRYPTOMUS_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
@@ -22,7 +21,6 @@ import { captureServerEvent } from "~/lib/posthog/server";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
-  CRYPTOMUS_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
@@ -441,34 +439,6 @@ function usdAmountToCents(amount: string) {
   return BigInt(Math.round(value * 100));
 }
 
-export async function fulfillCryptomusPayment(input: {
-  orderUuid: string;
-  cryptomusUuid: string;
-  amount: string;
-}) {
-  await fulfillPayment({
-    provider: CRYPTOMUS_PAYMENT_PROVIDER,
-    orderUuid: input.orderUuid,
-    chargeId: input.cryptomusUuid,
-    validate: (order) => {
-      const cents = usdAmountToCents(input.amount);
-      if (cents === null || cents !== order.priceAmount) {
-        Sentry.captureMessage("Cryptomus webhook amount mismatch", {
-          level: "error",
-          tags: { component: "cryptomus", reason: "amount_mismatch" },
-          extra: {
-            orderUuid: input.orderUuid,
-            expected: order.priceAmount.toString(),
-            received: input.amount,
-          },
-        });
-        return false;
-      }
-      return true;
-    },
-  });
-}
-
 async function failPendingPayment(orderUuid: string, provider: string) {
   await db.order.updateMany({
     where: {
@@ -483,10 +453,6 @@ async function failPendingPayment(orderUuid: string, provider: string) {
       failureReason: "payment_failed",
     },
   });
-}
-
-export async function failCryptomusPayment(orderUuid: string) {
-  await failPendingPayment(orderUuid, CRYPTOMUS_PAYMENT_PROVIDER);
 }
 
 function usdNumberToCents(amount: number) {

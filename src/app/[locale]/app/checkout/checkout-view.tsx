@@ -356,7 +356,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           }}
         >
           <Bitcoin data-icon="inline-start" className="size-6" />
-          {t("payCryptomus", { price: cardPrice })}
+          {t("payCrypto", { price: cardPrice })}
         </Button>
       </div>
     </main>
