@@ -18,7 +18,6 @@ import { esimStatusBadge } from "~/lib/esim-status";
 import { orderStatus } from "~/lib/order-status";
 import {
   detectEsimInstallPlatform,
-  prepareTelegramWebApp,
   type EsimInstallPlatform,
 } from "~/lib/telegram-webapp";
 
@@ -173,10 +172,6 @@ export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
     detectEsimInstallPlatform,
     () => null,
   );
-
-  useEffect(() => {
-    prepareTelegramWebApp();
-  }, []);
 
   useEffect(() => {
     if (!preparing) return;

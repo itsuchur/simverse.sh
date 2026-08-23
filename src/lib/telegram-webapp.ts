@@ -3,8 +3,13 @@ export type InvoiceStatus = "paid" | "cancelled" | "failed" | "pending";
 export type EsimInstallPlatform = "ios" | "android" | "unknown";
 
 export function prepareTelegramWebApp() {
-  window.Telegram?.WebApp?.ready?.();
-  window.Telegram?.WebApp?.expand?.();
+  const webApp = window.Telegram?.WebApp;
+  webApp?.ready?.();
+  webApp?.expand?.();
+  webApp?.setHeaderColor?.("#ffffff");
+  if (webApp?.isVersionAtLeast?.("8.0") && !webApp.isFullscreen) {
+    webApp.requestFullscreen?.();
+  }
 }
 
 function platformFromUserAgent(userAgent: string): EsimInstallPlatform {

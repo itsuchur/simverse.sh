@@ -10,10 +10,7 @@ import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
-import {
-  openTelegramInvoice,
-  prepareTelegramWebApp,
-} from "~/lib/telegram-webapp";
+import { openTelegramInvoice } from "~/lib/telegram-webapp";
 
 async function checkoutHeaders() {
   const headers: Record<string, string> = {};
@@ -147,10 +144,6 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
   const [leaving, setLeaving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-
-  useEffect(() => {
-    prepareTelegramWebApp();
-  }, []);
 
   useEffect(() => {
     captureAppEvent("checkout_started", {
