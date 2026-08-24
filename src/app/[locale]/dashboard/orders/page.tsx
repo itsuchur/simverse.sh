@@ -40,6 +40,9 @@ function toOrderRecord(order: {
   paymentProvider: string;
   paymentChargeId: string | null;
   paymentStatus: string;
+  paymentRefundId: string | null;
+  paymentChargebackId: string | null;
+  refundedAmount: bigint | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -73,6 +76,9 @@ function toOrderRecord(order: {
     paymentProvider: order.paymentProvider,
     paymentChargeId: order.paymentChargeId,
     paymentStatus: order.paymentStatus,
+    paymentRefundId: order.paymentRefundId,
+    paymentChargebackId: order.paymentChargebackId,
+    refundedAmount: order.refundedAmount?.toString() ?? null,
     status: order.status,
     failureReason: order.failureReason,
     esimIccid: order.esimIccid,

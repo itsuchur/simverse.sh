@@ -29,6 +29,9 @@ export type OrderRecord = {
   paymentProvider: string;
   paymentChargeId: string | null;
   paymentStatus: string;
+  paymentRefundId: string | null;
+  paymentChargebackId: string | null;
+  refundedAmount: string | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -66,6 +69,12 @@ const ORDER_FIELDS: {
   { column: "payment_provider", value: (order) => order.paymentProvider },
   { column: "payment_charge_id", value: (order) => order.paymentChargeId },
   { column: "payment_status", value: (order) => order.paymentStatus },
+  { column: "payment_refund_id", value: (order) => order.paymentRefundId },
+  {
+    column: "payment_chargeback_id",
+    value: (order) => order.paymentChargebackId,
+  },
+  { column: "refunded_amount", value: (order) => order.refundedAmount },
   { column: "status", value: (order) => order.status },
   { column: "failure_reason", value: (order) => order.failureReason },
   { column: "esim_iccid", value: (order) => order.esimIccid },

@@ -10,6 +10,8 @@ export const paymentStatus = {
   pending: "pending",
   paid: "paid",
   failed: "failed",
+  refunded: "refunded",
+  chargeback: "chargeback",
 } as const;
 
 export const STARS_PAYMENT_PROVIDER = "telegram_stars";

@@ -540,6 +540,62 @@ export async function failCardlinkPayment(orderUuid: string) {
   await failPendingPayment(orderUuid, CARDLINK_PAYMENT_PROVIDER);
 }
 
+export async function markCardlinkRefunded(input: {
+  orderUuid: string;
+  refundId: string;
+  amount: string;
+  currency: string;
+}) {
+  const cents = usdAmountToCents(input.amount);
+  if (cents === null) {
+    return;
+  }
+
+  await db.order.updateMany({
+    where: {
+      orderUuid: input.orderUuid,
+      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
+      currency: input.currency.toUpperCase(),
+      OR: [
+        { paymentStatus: paymentStatus.paid },
+        {
+          paymentStatus: paymentStatus.refunded,
+          paymentRefundId: input.refundId,
+        },
+      ],
+    },
+    data: {
+      paymentStatus: paymentStatus.refunded,
+      paymentRefundId: input.refundId,
+      refundedAmount: cents,
+    },
+  });
+}
+
+export async function markCardlinkChargeback(input: {
+  orderUuid: string;
+  chargebackId: string;
+}) {
+  await db.order.updateMany({
+    where: {
+      orderUuid: input.orderUuid,
+      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
+      OR: [
+        { paymentStatus: paymentStatus.paid },
+        { paymentStatus: paymentStatus.refunded },
+        {
+          paymentStatus: paymentStatus.chargeback,
+          paymentChargebackId: input.chargebackId,
+        },
+      ],
+    },
+    data: {
+      paymentStatus: paymentStatus.chargeback,
+      paymentChargebackId: input.chargebackId,
+    },
+  });
+}
+
 export async function syncPendingProfilesForUser(userId: string) {
   const pending = await db.order.findMany({
     where: {

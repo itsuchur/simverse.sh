@@ -27,6 +27,17 @@ function signsEqual(left: string, right: string) {
   return timingSafeEqual(a, b);
 }
 
+function verifyCardlinkMd5(payload: string, signature: string) {
+  if (!cardlinkConfigured()) {
+    return false;
+  }
+  const expected = createHash("md5")
+    .update(`${payload}:${env.CARDLINK_API_TOKEN}`)
+    .digest("hex")
+    .toUpperCase();
+  return signsEqual(expected, signature.toUpperCase());
+}
+
 export function cardlinkConfigured() {
   return (
     typeof env.CARDLINK_API_TOKEN === "string" &&
@@ -41,14 +52,33 @@ export function verifyCardlinkSign(input: {
   invId: string;
   signature: string;
 }) {
-  if (!cardlinkConfigured()) {
-    return false;
-  }
-  const expected = createHash("md5")
-    .update(`${input.outSum}:${input.invId}:${env.CARDLINK_API_TOKEN}`)
-    .digest("hex")
-    .toUpperCase();
-  return signsEqual(expected, input.signature.toUpperCase());
+  return verifyCardlinkMd5(`${input.outSum}:${input.invId}`, input.signature);
+}
+
+export function verifyCardlinkRefundSign(input: {
+  amount: string;
+  currency: string;
+  billId: string;
+  paymentId: string;
+  refundId: string;
+  signature: string;
+}) {
+  return verifyCardlinkMd5(
+    `${input.amount}:${input.currency}:${input.billId}:${input.paymentId}:${input.refundId}`,
+    input.signature,
+  );
+}
+
+export function verifyCardlinkChargebackSign(input: {
+  billId: string;
+  paymentId: string;
+  chargebackId: string;
+  signature: string;
+}) {
+  return verifyCardlinkMd5(
+    `${input.billId}:${input.paymentId}:${input.chargebackId}`,
+    input.signature,
+  );
 }
 
 export async function createCardlinkBill(input: {

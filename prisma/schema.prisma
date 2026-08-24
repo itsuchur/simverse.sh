@@ -124,9 +124,12 @@ model Order {
   costAmount   BigInt? @map("cost_amount")
   costCurrency String? @map("cost_currency") @db.Char(3)
 
-  paymentProvider String  @map("payment_provider")
-  paymentChargeId String? @map("payment_charge_id")
-  paymentStatus   String  @default("pending") @map("payment_status")
+  paymentProvider     String  @map("payment_provider")
+  paymentChargeId     String? @map("payment_charge_id")
+  paymentStatus       String  @default("pending") @map("payment_status")
+  paymentRefundId     String? @map("payment_refund_id")
+  paymentChargebackId String? @map("payment_chargeback_id")
+  refundedAmount      BigInt? @map("refunded_amount")
 
   status        String  @default("created")
   failureReason String? @map("failure_reason")
