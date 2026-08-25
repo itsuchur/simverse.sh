@@ -37,6 +37,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      redis-init:
+        condition: service_completed_successfully
 
   poller:
     build:
@@ -57,6 +59,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      redis-init:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:18.4
@@ -88,6 +92,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  redis-init:
+    image: redis:8.8.1
+    restart: "no"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    command:
+      [
+        "sh",
+        "-c",
+        'redis-cli -h redis -a "$$REDIS_PASSWORD" --no-auth-warning SET SALES_ACTIVE false',
+      ]
 
 volumes:
   postgres_data:

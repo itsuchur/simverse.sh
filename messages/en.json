@@ -4,7 +4,10 @@
     "description": "Travel eSIM data packages, right inside Telegram."
   },
   "HomePage": {
-    "title": "My website"
+    "headline": "Buy an eSIM within Telegram",
+    "cta": "Launch simverse",
+    "screenshotAlt": "Simverse Telegram mini app",
+    "faqHeading": "Frequently Asked Questions"
   },
   "Nav": {
     "ariaLabel": "Main",
@@ -53,6 +56,7 @@
     "loading": "Loading your plan…",
     "unavailable": "This plan is temporarily unavailable. Taking you back to the catalog.",
     "empty": "Your cart is empty.",
+    "salesClosed": "Sales are not open yet.",
     "authRequired": "Open this app from Telegram to continue.",
     "backToCatalog": "Back to catalog",
     "backToApp": "Back to App",

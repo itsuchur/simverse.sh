@@ -7,6 +7,7 @@ import { Link, redirect } from "~/i18n/navigation";
 import { getSession } from "~/server/better-auth/server";
 import { getCartPlan } from "~/server/cart";
 import { miniappPathForRequest } from "~/server/miniapp-path";
+import { isSalesActive } from "~/server/sales";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,26 @@ export default async function CheckoutPage() {
   }
 
   const locale = await getLocale();
+  const t = await getTranslations("Checkout");
+
+  if (!(await isSalesActive())) {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 py-24 text-center">
+        <p className="text-base leading-7">{t("salesClosed")}</p>
+        <Link
+          href={await miniappPathForRequest("/")}
+          className={buttonVariants({
+            variant: "outline",
+            size: "lg",
+            className: "h-11 px-4 text-base",
+          })}
+        >
+          {t("backToCatalog")}
+        </Link>
+      </main>
+    );
+  }
+
   const telegramId = session.user.telegramId;
   const plan =
     typeof telegramId === "string" && telegramId.length > 0
@@ -25,7 +46,6 @@ export default async function CheckoutPage() {
       : null;
 
   if (!plan) {
-    const t = await getTranslations("Checkout");
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 py-24 text-center">
         <p className="text-base leading-7">{t("empty")}</p>

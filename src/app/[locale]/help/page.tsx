@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { FAQ_KEYS } from "../_components/faq-keys";
 import { FullScreenDocument } from "../_components/full-screen-document";
-
-const FAQ_KEYS = [
-  "whatIsEsim",
-  "deviceSupport",
-  "fees",
-  "callsAndSms",
-] as const;
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Help");

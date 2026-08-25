@@ -12,6 +12,7 @@ import {
   trybitConfigured,
 } from "~/server/payments/trybit";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
+import { isSalesActive } from "~/server/sales";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
 function unauthorized() {
@@ -33,6 +34,9 @@ export async function POST(request: Request) {
     return unauthorized();
   }
   if (await isUserBanned(session.user.id)) {
+    return forbidden();
+  }
+  if (!(await isSalesActive())) {
     return forbidden();
   }
 

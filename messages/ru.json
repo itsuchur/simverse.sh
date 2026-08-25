@@ -4,7 +4,10 @@
     "description": "eSIM-пакеты данных для путешествий прямо в Telegram."
   },
   "HomePage": {
-    "title": "Мой сайт"
+    "headline": "Купите eSIM в Telegram",
+    "cta": "Открыть simverse",
+    "screenshotAlt": "Мини-приложение Simverse в Telegram",
+    "faqHeading": "Частые вопросы"
   },
   "Nav": {
     "ariaLabel": "Основная навигация",
@@ -53,6 +56,7 @@
     "loading": "Загружаем тариф…",
     "unavailable": "Этот тариф временно недоступен. Возвращаем вас в каталог.",
     "empty": "Корзина пуста.",
+    "salesClosed": "Продажи ещё не начались.",
     "authRequired": "Откройте приложение через Telegram, чтобы продолжить.",
     "backToCatalog": "Назад в каталог",
     "backToApp": "Назад в приложение",

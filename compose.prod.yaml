@@ -36,6 +36,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      redis-init:
+        condition: service_completed_successfully
     networks:
       - internal
       - traefik-public
@@ -96,6 +98,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      redis-init:
+        condition: service_completed_successfully
     networks:
       - internal
       - egress
@@ -158,6 +162,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - internal
+
+  redis-init:
+    image: redis:8.8.1
+    container_name: redis-init
+    restart: "no"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    command:
+      [
+        "sh",
+        "-c",
+        'redis-cli -h redis -a "$$REDIS_PASSWORD" --no-auth-warning SET SALES_ACTIVE false',
+      ]
     networks:
       - internal
 
