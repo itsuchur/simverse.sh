@@ -1,4 +1,10 @@
 type TelegramWebApp = {
+  initData?: string;
+  initDataUnsafe?: {
+    user?: {
+      language_code?: string;
+    };
+  };
   ready?: () => void;
   expand?: () => void;
   requestFullscreen?: () => void;

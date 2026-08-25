@@ -11,6 +11,7 @@ import {
 import { getTranslations } from "next-intl/server";
 
 import { Acknowledgments } from "./acknowledgments";
+import { DeleteAccount } from "./delete-account";
 import { LocaleSwitcher } from "../_components/locale-switcher";
 import { ProfileOptionCard, type ProfileOption } from "./profile-option-card";
 import { TransactionHistory, type HistoryOrder } from "./transaction-history";
@@ -141,6 +142,7 @@ export default async function AppProfile() {
       ))}
       <ProfileOptionCard option={supportOption} />
       <Acknowledgments />
+      <DeleteAccount />
     </main>
   );
 }

@@ -18,6 +18,11 @@
     "requiredDescription": "Не удалось войти автоматически. Откройте приложение через Telegram-бота, чтобы продолжить.",
     "tryAgain": "Попробовать снова"
   },
+  "Consent": {
+    "welcome": "Добро пожаловать в simverse.",
+    "agreement": "Продолжая, я соглашаюсь с <tos>Условиями использования</tos> и <privacy>Политикой конфиденциальности</privacy>",
+    "continue": "Продолжить"
+  },
   "Catalog": {
     "searchLabel": "Поиск направлений",
     "searchPlaceholder": "Поиск стран или регионов",
@@ -97,7 +102,14 @@
     "acknowledgmentsFonts": "Шрифт",
     "acknowledgmentsGeist": "Geist от Vercel распространяется по лицензии <ofl>SIL Open Font License, Version 1.1</ofl>. Коммерческое использование разрешено, если шрифт не продаётся отдельно и это уведомление сохраняется.",
     "language": "Язык",
-    "languageDescription": "Выберите язык приложения."
+    "languageDescription": "Выберите язык приложения.",
+    "deleteAccount": "Удалить аккаунт",
+    "deleteConfirmTitle": "Удалить аккаунт?",
+    "deleteConfirmDescription": "Вы выйдете из приложения, а ваш аккаунт будет удалён.",
+    "deleteFinePrint": "Ваши данные могут храниться до месяца на случай, если вы передумаете. Если вы хотите немедленного удаления, свяжитесь со службой поддержки: <support>support@simverse.sh</support>.",
+    "deleteConfirm": "Подтвердить",
+    "deleteCancel": "Отмена",
+    "deleteFailed": "Не удалось удалить аккаунт. Попробуйте ещё раз."
   },
   "LocaleSwitcher": {
     "label": "Язык",

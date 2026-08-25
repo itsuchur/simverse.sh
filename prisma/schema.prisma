@@ -43,6 +43,10 @@ model User {
   fingerprint      String?
   /// When true, the user cannot add to cart or start checkout
   isBanned         Boolean @default(false)
+  /// Soft delete: user requested account deletion; data purged within a month
+  isDeleted        Boolean @default(false)
+  /// When the user requested account deletion
+  deletedAt        DateTime?
 
   sessions Session[]
   accounts Account[]

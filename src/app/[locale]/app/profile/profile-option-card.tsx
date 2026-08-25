@@ -17,7 +17,7 @@ export function ProfileOptionCard({ option }: { option: ProfileOption }) {
   // Use a plain flex row — nesting CardDescription inside CardHeader trips
   // the header's has-[slot] auto-grid and misplaces the icon/chevron.
   const isLink = Boolean(
-    option.href || option.externalHref || option.telegramHref,
+    option.href ?? option.externalHref ?? option.telegramHref,
   );
   const body = (
     <Card
