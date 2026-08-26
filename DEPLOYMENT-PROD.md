@@ -2,7 +2,7 @@
 
 Operator runbook for the production Docker Compose stack in `compose.prod.yaml`. Local development uses `compose.override.yaml` instead; see [README.md](README.md).
 
-Services: `app` (Next.js standalone on port 3000, attached to the host Traefik network `traefik-public`), `poller` (hourly eSIM Access catalog sync into Redis), Postgres 18, Redis 8, and `offen/docker-volume-backup` (daily dumps to S3). TLS and HTTP→HTTPS live on the VPS Traefik stack (Cloudflare DNS-01, wildcard `*.simverse.sh`), not in this compose file.
+Services: `app` (Next.js standalone on port 3000, attached to the host Traefik network `traefik-public`), `poller` (hourly eSIM Access catalog sync into Redis), `mcp` (FastMCP HTTP on port 4000, `internal` + `egress` only — not Traefik; other containers call `http://mcp:4000`), Postgres 18, Redis 8, and `offen/docker-volume-backup` (daily dumps to S3). TLS and HTTP→HTTPS live on the VPS Traefik stack (Cloudflare DNS-01, wildcard `*.simverse.sh`), not in this compose file.
 
 Public hostnames (DNS already in Cloudflare):
 
@@ -53,6 +53,8 @@ Copy [`.env.example`](.env.example) and set production values. Origins have **no
 | `CARDLINK_API_TOKEN`, `CARDLINK_SHOP_ID` | Required in production. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Internal dashboard. |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Optional Mini App analytics. Host is ingest (`https://us.i.posthog.com` or `https://eu.i.posthog.com`). Keys are baked into the client at **image build**; change them with `--build`. |
+| `OPENROUTER_KEY` | Poller (Russian package names) and MCP (`OPENROUTER_API_KEY` inside the container). |
+| `OPENROUTER_MODEL` | Optional. MCP model; defaults to `mistralai/mistral-small-3.2-24b-instruct`. |
 
 Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the example defaults.
 
@@ -62,7 +64,6 @@ Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the
 | --- | --- |
 | `AWS_S3_BUCKET_NAME` | Backup archives. |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | S3 credentials for backups. |
-| `OPENROUTER_KEY` | Poller (Russian package names). |
 
 `ACME_EMAIL` and `CF_DNS_API_TOKEN` belong to the host Traefik stack, not this compose file.
 
@@ -70,6 +71,7 @@ Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the
 
 - **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, Telegram, eSIM Access, Trybit, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`poller`:** `DATABASE_URL`, `REDIS_URL`, `ESIMACCESS_ACCESS_CODE`, `OPENROUTER_KEY`.
+- **`mcp`:** `MCP_HOST`, `MCP_PORT`, `REDIS_URL`, `OPENROUTER_API_KEY` (from `OPENROUTER_KEY`), `OPENROUTER_MODEL`. Not published; reach it at `http://mcp:4000` on `internal`. Reads the eSIM Access catalog from RedisJSON / RediSearch.
 
 `TONCONSOLE_KEY` appears in `.env.example` but is **not** passed through `compose.prod.yaml`.
 

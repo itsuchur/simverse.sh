@@ -40,8 +40,8 @@ Copy `.env.example` to `.env` and fill in the values before starting either stac
 
 | File                    | Purpose                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `compose.override.yaml` | Local/dev: app, poller, Postgres, Redis. Uses `Dockerfile.dev` / `Dockerfile.poller.dev` with bind mounts for hot reload. No Traefik. Publishes ports `3000`, `5432`, and `6379`. |
-| `compose.prod.yaml`     | Production: Traefik (TLS), backups, and segmented networks. Uses `Dockerfile` / `Dockerfile.poller` (multi-stage production images).                                              |
+| `compose.override.yaml` | Local/dev: app, poller, mcp, Postgres, Redis. Uses `Dockerfile.dev` / `Dockerfile.poller.dev` with bind mounts for hot reload. No Traefik. Publishes ports `3000`, `4000`, `5432`, and `6379`. |
+| `compose.prod.yaml`     | Production: Traefik (TLS), backups, and segmented networks. Uses `Dockerfile` / `Dockerfile.poller` (multi-stage production images). MCP is internal-only (`http://mcp:4000`).              |
 
 ```bash
 # Local

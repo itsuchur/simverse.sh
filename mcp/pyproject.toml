@@ -1,0 +1,29 @@
+[project]
+name = "mcp-simverse-sh"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "fastmcp>=3.4.7",
+    "httpx>=0.28.1",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.0.0",
+    "redis>=8.1.0",
+    "sqlalchemy>=2.0.52",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mcp_simverse"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+    "pytest-asyncio>=0.25.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
