@@ -19,6 +19,8 @@
     "lint:fix": "eslint . --fix",
     "preview": "next build && next start",
     "start": "next start",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
