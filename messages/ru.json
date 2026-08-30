@@ -7,7 +7,12 @@
     "headline": "Купите eSIM в Telegram",
     "cta": "Открыть simverse",
     "screenshotAlt": "Мини-приложение Simverse в Telegram",
-    "faqHeading": "Частые вопросы"
+    "faqHeading": "Частые вопросы",
+    "paymentMethodsHeading": "Способы оплаты",
+    "paymentMirAlt": "Мир",
+    "paymentVisaAlt": "Visa",
+    "paymentMcAlt": "Mastercard",
+    "paymentSbpAlt": "СБП"
   },
   "Nav": {
     "ariaLabel": "Основная навигация",

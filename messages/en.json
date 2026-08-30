@@ -7,7 +7,12 @@
     "headline": "Buy an eSIM within Telegram",
     "cta": "Launch simverse",
     "screenshotAlt": "Simverse Telegram mini app",
-    "faqHeading": "Frequently Asked Questions"
+    "faqHeading": "Frequently Asked Questions",
+    "paymentMethodsHeading": "Payment methods",
+    "paymentMirAlt": "Mir",
+    "paymentVisaAlt": "Visa",
+    "paymentMcAlt": "Mastercard",
+    "paymentSbpAlt": "SBP"
   },
   "Nav": {
     "ariaLabel": "Main",

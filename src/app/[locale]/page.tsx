@@ -1,19 +1,29 @@
 import Image from "next/image";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { FAQ_KEYS } from "./_components/faq-keys";
+import { HomeLocalePicker } from "./_components/home-locale-picker";
 import { buttonVariants } from "~/components/ui/button";
 import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/utils";
+
+const PAYMENT_METHODS = [
+  { src: "/MIR.svg", altKey: "paymentMirAlt" },
+  { src: "/VISA.svg", altKey: "paymentVisaAlt" },
+  { src: "/MC.svg", altKey: "paymentMcAlt" },
+  { src: "/SBP.svg", altKey: "paymentSbpAlt" },
+] as const;
 
 export default async function Home() {
   const t = await getTranslations("HomePage");
   const help = await getTranslations("Help");
   const tos = await getTranslations("Tos");
   const privacy = await getTranslations("PrivacyPolicy");
+  const locale = await getLocale();
 
   return (
     <div className="bg-background flex min-h-dvh flex-col">
+      <HomeLocalePicker />
       <main className="flex flex-1 flex-col items-center px-6 py-16 text-center sm:py-24">
         <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-balance sm:text-6xl md:text-7xl">
           {t("headline")}
@@ -63,6 +73,27 @@ export default async function Home() {
             ))}
           </div>
         </section>
+        {locale === "ru" ? (
+          <section className="mt-16 w-full max-w-2xl sm:mt-20">
+            <h2 className="mb-8 text-center text-3xl font-extrabold tracking-tight sm:text-4xl">
+              {t("paymentMethodsHeading")}
+            </h2>
+            <ul className="flex flex-wrap items-center justify-center gap-6">
+              {PAYMENT_METHODS.map((method) => (
+                <li key={method.src}>
+                  <Image
+                    src={method.src}
+                    alt={t(method.altKey)}
+                    width={512}
+                    height={512}
+                    unoptimized
+                    className="h-12 w-auto object-contain"
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </main>
       <footer className="border-border text-muted-foreground border-t px-6 py-8 text-center text-sm">
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
