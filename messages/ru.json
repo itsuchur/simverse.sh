@@ -151,5 +151,14 @@
     "metaDescription": "Политика возвратов simverse",
     "title": "Политика возвратов",
     "lastUpdated": "Обновлено: 23 августа 2026"
+  },
+  "Blog": {
+    "metaTitle": "Блог — Simverse",
+    "metaDescription": "Новости и гайды от Simverse.",
+    "title": "Блог",
+    "intro": "Советы по travel eSIM, обновления продукта и гиды по направлениям.",
+    "empty": "Пока нет публикаций. Загляните позже.",
+    "back": "Все публикации",
+    "notFoundTitle": "Публикация не найдена"
   }
 }

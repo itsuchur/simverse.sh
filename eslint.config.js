@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: [".next", "generated"],
+    ignores: [".next", "generated", "cms"],
   },
   // eslint-config-next ships native flat configs since Next.js 16.
   ...coreWebVitals,

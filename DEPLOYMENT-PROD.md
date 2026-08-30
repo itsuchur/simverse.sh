@@ -2,7 +2,7 @@
 
 Operator runbook for the production Docker Compose stack in `compose.prod.yaml`. Local development uses `compose.override.yaml` instead; see [README.md](README.md).
 
-Services: `app` (Next.js standalone on port 3000, attached to the host Traefik network `traefik-public`), `poller` (hourly eSIM Access catalog sync into Redis), `mcp` (FastMCP HTTP on port 4000, `internal` + `egress` only — not Traefik; other containers call `http://mcp:4000`), Postgres 18, Redis 8, and `offen/docker-volume-backup` (daily dumps to S3). TLS and HTTP→HTTPS live on the VPS Traefik stack (Cloudflare DNS-01, wildcard `*.simverse.sh`), not in this compose file.
+Services: `app` (Next.js standalone on port 3000, attached to the host Traefik network `traefik-public`), `strapi` (CMS admin/API on port 1337 at `cms.simverse.sh`), `poller` (hourly eSIM Access catalog sync into Redis), `mcp` (FastMCP HTTP on port 4000, `internal` + `egress` only — not Traefik; other containers call `http://mcp:4000`), Postgres 18 (databases `app` and `strapi`), Redis 8, and `offen/docker-volume-backup` (daily dumps to S3). TLS and HTTP→HTTPS live on the VPS Traefik stack (Cloudflare DNS-01, wildcard `*.simverse.sh`), not in this compose file.
 
 Public hostnames (DNS already in Cloudflare):
 
@@ -11,6 +11,8 @@ Public hostnames (DNS already in Cloudflare):
 | `https://dashboard.simverse.sh` | Internal dashboard (`/dashboard`, pretty-rooted) |
 | `https://miniapp.simverse.sh` | Telegram Mini App (pretty-rooted: `/` is the catalog, not `/app`) |
 | `https://api.simverse.sh` | Webhooks and other route handlers (`/webhooks/...` publicly; Traefik prefixes `/api` for Next.js). Same-origin `/api` stays on the two UI hosts. |
+| `https://blog.simverse.sh` | Public blog (pretty-rooted: `/` is the post list, `/[slug]` is an article) |
+| `https://cms.simverse.sh` | Strapi admin (`/admin`), REST API (`/api`), and media (`/uploads`) |
 
 Internal Compose services can call the app at `http://app:3000/api/...` on the `internal` network. Internet callers (Telegram, eSIM Access, Trybit, Cardlink) must use `https://api.simverse.sh/webhooks/...` (no extra `/api` in the path).
 
@@ -23,7 +25,7 @@ On the production host:
 1. Clone this repository (or pull the release you intend to run).
 2. Install Docker Engine and Docker Compose.
 3. Confirm Traefik is running and attached to the external Docker network `traefik-public`.
-4. Confirm Cloudflare DNS for `dashboard.simverse.sh`, `miniapp.simverse.sh`, and `api.simverse.sh` points at this host.
+4. Confirm Cloudflare DNS for `dashboard.simverse.sh`, `miniapp.simverse.sh`, `api.simverse.sh`, `blog.simverse.sh`, and `cms.simverse.sh` points at this host (wildcard `*.simverse.sh` is enough).
 5. Create `.env` in the same directory as `compose.prod.yaml` (the compose project directory).
 
 All commands below are run from that directory.
@@ -40,6 +42,11 @@ Copy [`.env.example`](.env.example) and set production values. Origins have **no
 | `BETTER_AUTH_URL` | Dashboard origin: `https://dashboard.simverse.sh` (Google OAuth `baseURL`). |
 | `MINIAPP_URL` | Mini App origin: `https://miniapp.simverse.sh`. |
 | `API_URL` | Public API origin: `https://api.simverse.sh`. |
+| `BLOG_URL` | Blog origin: `https://blog.simverse.sh` (pretty-root). Omit on local/ngrok so `/blog` stays in the path. |
+| `STRAPI_URL` | Server-side CMS origin. Compose: `http://strapi:1337`. |
+| `STRAPI_PUBLIC_URL` | Public CMS origin: `https://cms.simverse.sh`. Passed to Strapi as `PUBLIC_URL`. |
+| `STRAPI_API_TOKEN` | Optional read-only API token. Public `find`/`findOne` on Article is enabled in CMS bootstrap. |
+| `STRAPI_APP_KEYS`, `STRAPI_API_TOKEN_SALT`, `STRAPI_ADMIN_JWT_SECRET`, `STRAPI_TRANSFER_TOKEN_SALT`, `STRAPI_JWT_SECRET`, `STRAPI_ENCRYPTION_KEY` | Strapi secrets. Generate with `openssl rand -base64 32`. `STRAPI_APP_KEYS` is a comma-separated list of at least two keys. |
 | `TELEGRAM_BOT_TOKEN` | Production bot. |
 | `TELEGRAM_BOT_USERNAME` | Production bot username. |
 | `TELEGRAM_WEBHOOK_SECRET` | ≥ 16 chars; `A-Z a-z 0-9 _ -` only. `openssl rand -hex 24` |
@@ -69,7 +76,8 @@ Use strong `POSTGRES_PASSWORD` / `REDIS_PASSWORD` in production; do not keep the
 
 ### What Compose actually injects
 
-- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, Telegram, eSIM Access, Trybit, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
+- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, `BLOG_URL`, `STRAPI_URL`, `STRAPI_API_TOKEN`, Telegram, eSIM Access, Trybit, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
+- **`strapi`:** Postgres `DATABASE_*` (database name `strapi`), `PUBLIC_URL` from `STRAPI_PUBLIC_URL`, `APP_KEYS` / JWT / encryption secrets from `STRAPI_*`.
 - **`poller`:** `DATABASE_URL`, `REDIS_URL`, `ESIMACCESS_ACCESS_CODE`, `OPENROUTER_KEY`.
 - **`mcp`:** `MCP_HOST`, `MCP_PORT`, `REDIS_URL`, `OPENROUTER_API_KEY` (from `OPENROUTER_KEY`), `OPENROUTER_MODEL`. Not published; reach it at `http://mcp:4000` on `internal`. Reads the eSIM Access catalog from RedisJSON / RediSearch.
 
@@ -84,6 +92,15 @@ docker compose -f compose.prod.yaml run --rm poller bun run db:migrate
 ```
 
 That starts healthy Postgres (and Redis) as dependencies, then applies migrations.
+
+If the Postgres volume already existed before Strapi was added, create the CMS database once (init scripts in `docker/postgres/` only run on first data-dir init):
+
+```bash
+docker compose -f compose.prod.yaml exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE strapi;"'
+```
+
+Then open `https://cms.simverse.sh/admin` and create the first admin user. Publish Articles in **en** and **ru**.
 
 ## 4. Start or update the stack
 
@@ -145,7 +162,7 @@ docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f poller
 ```
 
-- Open `https://dashboard.simverse.sh` and `https://miniapp.simverse.sh` and confirm TLS (Traefik / Let's Encrypt).
+- Open `https://dashboard.simverse.sh`, `https://miniapp.simverse.sh`, `https://blog.simverse.sh`, and `https://cms.simverse.sh/admin` and confirm TLS (Traefik / Let's Encrypt).
 - Poller logs a catalog sync on start, then hourly (`[cron] synced … packages to RedisJSON catalog generation …`).
 - Sign in at `https://dashboard.simverse.sh` as `support@simverse.sh`.
 
@@ -158,7 +175,7 @@ docker compose -f compose.prod.yaml exec postgres \
 
 ## 7. Backups and rollback
 
-- Before each archive, Postgres runs `pg_dump -F c` into the `pg_dumps` volume and deletes dumps older than 7 days.
+- Before each archive, Postgres runs `pg_dump -F c` for both `app` (`POSTGRES_DB`) and `strapi` into the `pg_dumps` volume and deletes dumps older than 7 days.
 - The backup service runs daily at 03:00, uploads `pg-backup-*.tar.gz` to S3, and retains archives for 14 days.
 
 Rollback: check out the previous git SHA, run `docker compose -f compose.prod.yaml up -d --build`. Reverse a Prisma migration only if you explicitly choose to; do not treat that as the default rollback.

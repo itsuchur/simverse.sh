@@ -1,0 +1,9 @@
+node_modules/
+.tmp/
+.cache/
+.git/
+dist/
+build/
+.env
+public/uploads/
+*.md

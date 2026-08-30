@@ -28,6 +28,8 @@ services:
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
+      STRAPI_URL: "${STRAPI_URL:-http://strapi:1337}"
+      STRAPI_API_TOKEN: "${STRAPI_API_TOKEN:-}"
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules
@@ -39,6 +41,42 @@ services:
         condition: service_healthy
       redis-init:
         condition: service_completed_successfully
+      strapi:
+        condition: service_started
+
+  strapi:
+    build:
+      context: ./cms
+      dockerfile: Dockerfile.dev
+    ports:
+      - "1337:1337"
+    environment:
+      NODE_ENV: development
+      HOST: "0.0.0.0"
+      PORT: "1337"
+      PUBLIC_URL: "${STRAPI_PUBLIC_URL:-http://localhost:1337}"
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: strapi
+      DATABASE_USERNAME: "${POSTGRES_USER}"
+      DATABASE_PASSWORD: "${POSTGRES_PASSWORD}"
+      DATABASE_SSL: "false"
+      APP_KEYS: "${STRAPI_APP_KEYS}"
+      API_TOKEN_SALT: "${STRAPI_API_TOKEN_SALT}"
+      ADMIN_JWT_SECRET: "${STRAPI_ADMIN_JWT_SECRET}"
+      TRANSFER_TOKEN_SALT: "${STRAPI_TRANSFER_TOKEN_SALT}"
+      JWT_SECRET: "${STRAPI_JWT_SECRET}"
+      ENCRYPTION_KEY: "${STRAPI_ENCRYPTION_KEY}"
+    volumes:
+      - ./cms/config:/opt/app/config
+      - ./cms/src:/opt/app/src
+      - ./cms/package.json:/opt/package.json
+      - ./cms/bun.lock:/opt/bun.lock
+      - strapi_uploads:/opt/app/public/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   poller:
     build:
@@ -88,6 +126,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -130,3 +169,4 @@ volumes:
   app_node_modules:
   app_next:
   poller_node_modules:
+  strapi_uploads:

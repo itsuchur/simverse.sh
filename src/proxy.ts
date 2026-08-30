@@ -26,7 +26,9 @@ function hostnameFromEnv(url: string | undefined): string | null {
 
 function requestHost(request: NextRequest): string {
   const raw =
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    "";
   return raw.split(",")[0]?.trim().split(":")[0]?.toLowerCase() ?? "";
 }
 
@@ -34,15 +36,20 @@ function hostAppPrefix(host: string): string | undefined {
   const map: Record<string, string> = {
     "dashboard.simverse.sh": "dashboard",
     "miniapp.simverse.sh": "app",
+    "blog.simverse.sh": "blog",
   };
   const miniapp = hostnameFromEnv(process.env.MINIAPP_URL);
   const dashboard = hostnameFromEnv(process.env.BETTER_AUTH_URL);
+  const blog = hostnameFromEnv(process.env.BLOG_URL);
   // Pretty-root only when Mini App and dashboard are different hosts.
   // Local ngrok uses one host for both: MINIAPP_URL is unset (or equal to
   // BETTER_AUTH_URL), so /app and /dashboard must stay in the path.
   if (miniapp && dashboard && miniapp !== dashboard) {
     map[miniapp] = "app";
     map[dashboard] = "dashboard";
+  }
+  if (blog) {
+    map[blog] = "blog";
   }
   return map[host];
 }

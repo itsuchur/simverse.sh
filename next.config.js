@@ -10,6 +10,8 @@ const posthogIngestHost = (
   process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com"
 ).replace(/\/$/, "");
 
+const isDev = process.env.NODE_ENV !== "production";
+
 /** @type {import("next").NextConfig} */
 const config = {
   // Emit .next/standalone so the production Docker image can run without the
@@ -18,11 +20,36 @@ const config = {
   outputFileTracingIncludes: {
     "/**": ["./TOS.md", "./PRIVACY-POLICY.md", "./REFUNDS.md"],
   },
+  images: {
+    dangerouslyAllowLocalIP: isDev,
+    remotePatterns: [
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "1337",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "http",
+        hostname: "strapi",
+        port: "1337",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "cms.simverse.sh",
+        pathname: "/uploads/**",
+      },
+    ],
+  },
   // Allow the ngrok tunnel host to hit the Next.js dev server (HMR/assets/API).
   allowedDevOrigins: ["magical-guinea-utterly.ngrok-free.app"],
   // PostHog ingest paths use trailing slashes; do not 308 them away.
   skipTrailingSlashRedirect: true,
   async rewrites() {
+    const strapiOrigin = (
+      process.env.STRAPI_URL ?? "http://localhost:1337"
+    ).replace(/\/$/, "");
     return [
       {
         source: "/ingest/static/:path*",
@@ -31,6 +58,10 @@ const config = {
       {
         source: "/ingest/:path*",
         destination: `${posthogIngestHost}/:path*`,
+      },
+      {
+        source: "/cms-media/:path*",
+        destination: `${strapiOrigin}/:path*`,
       },
     ];
   },

@@ -13,6 +13,7 @@ Built on the [T3 Stack](https://create.t3.gg/):
 - [Tailwind CSS](https://tailwindcss.com) + shadcn/ui
 - [tRPC](https://trpc.io)
 - Redis 8 (catalog as RedisJSON documents + RediSearch catalog search, carts), Sentry (monitoring)
+- [Strapi](https://strapi.io) 5 (blog CMS, Postgres database `strapi` on the same server as Prisma)
 
 ## Development
 
@@ -29,6 +30,10 @@ Useful scripts: `bun run check` (lint + typecheck), `bun run lint:fix`,
 Testing the Mini App end-to-end requires a public HTTPS URL (e.g. ngrok)
 registered with your Telegram bot; set it as `BETTER_AUTH_URL`.
 
+The blog is at `/blog` on that same host. Strapi admin stays at
+`http://localhost:1337/admin` (not tunneled). Publish Articles there; Next.js
+fetches them from `STRAPI_URL`.
+
 The internal dashboard at `/dashboard` uses Google OAuth via Better Auth.
 Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and add
 `{BETTER_AUTH_URL}/api/auth/callback/google` as an authorized redirect URI.
@@ -40,8 +45,8 @@ Copy `.env.example` to `.env` and fill in the values before starting either stac
 
 | File                    | Purpose                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `compose.override.yaml` | Local/dev: app, poller, mcp, Postgres, Redis. Uses `Dockerfile.dev` / `Dockerfile.poller.dev` with bind mounts for hot reload. No Traefik. Publishes ports `3000`, `4000`, `5432`, and `6379`. |
-| `compose.prod.yaml`     | Production: Traefik (TLS), backups, and segmented networks. Uses `Dockerfile` / `Dockerfile.poller` (multi-stage production images). MCP is internal-only (`http://mcp:4000`).              |
+| `compose.override.yaml` | Local/dev: app, poller, mcp, **strapi**, Postgres, Redis. Uses `Dockerfile.dev` / `Dockerfile.poller.dev` / `cms/Dockerfile.dev` with bind mounts for hot reload. No Traefik. Publishes ports `3000`, `1337`, `4000`, `5432`, and `6379`. |
+| `compose.prod.yaml`     | Production: Traefik (TLS), backups, and segmented networks. Uses `Dockerfile` / `Dockerfile.poller` / `cms/Dockerfile` (multi-stage production images). MCP is internal-only (`http://mcp:4000`). Strapi is `https://cms.simverse.sh`; the blog is pretty-rooted on `https://blog.simverse.sh`. |
 
 ```bash
 # Local
@@ -50,6 +55,15 @@ docker compose -f compose.override.yaml up --build
 # Production
 docker compose -f compose.prod.yaml up -d --build
 ```
+
+If the Postgres volume already existed before Strapi was added, create its database once:
+
+```bash
+docker compose -f compose.override.yaml exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE strapi;"'
+```
+
+Then open `http://localhost:1337/admin` (first-run admin user) and `/blog` on the Next.js / ngrok origin.
 
 ### Webhook logs
 
@@ -95,3 +109,15 @@ docker compose -f compose.override.yaml down
 docker volume rm simversesh_app_node_modules
 docker compose -f compose.override.yaml up --build
 ```
+
+If Postgres was already initialized before Strapi was added, create its database once:
+
+```bash
+docker compose -f compose.override.yaml exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE strapi;"'
+```
+
+Then open `http://localhost:1337/admin` (first-run admin user) and `/blog` on
+the Next.js / ngrok origin.
+
+### Webhook logs

@@ -151,5 +151,14 @@
     "metaDescription": "simverse refund policy",
     "title": "Refund Policy",
     "lastUpdated": "Last updated: August 23rd, 2026"
+  },
+  "Blog": {
+    "metaTitle": "Blog — Simverse",
+    "metaDescription": "News and guides from Simverse.",
+    "title": "Blog",
+    "intro": "Travel eSIM tips, product updates, and destination guides.",
+    "empty": "No posts yet. Check back soon.",
+    "back": "All posts",
+    "notFoundTitle": "Post not found"
   }
 }
