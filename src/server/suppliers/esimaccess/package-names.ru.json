@@ -3394,6 +3394,10 @@
       "en": "Brunei Darussalam 2GB/Day",
       "ru": "Бруней — 2 ГБ/день"
     },
+    "P0RZM2BG5": {
+      "en": "Bonaire 1GB/Day FUP1Mbps",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 1 ГБ/день, далее 1 Мбит/с"
+    },
     "P0S17CVNQ": {
       "en": "El Salvador 3GB/Day FUP1Mbps",
       "ru": "Сальвадор — 3 ГБ/день, далее 1 Мбит/с"
@@ -4090,6 +4094,10 @@
       "en": "USA & Canada 1GB 7Days",
       "ru": "США и Канада — 1 ГБ, 7 дней"
     },
+    "P30GSFB9V": {
+      "en": "Bonaire 5GB 30Days",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 5 ГБ, 30 дней"
+    },
     "P30W4QBKR": {
       "en": "Laos 5GB/Day Premium",
       "ru": "Лаос — 5 ГБ/день Premium"
@@ -4510,6 +4518,10 @@
       "en": "Laos 10GB/Day",
       "ru": "Лаос — 10 ГБ/день"
     },
+    "P4HFA20RT": {
+      "en": "Bonaire 3GB/Day FUP1Mbps",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 3 ГБ/день, далее 1 Мбит/с"
+    },
     "P4HGMK896": {
       "en": "Montserrat 1GB/Day",
       "ru": "Монтсеррат — 1 ГБ/день"
@@ -4625,6 +4637,10 @@
     "P4XU0X3CX": {
       "en": "China mainland & Japan & South Korea 1GB 7Days",
       "ru": "Материковый Китай, Япония и Южная Корея — 1 ГБ, 7 дней"
+    },
+    "P4Z2QWXY3": {
+      "en": "Bonaire 10GB 30Days",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 10 ГБ, 30 дней"
     },
     "P4ZJ4LIT0": {
       "en": "Sierra Leone 20GB 30Days",
@@ -6762,6 +6778,10 @@
       "en": "Gabon 1GB/Day FUP1Mbps",
       "ru": "Габон — 1 ГБ/день, далее 1 Мбит/с"
     },
+    "PD2UM49LX": {
+      "en": "Bonaire 2GB/Day FUP1Mbps",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 2 ГБ/день, далее 1 Мбит/с"
+    },
     "PD3QG58OR": {
       "en": "Asia (20 areas) 500MB/Day",
       "ru": "Азия (20 направлений) — 500 МБ/день"
@@ -7134,6 +7154,10 @@
       "en": "Mauritius 3GB/Day FUP1Mbps",
       "ru": "Маврикий — 3 ГБ/день, далее 1 Мбит/с"
     },
+    "PEEWB7S59": {
+      "en": "Bonaire 1GB 7Days",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 1 ГБ, 7 дней"
+    },
     "PEFIAE7OF": {
       "en": "Bahamas 2GB/Day",
       "ru": "Багамы — 2 ГБ/день"
@@ -7493,6 +7517,10 @@
     "PG0QL7A5X": {
       "en": "Guadeloupe 1GB/Day FUP1Mbps",
       "ru": "Гваделупа — 1 ГБ/день, далее 1 Мбит/с"
+    },
+    "PG1P3V5EP": {
+      "en": "Bonaire 20GB 30Days",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 20 ГБ, 30 дней"
     },
     "PG1P5ISYE": {
       "en": "Curaçao 1GB/Day",
@@ -9238,6 +9266,10 @@
       "en": "South America 1GB/Day FUP1Mbps",
       "ru": "Южная Америка — 1 ГБ/день, далее 1 Мбит/с"
     },
+    "PNJ1B7T0W": {
+      "en": "Bonaire 5GB/Day",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 5 ГБ/день"
+    },
     "PNJ1T3NUH": {
       "en": "Australia & New Zealand 1GB/Day",
       "ru": "Австралия и Новая Зеландия — 1 ГБ/день"
@@ -9993,6 +10025,10 @@
     "PRHWL1B8P": {
       "en": "Kazakhstan 10GB/Day",
       "ru": "Казахстан — 10 ГБ/день"
+    },
+    "PRJ98B6ES": {
+      "en": "Bonaire 3GB 30Days",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 3 ГБ, 30 дней"
     },
     "PRJRJMRWG": {
       "en": "Laos 1GB 7Days",
@@ -10825,6 +10861,10 @@
     "PUXE7J6X2": {
       "en": "Azerbaijan 1GB/Day FUP1Mbps",
       "ru": "Азербайджан — 1 ГБ/день, далее 1 Мбит/с"
+    },
+    "PUY24ND3Q": {
+      "en": "Bonaire 10GB/Day",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 10 ГБ/день"
     },
     "PUZ5EMU3P": {
       "en": "Rwanda 10GB/Day",
@@ -11973,6 +12013,10 @@
     "PZ83G6MUZ": {
       "en": "Finland 1GB/Day FUP1Mbps",
       "ru": "Финляндия — 1 ГБ/день, далее 1 Мбит/с"
+    },
+    "PZ8EGU72F": {
+      "en": "Bonaire 3GB 15Days",
+      "ru": "Бонэйр, Синт-Эстатиус и Саба — 3 ГБ, 15 дней"
     },
     "PZ8KWP0BH": {
       "en": "Peru 500MB 7Days",

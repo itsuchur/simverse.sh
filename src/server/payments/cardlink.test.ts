@@ -74,7 +74,11 @@ describe("verifyCardlinkRefundSign", () => {
 
   test("rejects when a field changes", () => {
     expect(
-      verifyCardlinkRefundSign({ ...input, refundId: "REF-2", signature: valid }),
+      verifyCardlinkRefundSign({
+        ...input,
+        refundId: "REF-2",
+        signature: valid,
+      }),
     ).toBe(false);
   });
 });

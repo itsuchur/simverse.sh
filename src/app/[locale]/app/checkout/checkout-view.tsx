@@ -192,7 +192,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
           type="button"
           variant="ghost"
           size="icon"
-          className="-ml-1.5 text-foreground"
+          className="text-foreground -ml-1.5"
           disabled={leaving || paying}
           aria-label={t("backToApp")}
           onClick={() => {

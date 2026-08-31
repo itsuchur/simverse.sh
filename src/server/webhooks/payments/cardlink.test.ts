@@ -179,7 +179,10 @@ describe("handleCardlinkRefundWebhook", () => {
     });
   }
 
-  function refundForm(order: { orderUuid: string }, over?: Record<string, string>) {
+  function refundForm(
+    order: { orderUuid: string },
+    over?: Record<string, string>,
+  ) {
     const fields = {
       Id: "REF-1",
       Amount: "10.99",

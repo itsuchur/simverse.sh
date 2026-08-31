@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  esimStatusBadge,
-  isEsimLifecycleStatus,
-} from "~/lib/esim-status";
+import { esimStatusBadge, isEsimLifecycleStatus } from "~/lib/esim-status";
 
 describe("isEsimLifecycleStatus", () => {
   test("recognizes lifecycle statuses", () => {

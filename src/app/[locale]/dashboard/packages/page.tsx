@@ -184,10 +184,10 @@ export default async function DashboardPackagesPage({
                         {formatUsd(pkg.retailPrice)}
                       </td>
                       <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {pkg.priceRub != null ? pkg.priceRub : "—"}
+                        {pkg.priceRub ?? "—"}
                       </td>
                       <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {pkg.priceStars != null ? pkg.priceStars : "—"}
+                        {pkg.priceStars ?? "—"}
                       </td>
                     </tr>
                   ))

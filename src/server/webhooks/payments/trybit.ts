@@ -63,7 +63,12 @@ export const handleTrybitWebhook = withWebhookLogging(
       return Response.json({ message: "Postback received" });
     }
 
-    const { invoice_id, order_id: orderUuid, token, invoice_info } = parsed.data;
+    const {
+      invoice_id,
+      order_id: orderUuid,
+      token,
+      invoice_info,
+    } = parsed.data;
 
     if (!verifyTrybitPostbackToken(token)) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });

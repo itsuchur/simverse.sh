@@ -53,7 +53,10 @@ export function stubEsimAccess(input?: {
 }) {
   esimAccessPost.mockImplementation(async (path: string) => {
     if (path === "/esim/order") {
-      return { success: true, obj: { orderNo: input?.orderNo ?? "EA-ORDER-1" } };
+      return {
+        success: true,
+        obj: { orderNo: input?.orderNo ?? "EA-ORDER-1" },
+      };
     }
     if (path === "/esim/query") {
       return { success: true, obj: { esimList: input?.profiles ?? [] } };

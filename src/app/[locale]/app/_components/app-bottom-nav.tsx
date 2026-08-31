@@ -4,10 +4,7 @@ import { CardSim, Home, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Link, usePathname } from "~/i18n/navigation";
-import {
-  isMiniappHomePath,
-  isMiniappSectionPath,
-} from "~/lib/miniapp-path";
+import { isMiniappHomePath, isMiniappSectionPath } from "~/lib/miniapp-path";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
 import { cn } from "~/lib/utils";
 

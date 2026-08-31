@@ -82,7 +82,9 @@ export function verifyTrybitPostbackToken(token: string) {
   }
 
   try {
-    const payload = JSON.parse(base64UrlDecode(payloadB64).toString("utf8")) as {
+    const payload = JSON.parse(
+      base64UrlDecode(payloadB64).toString("utf8"),
+    ) as {
       exp?: unknown;
       nbf?: unknown;
     };

@@ -106,8 +106,7 @@ export function parseLegalMarkdown(markdown: string): LegalBlock[] {
 
 function parseInline(input: string): LegalInline[] {
   const tokens: LegalInline[] = [];
-  const pattern =
-    /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  const pattern = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
   let lastIndex = 0;
 
   for (const match of input.matchAll(pattern)) {

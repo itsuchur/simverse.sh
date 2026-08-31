@@ -17,7 +17,8 @@ import {
 } from "./mocks";
 
 process.env.SKIP_ENV_VALIDATION = "1";
-process.env.DATABASE_URL ??= "postgresql://postgres:postgres@localhost:5432/test";
+process.env.DATABASE_URL ??=
+  "postgresql://postgres:postgres@localhost:5432/test";
 process.env.REDIS_URL ??= "redis://127.0.0.1:6379";
 process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
 process.env.TELEGRAM_BOT_TOKEN ??= "test-telegram-bot-token";

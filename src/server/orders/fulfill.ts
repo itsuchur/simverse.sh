@@ -317,12 +317,12 @@ async function fulfillPayment(input: {
   orderUuid: string;
   chargeId: string;
   telegramId?: string | null;
-  validate?: (order: {
-    priceAmount: bigint;
-    currency: string;
-  }) => boolean;
+  validate?: (order: { priceAmount: bigint; currency: string }) => boolean;
 }) {
-  const alreadyCharged = await findOrderByCharge(input.provider, input.chargeId);
+  const alreadyCharged = await findOrderByCharge(
+    input.provider,
+    input.chargeId,
+  );
   if (alreadyCharged) {
     await continueFulfillment(alreadyCharged, input.provider);
     return;

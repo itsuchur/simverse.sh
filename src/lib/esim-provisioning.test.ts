@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  esimProvisioningUrl,
-  lpaCardData,
-} from "~/lib/esim-provisioning";
+import { esimProvisioningUrl, lpaCardData } from "~/lib/esim-provisioning";
 
 describe("lpaCardData", () => {
   test("returns null without an activation code", () => {

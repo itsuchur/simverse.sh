@@ -166,9 +166,7 @@ describe("handleTrybitWebhook", () => {
   });
 
   test("payload failing schema validation is acknowledged as a no-op", async () => {
-    const response = await handleTrybitWebhook(
-      postJson({ invoice_id: "123" }),
-    );
+    const response = await handleTrybitWebhook(postJson({ invoice_id: "123" }));
     expect(response.status).toBe(200);
   });
 

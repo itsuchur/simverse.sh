@@ -94,7 +94,10 @@ function matchWhere(record: FakeOrder, where: Where): boolean {
   });
 }
 
-function orderDefaults(): Omit<FakeOrder, "id" | "orderUuid" | "createdAt" | "updatedAt"> {
+function orderDefaults(): Omit<
+  FakeOrder,
+  "id" | "orderUuid" | "createdAt" | "updatedAt"
+> {
   return {
     userId: "user-1",
     resellerCode: "esimaccess",

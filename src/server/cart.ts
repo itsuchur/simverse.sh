@@ -3,10 +3,10 @@ import "server-only";
 import { cartPlanSchema, type CartPlan } from "~/lib/cart-plan";
 import { getRedis } from "~/server/redis";
 import {
-  ESIMACCESS_PRICE_SCALE,
   getEsimAccessPackageByCode,
   retailPriceToRub,
   retailPriceToStars,
+  retailPriceToUsd,
   type EsimAccessPackage,
 } from "~/server/suppliers/esimaccess/packages";
 
@@ -89,7 +89,7 @@ export function cartPlanFromPackage(
     country: pkg.location,
     data_gb: pkg.volume / 1024 ** 3,
     validity_days: pkg.duration,
-    price: pkg.retailPrice / ESIMACCESS_PRICE_SCALE,
+    price: retailPriceToUsd(pkg.retailPrice),
     price_rub: priceRub,
     price_stars: priceStars,
     cost: pkg.price,
