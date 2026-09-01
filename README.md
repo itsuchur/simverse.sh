@@ -20,6 +20,7 @@ TLS and HTTP→HTTPS are provided by the host Traefik stack, not this compose fi
 
 | Host | Serves |
 | --- | --- |
+| `https://simverse.sh` | Public landing page |
 | `https://dashboard.simverse.sh` | Internal dashboard (`/dashboard`, pretty-rooted) |
 | `https://miniapp.simverse.sh` | Telegram Mini App (pretty-rooted: `/` is the catalog, not `/app`) |
 | `https://api.simverse.sh` | Webhooks and other route handlers (`/webhooks/...` publicly; Traefik prefixes `/api` for Next.js). Same-origin `/api` stays on the two UI hosts. |

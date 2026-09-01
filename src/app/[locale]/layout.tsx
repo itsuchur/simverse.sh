@@ -35,11 +35,13 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className={`${geist.variable} font-sans antialiased`}>
-      <body>
+      <head>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
+      </head>
+      <body>
         <NextIntlClientProvider>
           <TRPCReactProvider>{children}</TRPCReactProvider>
         </NextIntlClientProvider>

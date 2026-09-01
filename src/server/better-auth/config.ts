@@ -14,7 +14,13 @@ export const auth = betterAuth({
   // Better Auth can still evaluate `.replace` during route collection.
   baseURL: dashboardOrigin(),
   trustedOrigins: Array.from(
-    new Set([dashboardOrigin(), miniappOrigin(), FALLBACK_ORIGIN]),
+    new Set([
+      dashboardOrigin(),
+      miniappOrigin(),
+      "https://dashboard.simverse.sh",
+      "https://miniapp.simverse.sh",
+      FALLBACK_ORIGIN,
+    ]),
   ),
   database: prismaAdapter(db, {
     provider: "postgresql",

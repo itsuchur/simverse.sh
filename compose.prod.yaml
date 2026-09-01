@@ -51,6 +51,13 @@ services:
       - traefik.docker.network=traefik-public
       - traefik.http.services.simverse.loadbalancer.server.port=3000
 
+      - "traefik.http.routers.simverse-home.rule=Host(`simverse.sh`) || Host(`www.simverse.sh`)"
+      - traefik.http.routers.simverse-home.entrypoints=websecure
+      - traefik.http.routers.simverse-home.service=simverse
+      - traefik.http.routers.simverse-home.tls.certresolver=letsencrypt
+      - traefik.http.routers.simverse-home.tls.domains[0].main=simverse.sh
+      - traefik.http.routers.simverse-home.tls.domains[0].sans=*.simverse.sh
+
       - "traefik.http.routers.simverse-dashboard.rule=Host(`dashboard.simverse.sh`)"
       - traefik.http.routers.simverse-dashboard.entrypoints=websecure
       - traefik.http.routers.simverse-dashboard.service=simverse

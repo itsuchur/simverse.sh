@@ -12,6 +12,27 @@ export function prepareTelegramWebApp() {
   }
 }
 
+/** Wait until Telegram injects Mini App initData (script may load after first paint). */
+export function waitForTelegramInitData(timeoutMs = 4000): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const tick = () => {
+      const initData = window.Telegram?.WebApp?.initData;
+      if (initData) {
+        prepareTelegramWebApp();
+        resolve(initData);
+        return;
+      }
+      if (Date.now() - started >= timeoutMs) {
+        reject(new Error("Telegram initData is not available"));
+        return;
+      }
+      window.setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
 function platformFromUserAgent(userAgent: string): EsimInstallPlatform {
   if (/iPhone|iPad|iPod/i.test(userAgent)) return "ios";
   if (/Android/i.test(userAgent)) return "android";

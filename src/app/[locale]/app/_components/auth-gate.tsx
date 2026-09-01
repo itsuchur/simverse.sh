@@ -15,6 +15,7 @@ import { Checkbox } from "~/components/ui/checkbox";
 import type enMessages from "../../../../../messages/en.json";
 import { Link, useRouter } from "~/i18n/navigation";
 import { autoSignInFromMiniApp } from "~/lib/auth-client";
+import { waitForTelegramInitData } from "~/lib/telegram-webapp";
 
 // Literal message types (from the generated en.json declaration) so the
 // nested NextIntlClientProvider accepts them; runtime values differ per
@@ -83,11 +84,7 @@ export function AuthGate({
     let cancelled = false;
 
     const precheck = async () => {
-      // Thrown when not running inside Telegram (no initData available).
-      const initData = window.Telegram?.WebApp?.initData;
-      if (!initData) {
-        throw new Error("Telegram initData is not available");
-      }
+      const initData = await waitForTelegramInitData();
       const response = await fetch("/api/account/precheck", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

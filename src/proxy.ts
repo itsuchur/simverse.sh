@@ -33,6 +33,10 @@ function requestHost(request: NextRequest): string {
 }
 
 function hostAppPrefix(host: string): string | undefined {
+  // Marketing site: never pretty-root even if BETTER_AUTH_URL is the apex.
+  if (host === "simverse.sh" || host === "www.simverse.sh") {
+    return undefined;
+  }
   const map: Record<string, string> = {
     "dashboard.simverse.sh": "dashboard",
     "miniapp.simverse.sh": "app",
