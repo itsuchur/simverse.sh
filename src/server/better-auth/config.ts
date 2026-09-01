@@ -25,6 +25,13 @@ export const auth = betterAuth({
   database: prismaAdapter(db, {
     provider: "postgresql",
   }),
+  // Traefik sets X-Real-Ip on forwarded requests; Better Auth needs this for
+  // per-client rate limiting and session IP tracking behind the proxy.
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ["x-real-ip"],
+    },
+  },
   // Google's redirect is a cross-site GET. Next.js often never persists the
   // short-lived OAuth state cookie, so the callback would fail with
   // `state_mismatch` even though the state row is in `verification`.
