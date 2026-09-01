@@ -268,6 +268,57 @@ export async function getPopularCountryCodes() {
   return redis.lRange(POPULAR_COUNTRIES_REDIS_KEY, 0, -1);
 }
 
+const ISO_COUNTRY_CODE = /^[A-Z]{2}$/;
+
+function normalizePopularCountryCodes(codes: string[]) {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const raw of codes) {
+    const code = raw.trim().toUpperCase();
+    if (!ISO_COUNTRY_CODE.test(code) || seen.has(code)) {
+      continue;
+    }
+    seen.add(code);
+    normalized.push(code);
+  }
+
+  return normalized;
+}
+
+async function getCatalogCountryCodes() {
+  const cached = await getCachedEsimAccessPackages();
+  const codes = new Set<string>();
+
+  for (const pkg of cached?.packageList ?? []) {
+    const parts = pkg.location.split(",").filter(Boolean);
+    if (parts.length === 1) {
+      codes.add(parts[0]!);
+    }
+  }
+
+  return codes;
+}
+
+export async function setPopularCountryCodes(codes: string[]) {
+  const normalized = normalizePopularCountryCodes(codes);
+  const catalogCodes = await getCatalogCountryCodes();
+
+  for (const code of normalized) {
+    if (!catalogCodes.has(code)) {
+      throw new Error(`Unknown country code: ${code}`);
+    }
+  }
+
+  const redis = await getRedis();
+  const multi = redis.multi();
+  multi.del(POPULAR_COUNTRIES_REDIS_KEY);
+  if (normalized.length > 0) {
+    multi.rPush(POPULAR_COUNTRIES_REDIS_KEY, normalized);
+  }
+  await multi.exec();
+}
+
 /** Single-country packages whose `location` is listed in `popularCountries`. */
 export async function getPopularPackagesByCountry(
   locale: string,
