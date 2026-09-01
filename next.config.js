@@ -18,7 +18,14 @@ const config = {
   // full node_modules tree (see Dockerfile runner stage).
   output: "standalone",
   outputFileTracingIncludes: {
-    "/**": ["./TOS.md", "./PRIVACY-POLICY.md", "./REFUNDS.md"],
+    "/**": [
+      "./TOS.md",
+      "./PRIVACY-POLICY.md",
+      "./REFUNDS.md",
+      "./TOS.ru.md",
+      "./PRIVACY-POLICY.ru.md",
+      "./REFUNDS.ru.md",
+    ],
   },
   images: {
     dangerouslyAllowLocalIP: isDev,

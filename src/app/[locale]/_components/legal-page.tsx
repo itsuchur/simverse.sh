@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { FullScreenDocument } from "./full-screen-document";
 import { LegalMarkdown } from "./legal-markdown";
@@ -26,7 +26,8 @@ export async function LegalPage({
   document: LegalDocumentId;
 }) {
   const t = await getTranslations(namespace);
-  const content = await readLegalMarkdown(document);
+  const locale = await getLocale();
+  const content = await readLegalMarkdown(document, locale);
 
   return (
     <FullScreenDocument title={t("title")}>

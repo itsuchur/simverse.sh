@@ -1,11 +1,21 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { routing } from "~/i18n/routing";
+
 const LEGAL_FILES = {
   tos: "TOS.md",
   privacy: "PRIVACY-POLICY.md",
   refunds: "REFUNDS.md",
 } as const;
+
+function resolveLegalFilename(id: LegalDocumentId, locale: string): string {
+  const english = LEGAL_FILES[id];
+  if (locale === "ru" && routing.locales.includes("ru")) {
+    return english.replace(/\.md$/, ".ru.md");
+  }
+  return english;
+}
 
 export type LegalDocumentId = keyof typeof LEGAL_FILES;
 
@@ -22,14 +32,26 @@ export type LegalBlock =
   | { type: "ul"; items: LegalInline[][] }
   | { type: "ol"; items: LegalInline[][] };
 
-export async function readLegalMarkdown(id: LegalDocumentId) {
-  const filename = LEGAL_FILES[id];
-  const markdown = await readFile(path.join(process.cwd(), filename), "utf8");
+export async function readLegalMarkdown(
+  id: LegalDocumentId,
+  locale: string,
+) {
+  const englishFilename = LEGAL_FILES[id];
+  const localizedFilename = resolveLegalFilename(id, locale);
+  const filePath = (filename: string) =>
+    path.join(process.cwd(), filename);
+
+  let markdown: string;
+  try {
+    markdown = await readFile(filePath(localizedFilename), "utf8");
+  } catch {
+    markdown = await readFile(filePath(englishFilename), "utf8");
+  }
 
   return parseLegalMarkdown(
     markdown
       .replace(/^# .+\n+/, "")
-      .replace(/^\*\*Last updated:[^*]+\*\*\n+/, "")
+      .replace(/^\*\*(Last updated|Обновлено):[^*]+\*\*\n+/, "")
       .trim(),
   );
 }
