@@ -24,6 +24,8 @@
     "signingIn": "Signing you in…",
     "requiredTitle": "Sign-in required",
     "requiredDescription": "We couldn't sign you in automatically. Open this app from your Telegram bot to continue.",
+    "reasonRejected": "Telegram confirmed who you are, but the server rejected the sign-in data. Please contact support — this is a configuration problem on our side, not yours.",
+    "reasonNetwork": "We couldn't reach the sign-in server. Check your connection and try again.",
     "tryAgain": "Try again"
   },
   "Consent": {

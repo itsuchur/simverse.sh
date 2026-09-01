@@ -27,6 +27,26 @@ type ConsentLocale = "en" | "ru";
 type Phase = "checking" | "consent" | "signing-in" | "failed";
 
 /**
+ * Why sign-in failed, shown on the failure card to make WebView issues
+ * diagnosable without devtools access:
+ * - "no-initdata": Telegram never injected initData (opened outside a Mini App).
+ * - "rejected": the server refused the initData HMAC (401) — almost always a
+ *   TELEGRAM_BOT_TOKEN that belongs to a different bot than the one launched.
+ * - "network": fetch failed or the server errored.
+ */
+type FailReason = "no-initdata" | "rejected" | "network";
+
+class SignInError extends Error {
+  constructor(public reason: FailReason) {
+    super(reason);
+  }
+}
+
+function reasonOf(error: unknown): FailReason {
+  return error instanceof SignInError ? error.reason : "network";
+}
+
+/**
  * Telegram Mini App sign-in gate.
  *
  * Rendered by the /app layout instead of the page content when there is no
@@ -47,8 +67,14 @@ export function AuthGate({
   const t = useTranslations("Auth");
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("checking");
+  const [failReason, setFailReason] = useState<FailReason>("network");
   const [consentLocale, setConsentLocale] = useState<ConsentLocale>("en");
   const [attempt, setAttempt] = useState(0);
+
+  const fail = useCallback((reason: FailReason) => {
+    setFailReason(reason);
+    setPhase("failed");
+  }, []);
 
   const signIn = useCallback(
     (restoreDeleted: boolean) => {
@@ -57,7 +83,7 @@ export function AuthGate({
         .then(async (result) => {
           if (result.error) {
             console.error("[auth] mini app sign-in failed", result.error);
-            setPhase("failed");
+            fail(result.error.status === 401 ? "rejected" : "network");
             return;
           }
           if (restoreDeleted) {
@@ -74,24 +100,29 @@ export function AuthGate({
         .catch((error: unknown) => {
           // Thrown when not running inside Telegram (no initData available).
           console.error("[auth] mini app sign-in failed", error);
-          setPhase("failed");
+          fail("no-initdata");
         });
     },
-    [router],
+    [router, fail],
   );
 
   useEffect(() => {
     let cancelled = false;
 
     const precheck = async () => {
-      const initData = await waitForTelegramInitData();
+      const initData = await waitForTelegramInitData().catch(() => {
+        throw new SignInError("no-initdata");
+      });
       const response = await fetch("/api/account/precheck", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initData }),
       });
+      if (response.status === 401) {
+        throw new SignInError("rejected");
+      }
       if (!response.ok) {
-        throw new Error(`precheck responded with ${response.status}`);
+        throw new SignInError("network");
       }
       const { needsConsent } = (await response.json()) as {
         needsConsent: boolean;
@@ -113,13 +144,13 @@ export function AuthGate({
       })
       .catch((error: unknown) => {
         console.error("[auth] consent precheck failed", error);
-        if (!cancelled) setPhase("failed");
+        if (!cancelled) fail(reasonOf(error));
       });
 
     return () => {
       cancelled = true;
     };
-  }, [attempt, signIn]);
+  }, [attempt, signIn, fail]);
 
   const retry = () => {
     setPhase("checking");
@@ -151,7 +182,13 @@ export function AuthGate({
       <Card>
         <CardHeader>
           <CardTitle>{t("requiredTitle")}</CardTitle>
-          <CardDescription>{t("requiredDescription")}</CardDescription>
+          <CardDescription>
+            {failReason === "no-initdata"
+              ? t("requiredDescription")
+              : failReason === "rejected"
+                ? t("reasonRejected")
+                : t("reasonNetwork")}
+          </CardDescription>
         </CardHeader>
         <div className="px-6 pb-6">
           <Button variant="outline" size="sm" onClick={retry}>
