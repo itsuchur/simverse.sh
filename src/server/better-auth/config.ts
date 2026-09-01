@@ -9,10 +9,18 @@ import { isAllowedAuthEmail } from "~/server/dashboard/emails";
 import { db } from "~/server/db";
 import { dashboardOrigin, miniappOrigin } from "~/server/urls";
 
+const fallbackAuthOrigin = "http://localhost:3000";
+
 export const auth = betterAuth({
-  baseURL: env.BETTER_AUTH_URL,
+  // `SKIP_ENV_VALIDATION` Docker builds have no BETTER_AUTH_URL while Next
+  // collects route config; Better Auth still calls `.replace` on baseURL.
+  baseURL: dashboardOrigin() ?? fallbackAuthOrigin,
   trustedOrigins: Array.from(
-    new Set([dashboardOrigin(), miniappOrigin(), "http://localhost:3000"]),
+    new Set(
+      [dashboardOrigin(), miniappOrigin(), fallbackAuthOrigin].filter(
+        (origin): origin is string => Boolean(origin),
+      ),
+    ),
   ),
   database: prismaAdapter(db, {
     provider: "postgresql",

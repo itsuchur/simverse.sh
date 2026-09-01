@@ -1,7 +1,8 @@
 import { env } from "~/env";
 
-function origin(url: string) {
-  return url.replace(/\/$/, "");
+/** Docker `next build` skips env validation; these URLs are unset until runtime. */
+function origin(url: string | undefined) {
+  return url?.replace(/\/$/, "");
 }
 
 export function dashboardOrigin() {
