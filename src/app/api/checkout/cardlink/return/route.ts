@@ -1,10 +1,8 @@
-import { miniappPublicUrl } from "~/lib/miniapp-path";
-import { miniappOrigin } from "~/server/urls";
+import { miniappDeepLink } from "~/server/urls";
 
 function redirectFor(status: string | null) {
-  const origin = miniappOrigin();
-  const page = status === "fail" ? "/failed-payment" : "/successful-payment";
-  return Response.redirect(miniappPublicUrl(origin, page), 303);
+  const result = status === "fail" ? "fail" : "success";
+  return Response.redirect(miniappDeepLink(result), 303);
 }
 
 export async function GET(request: Request) {

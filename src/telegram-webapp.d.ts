@@ -4,6 +4,7 @@ type TelegramWebApp = {
     user?: {
       language_code?: string;
     };
+    start_param?: string;
   };
   ready?: () => void;
   expand?: () => void;

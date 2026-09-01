@@ -140,7 +140,7 @@ https://api.simverse.sh/webhooks/suppliers/esimaccess?token=<ESIMACCESS_WEBHOOK_
 ### Payments
 
 - **Cardlink:** shop Result URL `https://api.simverse.sh/webhooks/payments/cardlink`, Refund URL `https://api.simverse.sh/webhooks/payments/cardlink/refund`, Chargeback URL `https://api.simverse.sh/webhooks/payments/cardlink/chargeback`
-- **Trybit:** project notification URL `https://api.simverse.sh/webhooks/payments/trybit` (JSON postbacks). Success URL `https://miniapp.simverse.sh/successful-payment`, fail URL `https://miniapp.simverse.sh/failed-payment`.
+- **Trybit:** project notification URL `https://api.simverse.sh/webhooks/payments/trybit` (JSON postbacks). Success URL `https://t.me/simversebot?startapp=successful_payment`, fail URL `https://t.me/simversebot?startapp=failed_payment` (deep links that reopen the Mini App inside Telegram).
 
 ### Google OAuth (dashboard)
 

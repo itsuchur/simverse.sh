@@ -8,6 +8,7 @@ import { MiniAppChrome } from "./_components/mini-app-chrome";
 import { PostHogIdentify } from "./_components/posthog-identify";
 import { PostHogPageView } from "./_components/posthog-page-view";
 import { PostHogProvider } from "./_components/posthog-provider";
+import { StartParamRouter } from "./_components/start-param-router";
 import { getSession } from "~/server/better-auth/server";
 
 // The consent screen picks its language from Telegram initData on the
@@ -35,6 +36,7 @@ export default async function MiniAppLayout({
       <PostHogPageView />
       <MiniAppChrome showNav={Boolean(session)}>
         {session ? children : <AuthGate consentMessages={consentMessages} />}
+        {session ? <StartParamRouter /> : null}
         {session ? (
           <PostHogIdentify
             telegramId={session.user.telegramId ?? null}

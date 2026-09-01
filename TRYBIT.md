@@ -30,16 +30,16 @@ Open the project → **Integration & API**.
 
 2. **Postback format:** JSON (not `x-www-form-urlencoded`). The app verifies `token` and reads `order_id` plus `invoice_info`.
 
-3. **Success URL** (browser after pay):
+3. **Success URL** (browser after pay). A `t.me` deep link that reopens the Mini App in Telegram; `<StartParamRouter />` routes `startapp` to `/successful-payment`:
 
    ```
-   https://miniapp.simverse.sh/successful-payment
+   https://t.me/simversebot?startapp=successful_payment
    ```
 
 4. **Fail URL** (browser after cancel / fail):
 
    ```
-   https://miniapp.simverse.sh/failed-payment
+   https://t.me/simversebot?startapp=failed_payment
    ```
 
 Trybit does not take callback or return URLs on create-invoice. They only exist in project settings.
@@ -52,7 +52,7 @@ If `API_URL` is unset, public webhook paths keep `/api`:
 https://<your-tunnel>/api/webhooks/payments/trybit
 ```
 
-Point Trybit’s notification URL at that tunnel while testing. Mini App success/fail URLs should match `MINIAPP_URL`. On a dedicated Mini App host they are `/successful-payment` and `/failed-payment` (no `/app`). A shared local/ngrok host keeps `/app/...`.
+Point Trybit’s notification URL at that tunnel while testing. Success/fail URLs are `t.me` deep links (`https://t.me/<bot>?startapp=successful_payment` / `failed_payment`), so use the test bot’s username; they reopen whatever Mini App URL is registered for that bot in BotFather.
 
 ## What the app does
 
