@@ -13,7 +13,8 @@ import {
 } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
 import type enMessages from "../../../../../messages/en.json";
-import { Link, useRouter } from "~/i18n/navigation";
+import { LegalLink } from "../../_components/legal-link";
+import { getPathname, useRouter } from "~/i18n/navigation";
 import { autoSignInFromMiniApp } from "~/lib/auth-client";
 import { waitForTelegramInitData } from "~/lib/telegram-webapp";
 
@@ -227,22 +228,20 @@ function ConsentScreen({
             <label htmlFor="consent-agreement" className="text-sm">
               {t.rich("agreement", {
                 tos: (chunks) => (
-                  <Link
-                    href="/tos"
-                    locale={locale}
-                    className="underline underline-offset-3"
+                  <LegalLink
+                    href={getPathname({ href: "/tos", locale })}
+                    className="underline-offset-3"
                   >
                     {chunks}
-                  </Link>
+                  </LegalLink>
                 ),
                 privacy: (chunks) => (
-                  <Link
-                    href="/privacy-policy"
-                    locale={locale}
-                    className="underline underline-offset-3"
+                  <LegalLink
+                    href={getPathname({ href: "/privacy-policy", locale })}
+                    className="underline-offset-3"
                   >
                     {chunks}
-                  </Link>
+                  </LegalLink>
                 ),
               })}
             </label>

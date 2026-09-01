@@ -50,12 +50,13 @@ export function detectEsimInstallPlatform(): EsimInstallPlatform {
 }
 
 export function openExternalLink(url: string) {
+  const absoluteUrl = new URL(url, window.location.origin).href;
   const openLink = window.Telegram?.WebApp?.openLink;
   if (typeof openLink === "function") {
-    openLink(url);
+    openLink(absoluteUrl);
     return;
   }
-  window.open(url, "_blank", "noopener,noreferrer");
+  window.open(absoluteUrl, "_blank", "noopener,noreferrer");
 }
 
 export function openTelegramLink(url: string) {

@@ -8,7 +8,7 @@ import {
   Settings,
   Shield,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { Acknowledgments } from "./acknowledgments";
 import { DeleteAccount } from "./delete-account";
@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { getPathname } from "~/i18n/navigation";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
@@ -39,6 +40,7 @@ export default async function AppProfile() {
   }
 
   const t = await getTranslations("Profile");
+  const locale = await getLocale();
   const { user } = session;
 
   const rows = await db.order.findMany({
@@ -85,17 +87,17 @@ export default async function AppProfile() {
     {
       label: t("refundPolicy"),
       icon: RotateCcw,
-      href: "/refund-policy",
+      externalHref: getPathname({ href: "/refund-policy", locale }),
     },
     {
       label: t("termsOfService"),
       icon: FileText,
-      href: "/tos",
+      externalHref: getPathname({ href: "/tos", locale }),
     },
     {
       label: t("privacyPolicy"),
       icon: Shield,
-      href: "/privacy-policy",
+      externalHref: getPathname({ href: "/privacy-policy", locale }),
     },
   ];
 

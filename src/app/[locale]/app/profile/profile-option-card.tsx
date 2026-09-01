@@ -7,7 +7,7 @@ import { Link } from "~/i18n/navigation";
 export type ProfileOption = {
   label: string;
   icon: LucideIcon;
-  href?: "/help" | "/refund-policy" | "/tos" | "/privacy-policy";
+  href?: "/help";
   externalHref?: string;
   telegramHref?: string;
 };
