@@ -7,20 +7,14 @@ import { telegram } from "better-auth-telegram";
 import { env } from "~/env";
 import { isAllowedAuthEmail } from "~/server/dashboard/emails";
 import { db } from "~/server/db";
-import { dashboardOrigin, miniappOrigin } from "~/server/urls";
-
-const fallbackAuthOrigin = "http://localhost:3000";
+import { dashboardOrigin, FALLBACK_ORIGIN, miniappOrigin } from "~/server/urls";
 
 export const auth = betterAuth({
-  // `SKIP_ENV_VALIDATION` Docker builds have no BETTER_AUTH_URL while Next
-  // collects route config; Better Auth still calls `.replace` on baseURL.
-  baseURL: dashboardOrigin() ?? fallbackAuthOrigin,
+  // Docker `next build` has no BETTER_AUTH_URL; origin helpers fall back so
+  // Better Auth can still evaluate `.replace` during route collection.
+  baseURL: dashboardOrigin(),
   trustedOrigins: Array.from(
-    new Set(
-      [dashboardOrigin(), miniappOrigin(), fallbackAuthOrigin].filter(
-        (origin): origin is string => Boolean(origin),
-      ),
-    ),
+    new Set([dashboardOrigin(), miniappOrigin(), FALLBACK_ORIGIN]),
   ),
   database: prismaAdapter(db, {
     provider: "postgresql",

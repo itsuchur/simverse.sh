@@ -1,8 +1,10 @@
 import { env } from "~/env";
 
-/** Docker `next build` skips env validation; these URLs are unset until runtime. */
+/** Used when Docker `next build` skips env validation and URLs are unset. */
+export const FALLBACK_ORIGIN = "http://localhost:3000";
+
 function origin(url: string | undefined) {
-  return url?.replace(/\/$/, "");
+  return (url ?? FALLBACK_ORIGIN).replace(/\/$/, "");
 }
 
 export function dashboardOrigin() {
