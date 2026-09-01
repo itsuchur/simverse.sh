@@ -2,9 +2,15 @@ import "server-only";
 
 import { createHmac, randomUUID } from "node:crypto";
 
-import { env } from "~/env";
-
 export const ESIMACCESS_API_BASE = "https://api.esimaccess.com/api/v1/open";
+
+function esimAccessCode() {
+  const code = process.env.ESIMACCESS_ACCESS_CODE;
+  if (!code) {
+    throw new Error("ESIMACCESS_ACCESS_CODE is not set");
+  }
+  return code;
+}
 
 export type EsimAccessEnvelope<T> = {
   success: boolean;
@@ -38,7 +44,7 @@ export async function esimAccessPost<T>(
   const body = JSON.stringify(payload);
   const response = await fetch(`${ESIMACCESS_API_BASE}${path}`, {
     method: "POST",
-    headers: buildSignedHeaders(env.ESIMACCESS_ACCESS_CODE, body),
+    headers: buildSignedHeaders(esimAccessCode(), body),
     body,
   });
 
