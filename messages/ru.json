@@ -75,6 +75,12 @@
     "payCrypto": "Криптовалюта · {price}",
     "payFailed": "Не удалось начать оплату. Откройте приложение в Telegram и попробуйте снова."
   },
+  "PaymentResult": {
+    "successTitle": "Спасибо за покупку.",
+    "successRedirect": "Скоро вы будете перенаправлены в «{destination}».",
+    "failTitle": "Оплата не прошла.",
+    "failRedirect": "Скоро вы будете перенаправлены обратно на страницу «{destination}»."
+  },
 
   "MyEsims": {
     "title": "Мои eSIM",
