@@ -4,6 +4,7 @@ import { auth } from "~/server/better-auth";
 import { getCartPlan } from "~/server/cart";
 import { TRYBIT_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
+  attachInvoiceUrl,
   failPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
@@ -87,13 +88,18 @@ export async function POST(request: Request) {
     costCurrency: "USD",
     paymentProvider: TRYBIT_PAYMENT_PROVIDER,
   });
+  if (order.paymentInvoiceUrl) {
+    return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
+  }
 
   try {
     const invoice = await createTrybitInvoice({
       amount: cents / 100,
       orderId: order.orderUuid,
     });
-    return Response.json({ invoiceUrl: invoice.link });
+    return Response.json({
+      invoiceUrl: await attachInvoiceUrl(order.id, invoice.link),
+    });
   } catch (error) {
     Sentry.captureException(error, {
       tags: { component: "trybit", reason: "invoice_failed" },

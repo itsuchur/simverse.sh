@@ -6,6 +6,7 @@ import { getCartPlan } from "~/server/cart";
 import { CARDLINK_PAYMENT_PROVIDER } from "~/lib/order-status";
 import { env } from "~/env";
 import {
+  attachInvoiceUrl,
   failPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
@@ -108,6 +109,9 @@ export async function POST(request: Request) {
     costCurrency: "USD",
     paymentProvider: CARDLINK_PAYMENT_PROVIDER,
   });
+  if (order.paymentInvoiceUrl) {
+    return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
+  }
 
   const origin = miniappOrigin();
 
@@ -123,7 +127,9 @@ export async function POST(request: Request) {
       failUrl: `${origin}/api/checkout/cardlink/return?status=fail`,
       returnUrl: miniappPublicUrl(origin, "/checkout"),
     });
-    return Response.json({ invoiceUrl: bill.linkPageUrl });
+    return Response.json({
+      invoiceUrl: await attachInvoiceUrl(order.id, bill.linkPageUrl),
+    });
   } catch (error) {
     Sentry.captureException(error, {
       tags: { component: "cardlink", reason: "invoice_failed" },

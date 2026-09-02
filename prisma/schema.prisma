@@ -129,6 +129,8 @@ model Order {
   costCurrency String? @map("cost_currency") @db.Char(3)
 
   paymentProvider     String  @map("payment_provider")
+  /// Provider checkout link minted for this draft; reused so one draft never has two live invoices.
+  paymentInvoiceUrl   String? @map("payment_invoice_url")
   paymentChargeId     String? @map("payment_charge_id")
   paymentStatus       String  @default("pending") @map("payment_status")
   paymentRefundId     String? @map("payment_refund_id")

@@ -23,6 +23,7 @@ export type FakeOrder = {
   costAmount: bigint;
   costCurrency: string;
   paymentProvider: string;
+  paymentInvoiceUrl: string | null;
   paymentStatus: string;
   paymentChargeId: string | null;
   paymentRefundId: string | null;
@@ -113,6 +114,7 @@ function orderDefaults(): Omit<
     costAmount: 500n,
     costCurrency: "USD",
     paymentProvider: "trybit",
+    paymentInvoiceUrl: null,
     paymentStatus: "pending",
     paymentChargeId: null,
     paymentRefundId: null,
@@ -208,7 +210,45 @@ class FakeDb {
     };
   }
 
+  /** Mirrors the partial unique index `uq_pending_draft` from the migration SQL. */
+  private violatesPendingDraftIndex(candidate: FakeOrder) {
+    if (
+      candidate.paymentStatus !== "pending" ||
+      candidate.status !== "created"
+    ) {
+      return false;
+    }
+    return this.orders.some(
+      (order) =>
+        order.paymentStatus === "pending" &&
+        order.status === "created" &&
+        order.userId === candidate.userId &&
+        order.paymentProvider === candidate.paymentProvider &&
+        order.resellerPlanId === candidate.resellerPlanId &&
+        order.priceAmount === candidate.priceAmount &&
+        order.currency === candidate.currency,
+    );
+  }
+
   order = {
+    create: async (args: { data: Partial<FakeOrder> }) => {
+      const now = new Date();
+      const record: FakeOrder = {
+        id: this.nextOrderId++,
+        orderUuid: crypto.randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        ...orderDefaults(),
+        ...args.data,
+      };
+      if (this.violatesPendingDraftIndex(record)) {
+        throw Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+        });
+      }
+      this.orders.push(record);
+      return record;
+    },
     findUnique: async (args: OrderQueryArgs) => {
       const found = this.findByUniqueWhere(args.where);
       return found ? this.withInclude(found, args) : null;
