@@ -45,7 +45,8 @@ export default async function Home() {
           width={390}
           height={800}
           priority
-          className="mt-12 h-auto w-full max-w-sm rounded-2xl shadow-lg"
+          unoptimized
+          className="mt-12 h-auto w-full max-w-sm drop-shadow-lg"
         />
         <section className="mt-16 w-full max-w-2xl text-left sm:mt-20">
           <h2 className="mb-8 text-center text-3xl font-extrabold tracking-tight sm:text-4xl">
