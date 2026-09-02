@@ -54,6 +54,8 @@ describe("fulfillStarsPayment", () => {
       orderUuid: order.orderUuid,
       telegramPaymentChargeId: "tg-charge-1",
       telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
     });
 
     expect(order.paymentStatus).toBe("paid");
@@ -73,6 +75,8 @@ describe("fulfillStarsPayment", () => {
       orderUuid: order.orderUuid,
       telegramPaymentChargeId: "tg-charge-1",
       telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
     };
     await fulfillStarsPayment(input);
     await fulfillStarsPayment(input);
@@ -90,11 +94,15 @@ describe("fulfillStarsPayment", () => {
       orderUuid: order.orderUuid,
       telegramPaymentChargeId: "tg-charge-1",
       telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
     });
     await fulfillStarsPayment({
       orderUuid: order.orderUuid,
       telegramPaymentChargeId: "tg-charge-2",
       telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
     });
 
     expect(order.paymentChargeId).toBe("tg-charge-1");
@@ -112,11 +120,31 @@ describe("fulfillStarsPayment", () => {
       orderUuid: order.orderUuid,
       telegramPaymentChargeId: "tg-charge-1",
       telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
     });
 
     expect(draft.status).toBe("failed");
     expect(draft.paymentStatus).toBe("failed");
     expect(draft.failureReason).toBe("superseded");
+  });
+
+  test("Stars amount or currency mismatch keeps the order pending and alerts", async () => {
+    const order = seedStarsOrder();
+
+    await fulfillStarsPayment({
+      orderUuid: order.orderUuid,
+      telegramPaymentChargeId: "tg-charge-1",
+      telegramId: "42",
+      totalAmount: 1,
+      currency: "XTR",
+    });
+
+    expect(order.paymentStatus).toBe("pending");
+    expect(esimOrderCallCount()).toBe(0);
+    expect(sentryCaptureMessage.mock.calls[0]?.[0]).toBe(
+      "Telegram Stars payment amount mismatch",
+    );
   });
 
   test("unknown order or provider mismatch is a no-op", async () => {
@@ -126,6 +154,8 @@ describe("fulfillStarsPayment", () => {
       orderUuid: crypto.randomUUID(),
       telegramPaymentChargeId: "tg-x",
       telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
     });
     await fulfillTrybitPayment({
       orderUuid: order.orderUuid,
@@ -178,6 +208,125 @@ describe("payment validation", () => {
   });
 });
 
+describe("payment arriving after the draft was closed", () => {
+  test("a superseded draft that gets paid is still fulfilled and flagged", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const order = fakeDb.seedOrder({
+      priceAmount: 1099n,
+      status: "failed",
+      paymentStatus: "failed",
+      failureReason: "superseded",
+    });
+    stubEsimAccess({ orderNo: "EA-1", profiles: [PROFILE] });
+
+    await fulfillTrybitPayment({
+      orderUuid: order.orderUuid,
+      invoiceUuid: "INV-1",
+      amountUsd: 10.99,
+    });
+
+    expect(order.paymentStatus).toBe("paid");
+    expect(order.paymentChargeId).toBe("INV-1");
+    expect(order.status).toBe("issued");
+    expect(order.failureReason).toBeNull();
+    expect(sentryCaptureMessage.mock.calls[0]?.[0]).toBe(
+      "Payment received for a failed order; fulfilling",
+    );
+  });
+
+  test("a success callback after a fail callback still fulfills", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const order = fakeDb.seedOrder({ priceAmount: 1099n });
+    stubEsimAccess({ orderNo: "EA-1", profiles: [PROFILE] });
+
+    await failTrybitPayment(order.orderUuid);
+    expect(order.status).toBe("failed");
+
+    await fulfillTrybitPayment({
+      orderUuid: order.orderUuid,
+      invoiceUuid: "INV-1",
+      amountUsd: 10.99,
+    });
+
+    expect(order.paymentStatus).toBe("paid");
+    expect(order.status).toBe("issued");
+  });
+
+  test("refunded or charged-back orders never accept a new charge", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const order = fakeDb.seedOrder({
+      priceAmount: 1099n,
+      status: "issued",
+      paymentStatus: "refunded",
+      paymentChargeId: "INV-0",
+    });
+
+    await fulfillTrybitPayment({
+      orderUuid: order.orderUuid,
+      invoiceUuid: "INV-1",
+      amountUsd: 10.99,
+    });
+
+    expect(order.paymentStatus).toBe("refunded");
+    expect(order.paymentChargeId).toBe("INV-0");
+  });
+});
+
+describe("supplier order overlapping a webhook", () => {
+  test("keeps the webhook-attached supplier order and alerts on the duplicate", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const order = fakeDb.seedOrder({ status: "paid", paymentStatus: "paid" });
+    esimAccessPost.mockImplementation(async (path: string) => {
+      if (path === "/esim/order") {
+        // A GOT_RESOURCE webhook lands while our order request is in flight.
+        order.resellerOrderId = "EA-WEBHOOK";
+        return { success: true, obj: { orderNo: "EA-LATE" } };
+      }
+      return { success: true, obj: { esimList: [PROFILE] } };
+    });
+
+    await placeSupplierOrder(order);
+
+    expect(order.resellerOrderId).toBe("EA-WEBHOOK");
+    expect(order.status).toBe("issued");
+    expect(sentryCaptureMessage.mock.calls[0]?.[0]).toBe(
+      "Duplicate supplier order for one paid order",
+    );
+  });
+
+  test("a supplier error does not fail an order that already has a supplier order", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const order = fakeDb.seedOrder({ status: "paid", paymentStatus: "paid" });
+    esimAccessPost.mockImplementation(async () => {
+      order.resellerOrderId = "EA-WEBHOOK";
+      throw new Error("duplicate transactionId");
+    });
+
+    await placeSupplierOrder(order);
+
+    expect(order.status).toBe("ordering");
+    expect(order.resellerOrderId).toBe("EA-WEBHOOK");
+  });
+
+  test("attachGotResource recovers an order marked failed after payment", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const order = fakeDb.seedOrder({
+      status: "failed",
+      paymentStatus: "paid",
+      failureReason: "supplier down",
+    });
+    stubEsimAccess({ profiles: [PROFILE] });
+
+    await attachGotResource({
+      orderNo: "EA-9",
+      transactionId: order.orderUuid,
+    });
+
+    expect(order.resellerOrderId).toBe("EA-9");
+    expect(order.status).toBe("issued");
+  });
+});
+
 describe("supplier order failure", () => {
   test("marks the order failed and captures the exception", async () => {
     const order = seedStarsOrder();
@@ -189,6 +338,8 @@ describe("supplier order failure", () => {
       orderUuid: order.orderUuid,
       telegramPaymentChargeId: "tg-charge-1",
       telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
     });
 
     expect(order.paymentStatus).toBe("paid");
@@ -280,7 +431,7 @@ describe("placeSupplierOrder claiming", () => {
     const order = fakeDb.seedOrder({
       status: "ordering",
       paymentStatus: "paid",
-      updatedAt: new Date(Date.now() - 120_000),
+      updatedAt: new Date(Date.now() - 10 * 60_000),
     });
     stubEsimAccess({ orderNo: "EA-STALE", profiles: [PROFILE] });
 
@@ -299,6 +450,18 @@ describe("placeSupplierOrder claiming", () => {
     await placeSupplierOrder(order);
 
     expect(order.status).toBe("ordering");
+    expect(esimOrderCallCount()).toBe(0);
+  });
+
+  test("does not reclaim while a supplier request can still be in flight", async () => {
+    const order = fakeDb.seedOrder({
+      status: "ordering",
+      paymentStatus: "paid",
+      updatedAt: new Date(Date.now() - 120_000),
+    });
+
+    await placeSupplierOrder(order);
+
     expect(esimOrderCallCount()).toBe(0);
   });
 });

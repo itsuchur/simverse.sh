@@ -4,6 +4,13 @@ import { createHmac, randomUUID } from "node:crypto";
 
 export const ESIMACCESS_API_BASE = "https://api.esimaccess.com/api/v1/open";
 
+/**
+ * Upper bound on any supplier call. `STALE_SUPPLIER_CLAIM_MS` in
+ * src/server/orders/fulfill.ts must stay well above this so a stale claim can
+ * never be reclaimed while the original order request is still in flight.
+ */
+export const ESIMACCESS_TIMEOUT_MS = 30_000;
+
 function esimAccessCode() {
   const code = process.env.ESIMACCESS_ACCESS_CODE;
   if (!code) {
@@ -46,6 +53,7 @@ export async function esimAccessPost<T>(
     method: "POST",
     headers: buildSignedHeaders(esimAccessCode(), body),
     body,
+    signal: AbortSignal.timeout(ESIMACCESS_TIMEOUT_MS),
   });
 
   const endpoint = path.replace(/^\//, "");
