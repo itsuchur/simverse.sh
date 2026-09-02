@@ -103,6 +103,8 @@ export const POST = withWebhookLogging(
         orderUuid: payment.invoice_payload,
         telegramPaymentChargeId: payment.telegram_payment_charge_id,
         telegramId: String(payerId),
+        totalAmount: payment.total_amount,
+        currency: payment.currency,
       });
     }
 

@@ -3,6 +3,13 @@ import "server-only";
 import { orderStatus, paymentStatus } from "~/lib/order-status";
 import { db, isUniqueConstraintError } from "~/server/db";
 
+/**
+ * A pending draft (and its provider invoice) is reused for this long. After
+ * that the draft is closed as `expired` and checkout mints a fresh one, so a
+ * user never gets handed a provider link that has already expired.
+ */
+export const DRAFT_TTL_MS = 15 * 60_000;
+
 export type PendingOrderDraft = {
   userId: string;
   resellerPlanId: string;
@@ -36,7 +43,10 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
     orderBy: { createdAt: "desc" },
   });
   if (existing) {
-    return existing;
+    if (Date.now() - existing.createdAt.getTime() <= DRAFT_TTL_MS) {
+      return existing;
+    }
+    await failPendingInvoice(existing.id, "expired");
   }
 
   try {
@@ -71,6 +81,25 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
     }
     return raced;
   }
+}
+
+/**
+ * Stores the provider checkout link on the draft. Concurrent checkouts may
+ * each mint an invoice; only the first is kept and handed out, so the user is
+ * never shown two payable links for the same order.
+ */
+export async function attachInvoiceUrl(orderId: bigint, url: string) {
+  const stored = await db.order.updateMany({
+    where: { id: orderId, paymentInvoiceUrl: null },
+    data: { paymentInvoiceUrl: url },
+  });
+  if (stored.count > 0) {
+    return url;
+  }
+  const current = await db.order.findUniqueOrThrow({
+    where: { id: orderId },
+  });
+  return current.paymentInvoiceUrl ?? url;
 }
 
 export async function failPendingInvoice(orderId: bigint, reason: string) {

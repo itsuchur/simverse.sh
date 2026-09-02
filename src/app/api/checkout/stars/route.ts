@@ -4,6 +4,7 @@ import { auth } from "~/server/better-auth";
 import { getCartPlan } from "~/server/cart";
 import { STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
+  attachInvoiceUrl,
   failPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
@@ -80,6 +81,9 @@ export async function POST(request: Request) {
     costCurrency: "USD",
     paymentProvider: STARS_PAYMENT_PROVIDER,
   });
+  if (order.paymentInvoiceUrl) {
+    return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
+  }
 
   try {
     const invoiceUrl = await createInvoiceLink({
@@ -89,7 +93,9 @@ export async function POST(request: Request) {
       amountStars: stars,
       label: plan.name,
     });
-    return Response.json({ invoiceUrl });
+    return Response.json({
+      invoiceUrl: await attachInvoiceUrl(order.id, invoiceUrl),
+    });
   } catch (error) {
     Sentry.captureException(error, {
       tags: { component: "telegram", reason: "invoice_failed" },

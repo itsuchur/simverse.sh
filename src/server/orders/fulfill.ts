@@ -27,7 +27,26 @@ export {
   STARS_PAYMENT_PROVIDER,
 };
 
-const STALE_SUPPLIER_CLAIM_MS = 60_000;
+/**
+ * How long an `ordering` claim is trusted before another worker may retry the
+ * supplier order. Must exceed ESIMACCESS_TIMEOUT_MS (src/server/suppliers/
+ * esimaccess/client.ts) by a wide margin so a reclaim never overlaps a request
+ * that is still in flight.
+ */
+const STALE_SUPPLIER_CLAIM_MS = 5 * 60_000;
+
+/** Payment states in which a confirmed charge may still be applied. */
+const CHARGEABLE_PAYMENT_STATUSES: string[] = [
+  paymentStatus.pending,
+  paymentStatus.failed,
+];
+
+/** Order states from which a delivered profile can be attached. */
+const ISSUABLE_ORDER_STATUSES: string[] = [
+  orderStatus.paid,
+  orderStatus.ordering,
+  orderStatus.failed,
+];
 
 type OrderRow = {
   id: bigint;
@@ -47,10 +66,12 @@ async function applyProfile(
   const result = await db.order.updateMany({
     where: {
       id: orderId,
-      status: { in: [orderStatus.paid, orderStatus.ordering] },
+      status: { in: ISSUABLE_ORDER_STATUSES },
+      paymentStatus: paymentStatus.paid,
     },
     data: {
       status: orderStatus.issued,
+      failureReason: null,
       issuedAt: new Date(),
       esimIccid: profile.iccid,
       esimStatus:
@@ -193,21 +214,33 @@ export async function placeSupplierOrder(order: OrderRow) {
       packageCode: order.resellerPlanId,
     });
 
-    const updated = await db.order.update({
-      where: { id: order.id },
+    // A GOT_RESOURCE webhook may have attached a supplier order while this
+    // request was in flight; never overwrite it.
+    const attached = await db.order.updateMany({
+      where: { id: order.id, resellerOrderId: null },
       data: {
         resellerOrderId: result.orderNo,
         status: orderStatus.ordering,
         resellerRawResponse: result,
       },
     });
+    const current = await db.order.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    if (attached.count === 0 && current.resellerOrderId !== result.orderNo) {
+      Sentry.captureMessage("Duplicate supplier order for one paid order", {
+        level: "fatal",
+        tags: { component: "esimaccess", reason: "duplicate_supplier_order" },
+        extra: {
+          orderUuid: order.orderUuid,
+          storedOrderNo: current.resellerOrderId,
+          extraOrderNo: result.orderNo,
+        },
+      });
+    }
 
     try {
-      await syncEsimProfile({
-        ...order,
-        resellerOrderId: updated.resellerOrderId,
-        status: updated.status,
-      });
+      await syncEsimProfile(current);
     } catch (error) {
       Sentry.captureException(error, {
         tags: { component: "esimaccess", reason: "query_failed" },
@@ -233,6 +266,7 @@ export async function placeSupplierOrder(order: OrderRow) {
     await db.order.updateMany({
       where: {
         id: order.id,
+        resellerOrderId: null,
         esimIccid: null,
         status: { in: [orderStatus.ordering, orderStatus.paid] },
       },
@@ -288,14 +322,15 @@ async function markOrderPaid(input: {
     where: {
       id: input.orderId,
       paymentProvider: input.provider,
-      paymentStatus: paymentStatus.pending,
-      status: orderStatus.created,
+      paymentChargeId: null,
+      paymentStatus: { in: CHARGEABLE_PAYMENT_STATUSES },
     },
     data: {
       paymentStatus: paymentStatus.paid,
       paymentChargeId: input.chargeId,
       paidAt: new Date(),
       status: orderStatus.paid,
+      failureReason: null,
     },
   });
   if (result.count === 0) {
@@ -356,14 +391,28 @@ async function fulfillPayment(input: {
   }
 
   if (
-    order.paymentStatus !== paymentStatus.pending ||
-    order.status !== orderStatus.created
+    order.paymentChargeId !== null ||
+    !CHARGEABLE_PAYMENT_STATUSES.includes(order.paymentStatus)
   ) {
     return;
   }
 
   if (input.validate && !input.validate(order)) {
     return;
+  }
+
+  // The draft was closed (superseded, expired, provider FAIL callback) but the
+  // customer still completed the invoice we issued: honour the payment.
+  if (order.paymentStatus === paymentStatus.failed) {
+    Sentry.captureMessage("Payment received for a failed order; fulfilling", {
+      level: "warning",
+      tags: { component: input.provider, reason: "revived_order" },
+      extra: {
+        orderUuid: order.orderUuid,
+        failureReason: order.failureReason,
+        chargeId: input.chargeId,
+      },
+    });
   }
 
   try {
@@ -422,12 +471,32 @@ export async function fulfillStarsPayment(input: {
   orderUuid: string;
   telegramPaymentChargeId: string;
   telegramId: string;
+  totalAmount: number;
+  currency: string;
 }) {
   await fulfillPayment({
     provider: STARS_PAYMENT_PROVIDER,
     orderUuid: input.orderUuid,
     chargeId: input.telegramPaymentChargeId,
     telegramId: input.telegramId,
+    validate: (order) => {
+      if (
+        input.currency !== order.currency ||
+        BigInt(input.totalAmount) !== order.priceAmount
+      ) {
+        Sentry.captureMessage("Telegram Stars payment amount mismatch", {
+          level: "error",
+          tags: { component: "telegram", reason: "amount_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: `${order.priceAmount.toString()} ${order.currency}`,
+            received: `${input.totalAmount} ${input.currency}`,
+          },
+        });
+        return false;
+      }
+      return true;
+    },
   });
 }
 
@@ -671,7 +740,8 @@ export async function attachGotResource(input: {
       where: {
         id: order.id,
         resellerOrderId: null,
-        status: { in: [orderStatus.paid, orderStatus.ordering] },
+        status: { in: ISSUABLE_ORDER_STATUSES },
+        paymentStatus: paymentStatus.paid,
       },
       data: { resellerOrderId: input.orderNo, status: orderStatus.ordering },
     });
