@@ -40,11 +40,11 @@ async function runSync() {
   }
 }
 
-// Hourly catalog sync; protect prevents overlapping runs.
-new Cron("0 * * * *", { protect: true }, () => {
+// Daily catalog sync at midnight (server local time); protect prevents overlapping runs.
+new Cron("0 0 * * *", { protect: true }, () => {
   void runSync();
 });
 
 void runSync();
 
-console.log("[cron] eSIM Access package sync scheduled hourly");
+console.log("[cron] eSIM Access package sync scheduled daily at midnight");

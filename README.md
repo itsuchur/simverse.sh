@@ -1,7 +1,7 @@
 # Simverse
 
 Travel eSIM store as a Telegram Mini App. Users sign in with Telegram, browse
-packages synced hourly from eSIM Access into Redis, and buy data for their trips.
+packages synced daily from eSIM Access into Redis, and buy data for their trips.
 
 This document is the production deploy runbook for `compose.prod.yaml`. Run all
 commands from the clone directory that contains that file.
@@ -10,7 +10,7 @@ commands from the clone directory that contains that file.
 
 - **`app`** — Next.js standalone on port 3000, attached to the host Traefik network `traefik-public`
 - **`strapi`** — CMS admin/API on port 1337 at `cms.simverse.sh`
-- **`poller`** — hourly eSIM Access catalog sync into Redis
+- **`poller`** — daily midnight eSIM Access catalog sync into Redis
 - **`mcp`** — FastMCP HTTP on port 4000 (`internal` + `egress` only; other containers use `http://mcp:4000`)
 - **Postgres 18** — databases `app` and `strapi`
 - **Redis 8** — RedisJSON catalog documents, RediSearch, carts (`redis:8` loads modules via its entrypoint)
@@ -160,7 +160,7 @@ docker compose -f compose.prod.yaml logs -f poller
 ```
 
 - Open `https://dashboard.simverse.sh`, `https://miniapp.simverse.sh`, `https://blog.simverse.sh`, and `https://cms.simverse.sh/admin`.
-- Poller logs a catalog sync on start, then hourly (`[cron] synced … packages to RedisJSON catalog generation …`).
+- Poller logs a catalog sync on start, then daily at midnight (`[cron] synced … packages to RedisJSON catalog generation …`).
 - Sign in at `https://dashboard.simverse.sh` as `support@simverse.sh`.
 
 Webhook log table (skip `headers`; they can include the Telegram secret):
