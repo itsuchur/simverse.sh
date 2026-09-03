@@ -9,8 +9,9 @@ import {
 } from "~/server/suppliers/esimaccess/packages";
 
 describe("retailPriceToUsd", () => {
-  test("floors fractional dollars", () => {
-    expect(retailPriceToUsd(98_100)).toBe(9);
+  test("ceils fractional dollars", () => {
+    expect(retailPriceToUsd(17_800)).toBe(2);
+    expect(retailPriceToUsd(21_200)).toBe(3);
   });
 
   test("keeps exact dollars", () => {
@@ -23,8 +24,8 @@ describe("retailPriceToUsd", () => {
 });
 
 describe("retailPriceToRub", () => {
-  test("floors instead of rounding to nearest", () => {
-    expect(retailPriceToRub(ESIMACCESS_PRICE_SCALE, 9.6)).toBe(9);
+  test("ceils instead of rounding down", () => {
+    expect(retailPriceToRub(ESIMACCESS_PRICE_SCALE, 9.6)).toBe(10);
   });
 
   test("never goes below 1", () => {
@@ -33,8 +34,8 @@ describe("retailPriceToRub", () => {
 });
 
 describe("retailPriceToStars", () => {
-  test("still ceils from unfloored USD", () => {
-    const retailPrice = 98_100;
+  test("still ceils from unrounded USD", () => {
+    const retailPrice = 17_800;
     expect(retailPriceToStars(retailPrice)).toBe(
       usdToStars(retailPrice / ESIMACCESS_PRICE_SCALE),
     );

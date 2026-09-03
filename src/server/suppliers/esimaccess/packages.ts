@@ -156,19 +156,19 @@ export async function fetchUsdRubRate() {
   return { rate: payload.rate, date: payload.date };
 }
 
-/** retailPrice is USD with scale 10000 = $1; returns whole dollars, floored, at least 1. */
+/** retailPrice is USD with scale 10000 = $1; returns whole dollars, ceiled, at least 1. */
 export function retailPriceToUsd(retailPrice: number): number {
-  return Math.max(1, Math.floor(retailPrice / ESIMACCESS_PRICE_SCALE));
+  return Math.max(1, Math.ceil(retailPrice / ESIMACCESS_PRICE_SCALE));
 }
 
-/** retailPrice is USD with scale 10000 = $1; returns whole rubles, floored, at least 1. */
+/** retailPrice is USD with scale 10000 = $1; returns whole rubles, ceiled, at least 1. */
 export function retailPriceToRub(
   retailPrice: number,
   usdRubRate: number,
 ): number {
   return Math.max(
     1,
-    Math.floor((retailPrice / ESIMACCESS_PRICE_SCALE) * usdRubRate),
+    Math.ceil((retailPrice / ESIMACCESS_PRICE_SCALE) * usdRubRate),
   );
 }
 
