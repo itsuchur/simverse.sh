@@ -23,6 +23,7 @@ export type FakeOrder = {
   costAmount: bigint;
   costCurrency: string;
   paymentProvider: string;
+  buyerIp: string | null;
   paymentInvoiceUrl: string | null;
   paymentStatus: string;
   paymentChargeId: string | null;
@@ -114,6 +115,7 @@ function orderDefaults(): Omit<
     costAmount: 500n,
     costCurrency: "USD",
     paymentProvider: "trybit",
+    buyerIp: null,
     paymentInvoiceUrl: null,
     paymentStatus: "pending",
     paymentChargeId: null,

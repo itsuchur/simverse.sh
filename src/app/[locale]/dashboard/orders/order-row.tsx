@@ -15,6 +15,7 @@ export type OrderRecord = {
   orderUuid: string;
   userId: string;
   initDataHash: string | null;
+  buyerIp: string | null;
   resellerCode: string;
   resellerPlanId: string;
   resellerOrderId: string | null;
@@ -55,6 +56,7 @@ const ORDER_FIELDS: {
   { column: "order_uuid", value: (order) => order.orderUuid },
   { column: "user_id", value: (order) => order.userId },
   { column: "init_data_hash", value: (order) => order.initDataHash },
+  { column: "buyer_ip", value: (order) => order.buyerIp },
   { column: "reseller_code", value: (order) => order.resellerCode },
   { column: "reseller_plan_id", value: (order) => order.resellerPlanId },
   { column: "reseller_order_id", value: (order) => order.resellerOrderId },

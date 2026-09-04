@@ -26,6 +26,7 @@ function toOrderRecord(order: {
   orderUuid: string;
   userId: string;
   initDataHash: string | null;
+  buyerIp: string | null;
   resellerCode: string;
   resellerPlanId: string;
   resellerOrderId: string | null;
@@ -62,6 +63,7 @@ function toOrderRecord(order: {
     orderUuid: order.orderUuid,
     userId: order.userId,
     initDataHash: order.initDataHash,
+    buyerIp: order.buyerIp,
     resellerCode: order.resellerCode,
     resellerPlanId: order.resellerPlanId,
     resellerOrderId: order.resellerOrderId,
@@ -121,6 +123,7 @@ export default async function DashboardOrdersPage() {
               <th className="px-5 py-3.5 font-medium">ID</th>
               <th className="px-5 py-3.5 font-medium">Created</th>
               <th className="px-5 py-3.5 font-medium">User</th>
+              <th className="px-5 py-3.5 font-medium">IP</th>
               <th className="px-5 py-3.5 font-medium">Package</th>
               <th className="px-5 py-3.5 font-medium">Package code</th>
               <th className="px-5 py-3.5 font-medium">Country</th>
@@ -133,7 +136,7 @@ export default async function DashboardOrdersPage() {
           <tbody>
             {orders.length === 0 ? (
               <tr>
-                <td className="text-muted-foreground px-5 py-8" colSpan={10}>
+                <td className="text-muted-foreground px-5 py-8" colSpan={11}>
                   No orders yet.
                 </td>
               </tr>
@@ -154,6 +157,9 @@ export default async function DashboardOrdersPage() {
                     <div className="text-muted-foreground text-sm">
                       {order.user.email}
                     </div>
+                  </td>
+                  <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
+                    {order.buyerIp ?? "—"}
                   </td>
                   <td className="border-border min-w-48 border-t px-5 py-3.5">
                     {order.packageName}

@@ -61,6 +61,21 @@ describe("findOrCreatePendingOrder", () => {
     expect(stale.paymentStatus).toBe("failed");
     expect(stale.failureReason).toBe("expired");
   });
+
+  test("stores buyer IP on create and keeps it when reusing", async () => {
+    const first = await findOrCreatePendingOrder({
+      ...DRAFT,
+      buyerIp: "203.0.113.10",
+    });
+    const second = await findOrCreatePendingOrder({
+      ...DRAFT,
+      buyerIp: "198.51.100.20",
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(first.buyerIp).toBe("203.0.113.10");
+    expect(second.buyerIp).toBe("203.0.113.10");
+  });
 });
 
 describe("attachInvoiceUrl", () => {

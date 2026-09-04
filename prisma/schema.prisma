@@ -114,6 +114,8 @@ model Order {
   userId       String  @map("user_id")
   user         User    @relation(fields: [userId], references: [id], onDelete: Restrict)
   initDataHash String? @map("init_data_hash")
+  /// Client IP at draft creation (Cloudflare / Traefik headers).
+  buyerIp      String? @map("buyer_ip")
 
   resellerCode    String  @map("reseller_code")
   resellerPlanId  String  @map("reseller_plan_id")

@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
 import { auth } from "~/server/better-auth";
+import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { getCartPlan } from "~/server/cart";
 import { CARDLINK_PAYMENT_PROVIDER } from "~/lib/order-status";
 import { env } from "~/env";
@@ -108,6 +109,7 @@ export async function POST(request: Request) {
     costAmount: BigInt(Math.round(plan.cost)),
     costCurrency: "USD",
     paymentProvider: CARDLINK_PAYMENT_PROVIDER,
+    buyerIp: clientIpFromHeaders(request.headers),
   });
   if (order.paymentInvoiceUrl) {
     return Response.json({ invoiceUrl: order.paymentInvoiceUrl });

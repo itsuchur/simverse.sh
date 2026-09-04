@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "~/server/better-auth";
+import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { getCartPlan } from "~/server/cart";
 import { TRYBIT_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
     costAmount: BigInt(Math.round(plan.cost)),
     costCurrency: "USD",
     paymentProvider: TRYBIT_PAYMENT_PROVIDER,
+    buyerIp: clientIpFromHeaders(request.headers),
   });
   if (order.paymentInvoiceUrl) {
     return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
