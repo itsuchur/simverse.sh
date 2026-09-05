@@ -154,10 +154,10 @@ export async function clearCartIfRevisionMatches(
   telegramId: string,
   revision: string | null,
 ) {
+  // Orders/checkouts created before revision tracking must never delete a cart
+  // that may have been replaced since that invoice was opened.
   if (!revision) {
-    // Legacy orders created before cart revisions existed retain the old behavior.
-    await clearCart(telegramId);
-    return true;
+    return false;
   }
 
   const redis = await getRedis();
