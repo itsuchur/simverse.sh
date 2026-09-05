@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "~/server/better-auth";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
-import { getCartPlan } from "~/server/cart";
+import { getCartSnapshot } from "~/server/cart";
 import { STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
   attachInvoiceUrl,
@@ -39,10 +39,11 @@ export async function POST(request: Request) {
     return forbidden();
   }
 
-  const plan = await getCartPlan(telegramId);
-  if (!plan) {
+  const cart = await getCartSnapshot(telegramId);
+  if (!cart) {
     return Response.json({ error: "empty" }, { status: 404 });
   }
+  const { plan, revision: cartRevision } = cart;
 
   const stars = Math.round(plan.price_stars);
   if (!Number.isFinite(stars) || stars < 1) {
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
     costCurrency: "USD",
     paymentProvider: STARS_PAYMENT_PROVIDER,
     buyerIp: clientIpFromHeaders(request.headers),
+    cartRevision,
   });
   if (order.paymentInvoiceUrl) {
     return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
