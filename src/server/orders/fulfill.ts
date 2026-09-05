@@ -2,7 +2,7 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 
-import { clearCart } from "~/server/cart";
+import { clearCartIfRevisionMatches } from "~/server/cart";
 import { db, isUniqueConstraintError } from "~/server/db";
 import {
   orderEsimAccessPackage,
@@ -452,7 +452,7 @@ async function fulfillPayment(input: {
       currency: order.currency,
     });
     if (typeof telegramId === "string" && telegramId.length > 0) {
-      await clearCart(telegramId);
+      await clearCartIfRevisionMatches(telegramId, paid.cartRevision);
     }
     await continueFulfillment(paid, input.provider);
   } catch (error) {

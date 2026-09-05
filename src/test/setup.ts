@@ -48,6 +48,10 @@ void mock.module("../lib/posthog/server", () => ({
 
 void mock.module("../server/cart", () => ({
   clearCart,
+  clearCartIfRevisionMatches: async (
+    telegramId: string,
+    _revision: string | null,
+  ) => clearCart(telegramId),
 }));
 
 void mock.module("../server/suppliers/esimaccess/client", () => ({

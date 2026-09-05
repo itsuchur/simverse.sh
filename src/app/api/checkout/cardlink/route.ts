@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { auth } from "~/server/better-auth";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
-import { getCartPlan } from "~/server/cart";
+import { getCartSnapshot } from "~/server/cart";
 import { CARDLINK_PAYMENT_PROVIDER } from "~/lib/order-status";
 import { env } from "~/env";
 import {
@@ -54,10 +54,11 @@ export async function POST(request: Request) {
     return unavailable();
   }
 
-  const plan = await getCartPlan(telegramId);
-  if (!plan) {
+  const cart = await getCartSnapshot(telegramId);
+  if (!cart) {
     return Response.json({ error: "empty" }, { status: 404 });
   }
+  const { plan, revision: cartRevision } = cart;
 
   let locale: "en" | "ru" = "en";
   try {
@@ -110,6 +111,7 @@ export async function POST(request: Request) {
     costCurrency: "USD",
     paymentProvider: CARDLINK_PAYMENT_PROVIDER,
     buyerIp: clientIpFromHeaders(request.headers),
+    cartRevision,
   });
   if (order.paymentInvoiceUrl) {
     return Response.json({ invoiceUrl: order.paymentInvoiceUrl });

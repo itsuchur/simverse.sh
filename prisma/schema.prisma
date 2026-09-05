@@ -76,16 +76,16 @@ model Account {
   id                    String    @id
   accountId             String
   providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken            String?
+  refreshToken           String?
+  idToken                String?
+  accessTokenExpiresAt   DateTime?
+  refreshTokenExpiresAt  DateTime?
+  scope                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   /// Mirror of initData user.id on the Telegram provider account
   telegramId       String?
@@ -108,12 +108,14 @@ model Verification {
 
 /// Purchase / eSIM fulfillment order (snake_case columns in Postgres).
 model Order {
-  id       BigInt @id @default(autoincrement())
+  id        BigInt @id @default(autoincrement())
   orderUuid String @default(dbgenerated("gen_random_uuid()")) @map("order_uuid") @db.Uuid
 
   userId       String  @map("user_id")
   user         User    @relation(fields: [userId], references: [id], onDelete: Restrict)
   initDataHash String? @map("init_data_hash")
+  /// Revision of the user-global Redis cart used to create this checkout.
+  cartRevision String? @map("cart_revision") @db.Uuid
   /// Client IP at draft creation (Cloudflare / Traefik headers).
   buyerIp      String? @map("buyer_ip")
 
@@ -142,13 +144,13 @@ model Order {
   status        String  @default("created")
   failureReason String? @map("failure_reason")
 
-  esimIccid           String? @map("esim_iccid")
-  esimStatus          String? @map("esim_status")
-  esimSmdpStatus      String? @map("esim_smdp_status")
-  esimActivationCode  String? @map("esim_activation_code")
-  esimQrUrl           String? @map("esim_qr_url")
-  esimSmdpAddress     String? @map("esim_smdp_address")
-  resellerRawResponse Json?   @map("reseller_raw_response") @db.JsonB
+  esimIccid          String? @map("esim_iccid")
+  esimStatus         String? @map("esim_status")
+  esimSmdpStatus     String? @map("esim_smdp_status")
+  esimActivationCode String? @map("esim_activation_code")
+  esimQrUrl          String? @map("esim_qr_url")
+  esimSmdpAddress    String? @map("esim_smdp_address")
+  resellerRawResponse Json?  @map("reseller_raw_response") @db.JsonB
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   paidAt    DateTime? @map("paid_at") @db.Timestamptz(6)

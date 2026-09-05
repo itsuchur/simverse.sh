@@ -23,6 +23,7 @@ export type PendingOrderDraft = {
   costCurrency: string;
   paymentProvider: string;
   buyerIp?: string | null;
+  cartRevision?: string | null;
 };
 
 function pendingDraftWhere(data: PendingOrderDraft) {
@@ -66,6 +67,7 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
         costCurrency: data.costCurrency,
         paymentProvider: data.paymentProvider,
         buyerIp: data.buyerIp ?? null,
+        cartRevision: data.cartRevision ?? null,
         paymentStatus: paymentStatus.pending,
         status: orderStatus.created,
       },
