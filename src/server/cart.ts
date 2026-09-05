@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { cartPlanSchema, type CartPlan } from "~/lib/cart-plan";
 import { getRedis } from "~/server/redis";
 import {
@@ -11,6 +13,11 @@ import {
 } from "~/server/suppliers/esimaccess/packages";
 
 export const CART_TTL_SECONDS = 86_400;
+
+type StoredCart = {
+  revision: string;
+  plan: CartPlan;
+};
 
 export class UnknownPackageError extends Error {
   constructor() {
@@ -101,13 +108,39 @@ export function cartPlanFromPackage(
   });
 }
 
+function parseStoredCart(value: unknown): {
+  plan: CartPlan;
+  revision: string | null;
+} | null {
+  if (
+    value &&
+    typeof value === "object" &&
+    "revision" in value &&
+    "plan" in value
+  ) {
+    const stored = value as { revision?: unknown; plan?: unknown };
+    const parsed = cartPlanSchema.safeParse(stored.plan);
+    if (
+      parsed.success &&
+      typeof stored.revision === "string" &&
+      stored.revision.length > 0
+    ) {
+      return { plan: parsed.data, revision: stored.revision };
+    }
+  }
+
+  // Backward compatibility for carts written before revision tracking.
+  const legacy = cartPlanSchema.safeParse(value);
+  return legacy.success ? { plan: legacy.data, revision: null } : null;
+}
+
 export async function replaceCartPlan(telegramId: string, plan: CartPlan) {
   const redis = await getRedis();
   const key = cartKey(telegramId);
+  const stored: StoredCart = { revision: randomUUID(), plan };
   await redis
     .multi()
-    .del(key)
-    .json.set(key, "$", plan)
+    .json.set(key, "$", stored)
     .expire(key, CART_TTL_SECONDS)
     .exec();
 }
@@ -117,16 +150,49 @@ export async function clearCart(telegramId: string) {
   await redis.del(cartKey(telegramId));
 }
 
-export async function getCartPlan(
+export async function clearCartIfRevisionMatches(
   telegramId: string,
-): Promise<CartPlan | null> {
+  revision: string | null,
+) {
+  if (!revision) {
+    // Legacy orders created before cart revisions existed retain the old behavior.
+    await clearCart(telegramId);
+    return true;
+  }
+
+  const redis = await getRedis();
+  const result = await redis.eval(
+    `
+      local raw = redis.call('JSON.GET', KEYS[1])
+      if not raw then
+        return 0
+      end
+      local cart = cjson.decode(raw)
+      if cart.revision ~= ARGV[1] then
+        return 0
+      end
+      return redis.call('DEL', KEYS[1])
+    `,
+    { keys: [cartKey(telegramId)], arguments: [revision] },
+  );
+  return Number(result) > 0;
+}
+
+export async function getCartSnapshot(
+  telegramId: string,
+): Promise<{ plan: CartPlan; revision: string | null } | null> {
   const redis = await getRedis();
   const value = await redis.json.get(cartKey(telegramId));
   if (value === null) {
     return null;
   }
-  const parsed = cartPlanSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+  return parseStoredCart(value);
+}
+
+export async function getCartPlan(
+  telegramId: string,
+): Promise<CartPlan | null> {
+  return (await getCartSnapshot(telegramId))?.plan ?? null;
 }
 
 export async function cartPlanForPackageCode(
