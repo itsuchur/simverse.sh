@@ -5,14 +5,13 @@ import {
   FileText,
   MessageCircle,
   RotateCcw,
-  Settings,
   Shield,
 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Acknowledgments } from "./acknowledgments";
 import { DeleteAccount } from "./delete-account";
-import { LocaleSwitcher } from "../_components/locale-switcher";
+import { Preferences } from "./preferences";
 import { ProfileOptionCard, type ProfileOption } from "./profile-option-card";
 import { TransactionHistory, type HistoryOrder } from "./transaction-history";
 import {
@@ -72,11 +71,6 @@ export default async function AppProfile() {
     purchasedAt: (row.paidAt ?? row.createdAt).toISOString(),
   }));
 
-  const preferenceOption: ProfileOption = {
-    label: t("preferences"),
-    icon: Settings,
-  };
-
   const helpOption: ProfileOption = {
     label: t("help"),
     icon: CircleHelp,
@@ -134,9 +128,7 @@ export default async function AppProfile() {
         </CardHeader>
       </Card>
 
-      <LocaleSwitcher />
-
-      <ProfileOptionCard option={preferenceOption} />
+      <Preferences />
       <TransactionHistory orders={orders} />
       <ProfileOptionCard option={helpOption} />
       {legalOptions.map((option) => (
