@@ -17,9 +17,20 @@ describe("isEsimLifecycleStatus", () => {
 });
 
 describe("esimStatusBadge", () => {
-  test("SM-DP DELETED and DISABLED take precedence over lifecycle", () => {
+  test("SM-DP DELETED and DISABLED take precedence over a still-usable lifecycle", () => {
     expect(esimStatusBadge("IN_USE", "DELETED")?.text).toBe("DELETED");
     expect(esimStatusBadge("IN_USE", "DISABLED")?.text).toBe("DISABLED");
+    expect(esimStatusBadge("NOT_ACTIVE", "DISABLED")?.text).toBe("DISABLED");
+  });
+
+  test("terminal lifecycle beats SM-DP DISABLED", () => {
+    expect(esimStatusBadge("USED_EXPIRED", "DISABLED")).toEqual({
+      text: "EXPIRED",
+      className: "bg-red-800 text-white",
+    });
+    expect(esimStatusBadge("UNUSED_EXPIRED", "DISABLED")?.text).toBe("EXPIRED");
+    expect(esimStatusBadge("USED_UP", "DISABLED")?.text).toBe("USED_UP");
+    expect(esimStatusBadge("REVOKED", "DISABLED")?.text).toBe("REVOKED");
   });
 
   test("lifecycle badge wins over other SM-DP statuses", () => {

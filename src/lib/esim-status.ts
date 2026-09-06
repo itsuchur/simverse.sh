@@ -9,6 +9,15 @@ export const ESIM_LIFECYCLE_STATUSES = new Set([
   "SUSPENDED",
 ]);
 
+/** Terminal supplier statuses that should beat a device-level DISABLED flag. */
+const TERMINAL_LIFECYCLE_STATUSES = new Set([
+  "USED_EXPIRED",
+  "UNUSED_EXPIRED",
+  "USED_UP",
+  "CANCEL",
+  "REVOKED",
+]);
+
 export function isEsimLifecycleStatus(value: string): boolean {
   return ESIM_LIFECYCLE_STATUSES.has(value);
 }
@@ -18,13 +27,16 @@ type StatusBadge = { text: string; className: string };
 const AMBER = "bg-amber-200";
 const GREEN = "bg-green-200";
 const RED = "bg-red-200";
+const DARK_RED = "bg-red-800 text-white";
 
 const LIFECYCLE_BADGES: Record<string, StatusBadge> = {
   NOT_ACTIVE: { text: "NOT ACTIVATED", className: AMBER },
   IN_USE: { text: "IN USE", className: GREEN },
-  USED_EXPIRED: { text: "USED_EXPIRED", className: RED },
-  UNUSED_EXPIRED: { text: "UNUSED_EXPIRED", className: RED },
-  USED_UP: { text: "USED_UP", className: RED },
+  USED_EXPIRED: { text: "EXPIRED", className: DARK_RED },
+  UNUSED_EXPIRED: { text: "EXPIRED", className: DARK_RED },
+  USED_UP: { text: "USED_UP", className: DARK_RED },
+  CANCEL: { text: "CANCELLED", className: DARK_RED },
+  REVOKED: { text: "REVOKED", className: DARK_RED },
 };
 
 const SMDP_BADGES: Record<string, StatusBadge> = {
@@ -39,6 +51,14 @@ export function esimStatusBadge(
   esimStatus: string | null,
   smdpStatus: string | null,
 ): StatusBadge | null {
+  if (esimStatus && TERMINAL_LIFECYCLE_STATUSES.has(esimStatus)) {
+    return (
+      LIFECYCLE_BADGES[esimStatus] ?? {
+        text: esimStatus,
+        className: DARK_RED,
+      }
+    );
+  }
   if (smdpStatus === "DELETED" || smdpStatus === "DISABLED") {
     return SMDP_BADGES[smdpStatus] ?? null;
   }
