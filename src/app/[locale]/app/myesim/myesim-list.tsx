@@ -185,7 +185,6 @@ export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
           <CardDescription className="text-base">
             {t("description")}
           </CardDescription>
@@ -196,7 +195,6 @@ export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {orders.map((order) => (
         <OrderCard key={order.orderUuid} order={order} platform={platform} />
       ))}
