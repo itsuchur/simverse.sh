@@ -4,6 +4,7 @@ import { ChevronRight, Heart } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { OverlayBackToAppButton } from "./overlay-back-to-app";
 import { Card, CardTitle } from "~/components/ui/card";
 import {
   Dialog,
@@ -147,8 +148,12 @@ export function Acknowledgments() {
           />
         </div>
       </DialogTrigger>
-      <DialogContent className="data-open:zoom-in-100 data-closed:zoom-out-100 bg-background inset-0 top-0 left-0 flex h-[var(--tg-viewport-stable-height,100dvh)] max-h-[var(--tg-viewport-stable-height,100dvh)] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 ring-0 sm:max-w-none">
-        <DialogHeader className="shrink-0 px-14 pt-[max(1rem,calc(var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px))+var(--tg-content-safe-area-inset-top,0px)))] pb-3">
+      <DialogContent
+        showCloseButton={false}
+        className="data-open:zoom-in-100 data-closed:zoom-out-100 bg-background inset-0 top-0 left-0 flex h-[var(--tg-viewport-stable-height,100dvh)] max-h-[var(--tg-viewport-stable-height,100dvh)] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 ring-0 sm:max-w-none"
+      >
+        <OverlayBackToAppButton />
+        <DialogHeader className="shrink-0 px-4 pt-[max(6rem,calc(var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px))+var(--tg-content-safe-area-inset-top,0px)+3.5rem))] pb-3">
           <DialogTitle className="text-center text-xl leading-snug">
             {t("acknowledgments")}
           </DialogTitle>

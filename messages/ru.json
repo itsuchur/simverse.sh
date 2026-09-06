@@ -105,6 +105,7 @@
     "signedInWithTelegram": "Вход через Telegram",
     "premium": "Premium",
     "preferences": "Настройки",
+    "backToApp": "НАЗАД",
     "transactionHistory": "История транзакций",
     "transactionHistoryEmpty": "Покупок пока нет.",
     "starsAmount": "{amount} Stars",
