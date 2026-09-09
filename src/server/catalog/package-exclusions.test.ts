@@ -47,8 +47,8 @@ describe("package code exclusions", () => {
     ];
 
     expect(filterExcludedPackages(packages, new Set(["PKG-2"]))).toEqual([
-      packages[0],
-      packages[2],
+      { packageCode: "PKG-1", name: "One" },
+      { packageCode: "PKG-3", name: "Three" },
     ]);
   });
 
