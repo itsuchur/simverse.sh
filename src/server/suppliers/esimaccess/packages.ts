@@ -2,6 +2,11 @@ import "server-only";
 
 import { usdToStars } from "~/lib/usd-to-stars";
 import {
+  filterExcludedPackages,
+  getExcludedPackageCodes,
+  isPackageCodeExcluded,
+} from "~/server/catalog/package-exclusions";
+import {
   readCatalogMeta,
   readCatalogPackage,
   readCatalogPackages,
@@ -237,22 +242,27 @@ export async function writeEsimAccessCatalog(
 }
 
 export async function getCachedEsimAccessPackages(): Promise<CachedEsimAccessPackages | null> {
-  const [meta, packageList] = await Promise.all([
+  const [meta, packageList, excludedCodes] = await Promise.all([
     readCatalogMeta<EsimAccessCatalogMeta>(ESIMACCESS_SUPPLIER),
     readCatalogPackages<EsimAccessPackage>(ESIMACCESS_SUPPLIER),
+    getExcludedPackageCodes(ESIMACCESS_SUPPLIER),
   ]);
   if (!meta) {
     return null;
   }
-  return { ...meta, packageList };
+  return {
+    ...meta,
+    packageList: filterExcludedPackages(packageList, excludedCodes),
+  };
 }
 
 export async function getEsimAccessPackageByCode(packageCode: string) {
-  const [meta, pkg] = await Promise.all([
+  const [meta, pkg, excluded] = await Promise.all([
     readCatalogMeta<EsimAccessCatalogMeta>(ESIMACCESS_SUPPLIER),
     readCatalogPackage<EsimAccessPackage>(ESIMACCESS_SUPPLIER, packageCode),
+    isPackageCodeExcluded(ESIMACCESS_SUPPLIER, packageCode),
   ]);
-  if (!meta || !pkg) {
+  if (!meta || !pkg || excluded) {
     return null;
   }
   return { meta, pkg };

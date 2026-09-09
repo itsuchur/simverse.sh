@@ -6,6 +6,14 @@
 
 export type FakeUser = { id: string; telegramId: string | null };
 
+export type FakeExcludedPackageCode = {
+  id: bigint;
+  resellerCode: string;
+  packageCode: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type FakeOrder = {
   id: bigint;
   orderUuid: string;
@@ -137,17 +145,21 @@ function orderDefaults(): Omit<
 
 class FakeDb {
   private orders: FakeOrder[] = [];
+  private excludedPackageCodes: FakeExcludedPackageCode[] = [];
   private users = new Map<string, FakeUser>();
   private nextOrderId = 1n;
+  private nextExcludedPackageCodeId = 1n;
 
   webhookLogs: Array<{ source: string; headers: unknown; payload?: unknown }> =
     [];
 
   reset() {
     this.orders = [];
+    this.excludedPackageCodes = [];
     this.users.clear();
     this.webhookLogs = [];
     this.nextOrderId = 1n;
+    this.nextExcludedPackageCodeId = 1n;
   }
 
   seedUser(user: { id: string; telegramId?: string | null }): FakeUser {
@@ -293,6 +305,82 @@ class FakeDb {
         this.applyData(record, args.data ?? {});
       }
       return { count: matches.length };
+    },
+  };
+
+  excludedPackageCode = {
+    findMany: async (args: {
+      where: { resellerCode: string };
+      select?: { packageCode?: boolean };
+    }) => {
+      const rows = this.excludedPackageCodes.filter(
+        (row) => row.resellerCode === args.where.resellerCode,
+      );
+      if (args.select?.packageCode) {
+        return rows.map(({ packageCode }) => ({ packageCode }));
+      }
+      return rows;
+    },
+    findUnique: async (args: {
+      where: {
+        resellerCode_packageCode: {
+          resellerCode: string;
+          packageCode: string;
+        };
+      };
+      select?: { id?: boolean };
+    }) => {
+      const key = args.where.resellerCode_packageCode;
+      const row =
+        this.excludedPackageCodes.find(
+          (candidate) =>
+            candidate.resellerCode === key.resellerCode &&
+            candidate.packageCode === key.packageCode,
+        ) ?? null;
+      if (row && args.select?.id) {
+        return { id: row.id };
+      }
+      return row;
+    },
+    upsert: async (args: {
+      where: {
+        resellerCode_packageCode: {
+          resellerCode: string;
+          packageCode: string;
+        };
+      };
+      create: { resellerCode: string; packageCode: string };
+      update: Record<string, never>;
+    }) => {
+      const key = args.where.resellerCode_packageCode;
+      const existing = this.excludedPackageCodes.find(
+        (candidate) =>
+          candidate.resellerCode === key.resellerCode &&
+          candidate.packageCode === key.packageCode,
+      );
+      if (existing) {
+        return existing;
+      }
+      const now = new Date();
+      const row: FakeExcludedPackageCode = {
+        id: this.nextExcludedPackageCodeId++,
+        ...args.create,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.excludedPackageCodes.push(row);
+      return row;
+    },
+    deleteMany: async (args: {
+      where: { resellerCode: string; packageCode: string };
+    }) => {
+      const previousLength = this.excludedPackageCodes.length;
+      this.excludedPackageCodes = this.excludedPackageCodes.filter(
+        (row) =>
+          row.resellerCode !== args.where.resellerCode ||
+          row.packageCode !== args.where.packageCode,
+      );
+      return { count: previousLength - this.excludedPackageCodes.length };
     },
   };
 

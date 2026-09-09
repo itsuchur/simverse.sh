@@ -4,7 +4,9 @@ import {
   searchEsimAccessPackageCodes,
   type EsimAccessPackage,
 } from "~/server/suppliers/esimaccess/packages";
+import { getExcludedPackageCodes } from "~/server/catalog/package-exclusions";
 
+import { PackageExclusionButton } from "./package-exclusion-button";
 import { PackagePagination } from "./pagination";
 import {
   isPackageProvider,
@@ -88,7 +90,11 @@ export default async function DashboardPackagesPage({
   const query = parseQuery(params.q);
   const requestedPage = parsePage(params.page);
 
-  const cached = await getCachedEsimAccessPackages();
+  const [cached, excludedCodeSet] = await Promise.all([
+    getCachedEsimAccessPackages(),
+    getExcludedPackageCodes(provider),
+  ]);
+  const excludedCodes = [...excludedCodeSet].sort((a, b) => a.localeCompare(b));
 
   let packages: EsimAccessPackage[] = cached?.packageList ?? [];
   if (query) {
@@ -118,8 +124,8 @@ export default async function DashboardPackagesPage({
         <h1 className="text-3xl font-semibold tracking-tight">Packages</h1>
         {cached ? (
           <p className="text-muted-foreground text-sm">
-            Last sync {formatSyncedAt(cached.syncedAt)} · {cached.count} in
-            catalog
+            Last sync {formatSyncedAt(cached.syncedAt)} ·{" "}
+            {cached.packageList.length} active · {excludedCodes.length} excluded
             {query ? ` · ${total} match${total === 1 ? "" : "es"}` : null}
           </p>
         ) : (
@@ -131,6 +137,35 @@ export default async function DashboardPackagesPage({
       <div className="flex items-start gap-6">
         <PackageProviderTabs provider={provider} query={query} />
         <div className="min-w-0 flex-1 space-y-4">
+          <section className="ring-foreground/10 rounded-xl p-5 ring-1">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Excluded package codes</h2>
+              <p className="text-muted-foreground text-sm">
+                Excluded packages are blocked immediately and omitted from
+                future catalog syncs.
+              </p>
+            </div>
+            {excludedCodes.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No package codes are excluded.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {excludedCodes.map((packageCode) => (
+                  <div
+                    key={packageCode}
+                    className="bg-muted flex items-center gap-3 rounded-lg px-3 py-2"
+                  >
+                    <code className="text-sm">{packageCode}</code>
+                    <PackageExclusionButton
+                      packageCode={packageCode}
+                      excluded
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
           <PackageSearchForm provider={provider} query={query} />
           <div className="ring-foreground/10 overflow-x-auto rounded-xl ring-1">
             <table className="w-max min-w-full border-separate border-spacing-0 text-left text-base">
@@ -145,12 +180,16 @@ export default async function DashboardPackagesPage({
                   <th className="px-5 py-3.5 font-medium">Retail</th>
                   <th className="px-5 py-3.5 font-medium">RUB</th>
                   <th className="px-5 py-3.5 font-medium">Stars</th>
+                  <th className="px-5 py-3.5 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pagePackages.length === 0 ? (
                   <tr>
-                    <td className="text-muted-foreground px-5 py-8" colSpan={9}>
+                    <td
+                      className="text-muted-foreground px-5 py-8"
+                      colSpan={10}
+                    >
                       {emptyMessage}
                     </td>
                   </tr>
@@ -188,6 +227,9 @@ export default async function DashboardPackagesPage({
                       </td>
                       <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
                         {pkg.priceStars ?? "—"}
+                      </td>
+                      <td className="border-border border-t px-5 py-3.5">
+                        <PackageExclusionButton packageCode={pkg.packageCode} />
                       </td>
                     </tr>
                   ))

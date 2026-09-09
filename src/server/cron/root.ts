@@ -1,7 +1,12 @@
 import { Cron } from "croner";
 
+import {
+  filterExcludedPackages,
+  getExcludedPackageCodes,
+} from "~/server/catalog/package-exclusions";
 import { withRussianNames } from "~/server/suppliers/esimaccess/localize";
 import {
+  ESIMACCESS_SUPPLIER,
   fetchEsimAccessPackages,
   fetchUsdRubRate,
   withPriceRub,
@@ -10,11 +15,13 @@ import {
 import { preferCatalogPackages } from "~/server/suppliers/esimaccess/prefer-packages";
 
 async function syncEsimAccessPackages() {
-  const [packages, fx] = await Promise.all([
+  const [packages, fx, excludedCodes] = await Promise.all([
     fetchEsimAccessPackages(),
     fetchUsdRubRate(),
+    getExcludedPackageCodes(ESIMACCESS_SUPPLIER),
   ]);
-  const preferred = preferCatalogPackages(packages);
+  const included = filterExcludedPackages(packages, excludedCodes);
+  const preferred = preferCatalogPackages(included);
   const packageList = await withRussianNames(withPriceRub(preferred, fx.rate));
 
   const generation = await writeEsimAccessCatalog(
@@ -28,7 +35,7 @@ async function syncEsimAccessPackages() {
   );
 
   console.log(
-    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (USD/RUB ${fx.rate})`,
+    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (${excludedCodes.size} excluded, USD/RUB ${fx.rate})`,
   );
 }
 

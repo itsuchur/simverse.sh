@@ -3,8 +3,10 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { cartPlanSchema, type CartPlan } from "~/lib/cart-plan";
+import { isPackageCodeExcluded } from "~/server/catalog/package-exclusions";
 import { getRedis } from "~/server/redis";
 import {
+  ESIMACCESS_SUPPLIER,
   getEsimAccessPackageByCode,
   retailPriceToRub,
   retailPriceToStars,
@@ -186,7 +188,14 @@ export async function getCartSnapshot(
   if (value === null) {
     return null;
   }
-  return parseStoredCart(value);
+  const cart = parseStoredCart(value);
+  if (
+    !cart ||
+    (await isPackageCodeExcluded(ESIMACCESS_SUPPLIER, cart.plan.packageCode))
+  ) {
+    return null;
+  }
+  return cart;
 }
 
 export async function getCartPlan(

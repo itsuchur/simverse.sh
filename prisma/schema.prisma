@@ -28,25 +28,25 @@ model User {
   updatedAt     DateTime @default(now()) @updatedAt
 
   /// initData user.id
-  telegramId       String? @unique
+  telegramId          String?   @unique
   /// initData user.username
-  telegramUsername String?
+  telegramUsername    String?
   /// Reserved by better-auth-telegram schema (OIDC); not present in Mini App initData
   telegramPhoneNumber String?
   /// initData user.language_code
-  languageCode     String?
+  languageCode        String?
   /// initData user.is_premium
-  isPremium        Boolean @default(false)
+  isPremium           Boolean   @default(false)
   /// initData user.allows_write_to_pm
-  allowsWriteToPm  Boolean @default(false)
+  allowsWriteToPm     Boolean   @default(false)
   /// First FingerprintJS visitorId collected in the Mini App
-  fingerprint      String?
+  fingerprint         String?
   /// When true, the user cannot add to cart or start checkout
-  isBanned         Boolean @default(false)
+  isBanned            Boolean   @default(false)
   /// Soft delete: user requested account deletion; data purged within a month
-  isDeleted        Boolean @default(false)
+  isDeleted           Boolean   @default(false)
   /// When the user requested account deletion
-  deletedAt        DateTime?
+  deletedAt           DateTime?
 
   sessions Session[]
   accounts Account[]
@@ -76,16 +76,16 @@ model Account {
   id                    String    @id
   accountId             String
   providerId            String
-  userId                 String
-  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken            String?
-  refreshToken           String?
-  idToken                String?
-  accessTokenExpiresAt   DateTime?
-  refreshTokenExpiresAt  DateTime?
-  scope                   String?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   /// Mirror of initData user.id on the Telegram provider account
   telegramId       String?
@@ -144,13 +144,13 @@ model Order {
   status        String  @default("created")
   failureReason String? @map("failure_reason")
 
-  esimIccid          String? @map("esim_iccid")
-  esimStatus         String? @map("esim_status")
-  esimSmdpStatus     String? @map("esim_smdp_status")
-  esimActivationCode String? @map("esim_activation_code")
-  esimQrUrl          String? @map("esim_qr_url")
-  esimSmdpAddress    String? @map("esim_smdp_address")
-  resellerRawResponse Json?  @map("reseller_raw_response") @db.JsonB
+  esimIccid           String? @map("esim_iccid")
+  esimStatus          String? @map("esim_status")
+  esimSmdpStatus      String? @map("esim_smdp_status")
+  esimActivationCode  String? @map("esim_activation_code")
+  esimQrUrl           String? @map("esim_qr_url")
+  esimSmdpAddress     String? @map("esim_smdp_address")
+  resellerRawResponse Json?   @map("reseller_raw_response") @db.JsonB
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   paidAt    DateTime? @map("paid_at") @db.Timestamptz(6)
@@ -183,4 +183,17 @@ model WebhookLog {
   @@index([source], map: "idx_webhook_logs_source")
   /// GIN index `idx_webhook_logs_payload` is defined in the migration SQL.
   @@map("webhook_logs")
+}
+
+/// Dashboard-managed package codes omitted from supplier catalog syncs.
+model ExcludedPackageCode {
+  id           BigInt   @id @default(autoincrement())
+  resellerCode String   @map("reseller_code")
+  packageCode  String   @map("package_code")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([resellerCode, packageCode], map: "uq_excluded_package_codes_reseller_package")
+  @@index([resellerCode], map: "idx_excluded_package_codes_reseller_code")
+  @@map("excluded_package_codes")
 }
