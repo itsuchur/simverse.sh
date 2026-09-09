@@ -104,21 +104,23 @@ export default async function AppProfile() {
   return (
     <main className="space-y-3 pt-2">
       <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
+        <CardHeader className="min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
             {user.image ? (
               <img
                 src={user.image}
                 alt=""
-                className="border-border size-12 rounded-full border object-cover"
+                className="border-border size-12 shrink-0 rounded-full border object-cover"
               />
             ) : (
-              <div className="bg-muted flex size-12 items-center justify-center rounded-full text-lg font-medium">
+              <div className="bg-muted flex size-12 shrink-0 items-center justify-center rounded-full text-lg font-medium">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             )}
-            <div>
-              <CardTitle>{user.name}</CardTitle>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="truncate" title={user.name}>
+                {user.name}
+              </CardTitle>
               <CardDescription>
                 {t("signedInWithTelegram")}
                 {user.isPremium ? ` · ${t("premium")}` : ""}

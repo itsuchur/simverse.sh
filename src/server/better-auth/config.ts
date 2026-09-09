@@ -7,6 +7,12 @@ import { telegram } from "better-auth-telegram";
 import { env } from "~/env";
 import { isAllowedAuthEmail } from "~/server/dashboard/emails";
 import { db } from "~/server/db";
+import {
+  InvalidTelegramIdError,
+  sanitizeAccountForPersist,
+  sanitizeMiniAppMappedUser,
+  sanitizeUserForPersist,
+} from "~/server/telegram/sanitize-mini-app-user";
 import { dashboardOrigin, FALLBACK_ORIGIN, miniappOrigin } from "~/server/urls";
 
 export const auth = betterAuth({
@@ -56,6 +62,36 @@ export const auth = betterAuth({
             throw new APIError("FORBIDDEN", {
               message: "This account is not allowed to sign in.",
             });
+          }
+          try {
+            return {
+              data: sanitizeUserForPersist(user),
+            };
+          } catch (error) {
+            if (error instanceof InvalidTelegramIdError) {
+              throw new APIError("BAD_REQUEST", {
+                message: "Invalid Telegram user id.",
+              });
+            }
+            throw error;
+          }
+        },
+      },
+    },
+    account: {
+      create: {
+        before: async (account) => {
+          try {
+            return {
+              data: sanitizeAccountForPersist(account),
+            };
+          } catch (error) {
+            if (error instanceof InvalidTelegramIdError) {
+              throw new APIError("BAD_REQUEST", {
+                message: "Invalid Telegram user id.",
+              });
+            }
+            throw error;
           }
         },
       },
@@ -107,17 +143,18 @@ export const auth = betterAuth({
         enabled: true,
         validateInitData: true,
         allowAutoSignin: true,
-        mapMiniAppDataToUser: (user) => ({
-          name: user.last_name
-            ? `${user.first_name} ${user.last_name}`
-            : user.first_name,
-          image: user.photo_url,
-          // Better Auth requires email; Telegram Mini App initData does not provide one.
-          email: `${user.id}@telegram.local`,
-          languageCode: user.language_code,
-          isPremium: user.is_premium ?? false,
-          allowsWriteToPm: user.allows_write_to_pm ?? false,
-        }),
+        mapMiniAppDataToUser: (user) => {
+          try {
+            return sanitizeMiniAppMappedUser(user);
+          } catch (error) {
+            if (error instanceof InvalidTelegramIdError) {
+              throw new APIError("BAD_REQUEST", {
+                message: "Invalid Telegram user id.",
+              });
+            }
+            throw error;
+          }
+        },
       },
     }),
     nextCookies(),
