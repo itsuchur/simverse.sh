@@ -21,48 +21,34 @@ async function checkoutHeaders() {
   return headers;
 }
 
-async function requestInvoice(path: string) {
-  const response = await fetch(path, {
-    method: "POST",
-    credentials: "include",
-    headers: await checkoutHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error("invoice_http");
+async function requestInvoice(
+  path: string,
+  cartRevision: string,
+  locale: string,
+) {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const response = await fetch(path, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        ...(await checkoutHeaders()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ cartRevision, locale }),
+    });
+    const body = (await response.json()) as {
+      invoiceUrl?: string;
+      error?: string;
+    };
+    if (body.error === "invoice_in_progress") {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      continue;
+    }
+    if (!response.ok || !body.invoiceUrl)
+      throw new Error(body.error ?? "invoice_http");
+    return body.invoiceUrl;
   }
-  const body = (await response.json()) as { invoiceUrl?: string };
-  if (!body.invoiceUrl) {
-    throw new Error("invoice_missing");
-  }
-  return body.invoiceUrl;
-}
-
-async function requestStarsInvoice() {
-  return requestInvoice("/api/checkout/stars");
-}
-
-async function requestTrybitInvoice() {
-  return requestInvoice("/api/checkout/trybit");
-}
-
-async function requestCardlinkInvoice(locale: string) {
-  const response = await fetch("/api/checkout/cardlink", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      ...(await checkoutHeaders()),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ locale }),
-  });
-  if (!response.ok) {
-    throw new Error("invoice_http");
-  }
-  const body = (await response.json()) as { invoiceUrl?: string };
-  if (!body.invoiceUrl) {
-    throw new Error("invoice_missing");
-  }
-  return body.invoiceUrl;
+  throw new Error("invoice_in_progress");
 }
 
 function formatDataGb(dataGb: number) {
@@ -136,7 +122,13 @@ function DestinationHeader({
   );
 }
 
-export function CheckoutView({ plan }: { plan: CartPlan }) {
+export function CheckoutView({
+  plan,
+  cartRevision,
+}: {
+  plan: CartPlan;
+  cartRevision: string;
+}) {
   const t = useTranslations("Checkout");
   const tCatalog = useTranslations("Catalog");
   const format = useFormatter();
@@ -251,7 +243,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
               method: "stars",
               packageCode: plan.packageCode,
             });
-            void requestStarsInvoice()
+            void requestInvoice("/api/checkout/stars", cartRevision, locale)
               .then((url) => {
                 captureAppEvent("checkout_invoice_opened", {
                   method: "stars",
@@ -278,7 +270,13 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
                   method: "stars",
                   packageCode: plan.packageCode,
                 });
-                setPayError(t("payFailed"));
+                setPayError(
+                  error instanceof Error && error.message === "cart_changed"
+                    ? t("cartChanged")
+                    : t("payFailed"),
+                );
+                if (error instanceof Error && error.message === "cart_changed")
+                  router.refresh();
               })
               .finally(() => {
                 setPaying(false);
@@ -301,7 +299,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
               method: "cardlink",
               packageCode: plan.packageCode,
             });
-            void requestCardlinkInvoice(locale)
+            void requestInvoice("/api/checkout/cardlink", cartRevision, locale)
               .then((url) => {
                 captureAppEvent("checkout_invoice_opened", {
                   method: "cardlink",
@@ -315,7 +313,13 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
                   method: "cardlink",
                   packageCode: plan.packageCode,
                 });
-                setPayError(t("payFailed"));
+                setPayError(
+                  error instanceof Error && error.message === "cart_changed"
+                    ? t("cartChanged")
+                    : t("payFailed"),
+                );
+                if (error instanceof Error && error.message === "cart_changed")
+                  router.refresh();
                 setPaying(false);
               });
           }}
@@ -336,7 +340,7 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
               method: "trybit",
               packageCode: plan.packageCode,
             });
-            void requestTrybitInvoice()
+            void requestInvoice("/api/checkout/trybit", cartRevision, locale)
               .then((url) => {
                 captureAppEvent("checkout_invoice_opened", {
                   method: "trybit",
@@ -350,7 +354,13 @@ export function CheckoutView({ plan }: { plan: CartPlan }) {
                   method: "trybit",
                   packageCode: plan.packageCode,
                 });
-                setPayError(t("payFailed"));
+                setPayError(
+                  error instanceof Error && error.message === "cart_changed"
+                    ? t("cartChanged")
+                    : t("payFailed"),
+                );
+                if (error instanceof Error && error.message === "cart_changed")
+                  router.refresh();
                 setPaying(false);
               });
           }}

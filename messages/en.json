@@ -59,6 +59,7 @@
     "planSummary": "{data} · {duration}"
   },
   "Checkout": {
+    "cartChanged": "Your cart changed. Review the updated plan before paying.",
     "title": "Checkout",
     "loading": "Loading your plan…",
     "unavailable": "This plan is temporarily unavailable. Taking you back to the catalog.",
@@ -83,6 +84,8 @@
   },
 
   "MyEsims": {
+    "awaitingPayment": "Waiting for payment confirmation…",
+    "reversed": "This payment was reversed.",
     "title": "My eSIMs",
     "description": "Your installed and purchased eSIMs will appear here.",
     "preparing": "Preparing your eSIM…",

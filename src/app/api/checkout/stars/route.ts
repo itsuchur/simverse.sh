@@ -1,3 +1,7 @@
+import {
+  checkoutRequestSchema,
+  invoiceResponse,
+} from "~/server/orders/checkout";
 import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "~/server/better-auth";
@@ -5,8 +9,7 @@ import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { getCartSnapshot } from "~/server/cart";
 import { STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
-  attachInvoiceUrl,
-  failPendingInvoice,
+  createPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
@@ -39,11 +42,20 @@ export async function POST(request: Request) {
     return forbidden();
   }
 
+  const body = checkoutRequestSchema.safeParse(
+    await request.json().catch(() => null),
+  );
+  if (!body.success)
+    return Response.json({ error: "invalid_checkout" }, { status: 400 });
+
   const cart = await getCartSnapshot(telegramId);
   if (!cart) {
     return Response.json({ error: "empty" }, { status: 404 });
   }
   const { plan, revision: cartRevision } = cart;
+  if (cartRevision !== body.data.cartRevision) {
+    return Response.json({ error: "cart_changed" }, { status: 409 });
+  }
 
   const stars = Math.round(plan.price_stars);
   if (!Number.isFinite(stars) || stars < 1) {
@@ -86,26 +98,25 @@ export async function POST(request: Request) {
     cartRevision,
   });
   if (order.paymentInvoiceUrl) {
-    return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
+    return invoiceResponse(order.orderUuid, order.paymentInvoiceUrl);
   }
 
   try {
-    const invoiceUrl = await createInvoiceLink({
-      title: plan.name,
-      description: `${plan.name} · ${plan.validity_days}d`,
-      payload: order.orderUuid,
-      amountStars: stars,
-      label: plan.name,
-    });
-    return Response.json({
-      invoiceUrl: await attachInvoiceUrl(order.id, invoiceUrl),
-    });
+    const invoiceUrl = await createPendingInvoice(order.id, () =>
+      createInvoiceLink({
+        title: plan.name,
+        description: `${plan.name} · ${plan.validity_days}d`,
+        payload: order.orderUuid,
+        amountStars: stars,
+        label: plan.name,
+      }),
+    );
+    return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {
     Sentry.captureException(error, {
       tags: { component: "telegram", reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
-    await failPendingInvoice(order.id, "invoice_failed");
     return unavailable();
   }
 }

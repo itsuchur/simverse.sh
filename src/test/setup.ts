@@ -11,6 +11,7 @@ import { fakeDb, isUniqueConstraintError } from "./fake-db";
 import {
   captureServerEvent,
   clearCart,
+  getCartSnapshot,
   esimAccessPost,
   sentryCaptureException,
   sentryCaptureMessage,
@@ -48,6 +49,7 @@ void mock.module("../lib/posthog/server", () => ({
 
 void mock.module("../server/cart", () => ({
   clearCart,
+  getCartSnapshot,
   clearCartIfRevisionMatches: async (
     telegramId: string,
     _revision: string | null,

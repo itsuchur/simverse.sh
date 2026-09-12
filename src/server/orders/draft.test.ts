@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import {
-  attachInvoiceUrl,
+  createPendingInvoice,
+  failPendingInvoice,
   DRAFT_TTL_MS,
   findOrCreatePendingOrder,
   type PendingOrderDraft,
@@ -78,17 +79,72 @@ describe("findOrCreatePendingOrder", () => {
   });
 });
 
-describe("attachInvoiceUrl", () => {
-  test("first invoice wins; later ones return the stored link", async () => {
-    const order = fakeDb.seedOrder({});
+describe("createPendingInvoice", () => {
+  test("only one concurrent request calls the provider", async () => {
+    const order = fakeDb.seedOrder();
+    let finish!: (url: string) => void;
+    let started!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const first = createPendingInvoice(order.id, () => {
+      started();
+      return new Promise<string>((resolve) => {
+        finish = resolve;
+      });
+    });
+    await entered;
+    const second = await createPendingInvoice(order.id, async () => {
+      throw new Error("must not call provider");
+    });
+    expect(second).toBeNull();
+    finish("https://pay.example/a");
+    expect(await first).toBe("https://pay.example/a");
+    expect(
+      await createPendingInvoice(order.id, async () => {
+        throw new Error("must reuse");
+      }),
+    ).toBe("https://pay.example/a");
+    expect(order.paymentStatus).toBe("pending");
+  });
 
-    const [a, b] = await Promise.all([
-      attachInvoiceUrl(order.id, "https://pay.example/a"),
-      attachInvoiceUrl(order.id, "https://pay.example/b"),
-    ]);
+  test("a failed owning request closes its draft", async () => {
+    const order = fakeDb.seedOrder();
+    expect(
+      await createPendingInvoice(order.id, async () => {
+        throw new Error("provider timeout");
+      }).catch((error: unknown) => error),
+    ).toEqual(new Error("provider timeout"));
+    expect(order.paymentStatus).toBe("failed");
+    expect(
+      await createPendingInvoice(order.id, async () => "unreachable").catch(
+        (error: unknown) => error,
+      ),
+    ).toEqual(new Error("invoice_closed"));
+  });
 
-    expect(a).toBe("https://pay.example/a");
-    expect(b).toBe("https://pay.example/a");
-    expect(order.paymentInvoiceUrl).toBe("https://pay.example/a");
+  test("an expired claim cannot publish a late invoice", async () => {
+    const order = fakeDb.seedOrder();
+    expect(
+      await createPendingInvoice(order.id, async () => {
+        await failPendingInvoice(order.id, "expired");
+        return "https://pay.example/late";
+      }).catch((error: unknown) => error),
+    ).toEqual(new Error("invoice_closed"));
+    expect(order.paymentInvoiceUrl).toBeNull();
+  });
+
+  test("a replaced cart does not reuse the old cart revision", async () => {
+    const first = await findOrCreatePendingOrder({
+      ...DRAFT,
+      cartRevision: crypto.randomUUID(),
+    });
+    const revision = crypto.randomUUID();
+    const next = await findOrCreatePendingOrder({
+      ...DRAFT,
+      cartRevision: revision,
+    });
+    expect(next.id).not.toBe(first.id);
+    expect(next.cartRevision).toBe(revision);
   });
 });

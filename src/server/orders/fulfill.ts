@@ -1,5 +1,7 @@
 import "server-only";
 
+import { hasEsimCredentials } from "~/lib/esim-provisioning";
+
 import * as Sentry from "@sentry/nextjs";
 
 import { clearCartIfRevisionMatches } from "~/server/cart";
@@ -46,6 +48,7 @@ const ISSUABLE_ORDER_STATUSES: string[] = [
   orderStatus.paid,
   orderStatus.ordering,
   orderStatus.failed,
+  orderStatus.issued,
 ];
 
 type OrderRow = {
@@ -56,6 +59,8 @@ type OrderRow = {
   resellerOrderId: string | null;
   status: string;
   esimIccid: string | null;
+  esimActivationCode?: string | null;
+  esimSmdpAddress?: string | null;
 };
 
 async function applyProfile(
@@ -63,9 +68,23 @@ async function applyProfile(
   profile: EsimAccessProfile,
   extra?: { resellerOrderId?: string },
 ) {
+  if (
+    !hasEsimCredentials({
+      esimIccid: profile.iccid,
+      esimActivationCode: profile.ac,
+      esimSmdpAddress: profile.smdpAddress,
+    })
+  )
+    return;
   const result = await db.order.updateMany({
     where: {
       id: orderId,
+      OR: [
+        { status: { not: orderStatus.issued } },
+        { esimActivationCode: null },
+        { esimIccid: null },
+        { esimSmdpAddress: null },
+      ],
       status: { in: ISSUABLE_ORDER_STATUSES },
       paymentStatus: paymentStatus.paid,
     },
@@ -144,7 +163,7 @@ function alertSecondCharge(input: {
 }
 
 export async function syncEsimProfile(order: OrderRow) {
-  if (order.status === orderStatus.issued && order.esimIccid) {
+  if (order.status === orderStatus.issued && hasEsimCredentials(order)) {
     return;
   }
   if (!order.resellerOrderId) {
@@ -181,7 +200,7 @@ async function claimSupplierOrder(orderId: bigint): Promise<boolean> {
     where: {
       id: orderId,
       resellerOrderId: null,
-      status: orderStatus.ordering,
+      status: { in: [orderStatus.ordering, orderStatus.failed] },
       paymentStatus: paymentStatus.paid,
       updatedAt: { lt: staleBefore },
     },
@@ -209,6 +228,9 @@ export async function placeSupplierOrder(order: OrderRow) {
   }
 
   try {
+    // Supplier contract: duplicate transactionId is the same request, including
+    // retries after a timeout. Never generate another ID for this paid order.
+    // https://docs.esimaccess.com/ (Order Profiles)
     const result = await orderEsimAccessPackage({
       transactionId: order.orderUuid,
       packageCode: order.resellerPlanId,
@@ -359,6 +381,7 @@ async function fulfillPayment(input: {
     input.chargeId,
   );
   if (alreadyCharged) {
+    if (alreadyCharged.paymentStatus !== paymentStatus.paid) return;
     await continueFulfillment(alreadyCharged, input.provider);
     return;
   }
@@ -452,7 +475,13 @@ async function fulfillPayment(input: {
       currency: order.currency,
     });
     if (typeof telegramId === "string" && telegramId.length > 0) {
-      await clearCartIfRevisionMatches(telegramId, paid.cartRevision);
+      try {
+        await clearCartIfRevisionMatches(telegramId, paid.cartRevision);
+      } catch (error) {
+        Sentry.captureException(error, {
+          tags: { component: "cart", reason: "clear_failed" },
+        });
+      }
     }
     await continueFulfillment(paid, input.provider);
   } catch (error) {
@@ -626,7 +655,15 @@ export async function markCardlinkRefunded(input: {
       paymentProvider: CARDLINK_PAYMENT_PROVIDER,
       currency: input.currency.toUpperCase(),
       OR: [
-        { paymentStatus: paymentStatus.paid },
+        {
+          paymentStatus: {
+            in: [
+              paymentStatus.pending,
+              paymentStatus.failed,
+              paymentStatus.paid,
+            ],
+          },
+        },
         {
           paymentStatus: paymentStatus.refunded,
           paymentRefundId: input.refundId,
@@ -650,8 +687,16 @@ export async function markCardlinkChargeback(input: {
       orderUuid: input.orderUuid,
       paymentProvider: CARDLINK_PAYMENT_PROVIDER,
       OR: [
-        { paymentStatus: paymentStatus.paid },
-        { paymentStatus: paymentStatus.refunded },
+        {
+          paymentStatus: {
+            in: [
+              paymentStatus.pending,
+              paymentStatus.failed,
+              paymentStatus.paid,
+              paymentStatus.refunded,
+            ],
+          },
+        },
         {
           paymentStatus: paymentStatus.chargeback,
           paymentChargebackId: input.chargebackId,
@@ -665,29 +710,45 @@ export async function markCardlinkChargeback(input: {
   });
 }
 
-export async function syncPendingProfilesForUser(userId: string) {
+/** Runs from both the delivery page and the durable cron worker. */
+export async function recoverPendingOrders(userId?: string) {
   const pending = await db.order.findMany({
     where: {
-      userId,
-      esimIccid: null,
-      status: { in: [orderStatus.paid, orderStatus.ordering] },
+      ...(userId ? { userId } : {}),
+      paymentStatus: paymentStatus.paid,
+      OR: [
+        { status: { not: orderStatus.issued } },
+        { esimIccid: null },
+        { esimActivationCode: null },
+        { esimSmdpAddress: null },
+      ],
     },
+    orderBy: { updatedAt: "asc" },
+    take: 100,
   });
-
   for (const order of pending) {
-    if (order.resellerOrderId) {
-      try {
-        await syncEsimProfile(order);
-      } catch (error) {
-        Sentry.captureException(error, {
-          tags: { component: "esimaccess", reason: "query_failed" },
-          extra: { orderUuid: order.orderUuid },
+    try {
+      await placeSupplierOrder(order);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { component: "esimaccess", reason: "recovery_failed" },
+        extra: { orderUuid: order.orderUuid },
+      });
+    } finally {
+      // Rotate pending profile queries through the worker batch. Do not extend
+      // an in-flight supplier-order claim that has no supplier ID yet.
+      if (order.resellerOrderId) {
+        await db.order.updateMany({
+          where: { id: order.id },
+          data: { updatedAt: new Date() },
         });
       }
-    } else if (order.paymentStatus === paymentStatus.paid) {
-      await placeSupplierOrder(order);
     }
   }
+}
+
+export async function syncPendingProfilesForUser(userId: string) {
+  await recoverPendingOrders(userId);
 }
 
 export async function findOrderForResource(input: {
@@ -726,7 +787,7 @@ export async function attachGotResource(input: {
   if (!order) {
     return;
   }
-  if (order.status === orderStatus.issued && order.esimIccid) {
+  if (order.status === orderStatus.issued && hasEsimCredentials(order)) {
     return;
   }
 
@@ -747,11 +808,8 @@ export async function attachGotResource(input: {
     });
   }
 
-  await syncEsimProfile({
-    ...order,
-    resellerOrderId,
-    status: order.resellerOrderId ? order.status : orderStatus.ordering,
-  });
+  const current = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+  await syncEsimProfile(current);
 }
 
 export async function applyEsimStatus(input: {

@@ -1,3 +1,4 @@
+import { recoverPendingOrders } from "~/server/orders/fulfill";
 import { Cron } from "croner";
 
 import {
@@ -55,3 +56,13 @@ new Cron("0 0 * * *", { protect: true }, () => {
 void runSync();
 
 console.log("[cron] eSIM Access package sync scheduled daily at midnight");
+
+async function recoverOrders() {
+  try {
+    await recoverPendingOrders();
+  } catch (error) {
+    console.error("[cron] order recovery failed", error);
+  }
+}
+new Cron("* * * * *", { protect: true }, recoverOrders);
+void recoverOrders();

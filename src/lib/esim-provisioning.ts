@@ -34,3 +34,17 @@ export function esimProvisioningUrl(
   const host = os === "apple" ? "esimsetup.apple.com" : "esimsetup.android.com";
   return `https://${host}/esim_qrcode_provisioning?carddata=${encodeURIComponent(cardData)}`;
 }
+
+export function hasEsimCredentials(order: {
+  esimIccid: string | null;
+  esimActivationCode?: string | null;
+  esimSmdpAddress?: string | null;
+}) {
+  return Boolean(
+    order.esimIccid &&
+    lpaCardData(
+      order.esimSmdpAddress ?? null,
+      order.esimActivationCode ?? null,
+    ),
+  );
+}

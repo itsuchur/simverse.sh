@@ -1,3 +1,4 @@
+import type { CartPlan } from "~/lib/cart-plan";
 /**
  * Shared spies installed by setup.ts in place of side-effectful modules
  * (Sentry, PostHog, Redis cart, eSIM Access HTTP client). Test files import
@@ -27,6 +28,12 @@ export const captureServerEvent = mock(
 export function capturedEvents(): string[] {
   return captureServerEvent.mock.calls.map((call) => call[0].event);
 }
+
+export const getCartSnapshot = mock(
+  async (
+    _telegramId: string,
+  ): Promise<{ plan: CartPlan; revision: string } | null> => null,
+);
 
 export const clearCart = mock(async (_telegramId: string) => undefined);
 
@@ -100,6 +107,9 @@ export function resetTestState() {
   sentryCaptureException.mockClear();
   captureServerEvent.mockClear();
   clearCart.mockClear();
+  clearCart.mockImplementation(async () => undefined);
+  getCartSnapshot.mockReset();
+  getCartSnapshot.mockImplementation(async () => null);
   esimAccessPost.mockClear();
   esimAccessPost.mockImplementation(defaultEsimAccessImpl);
 }

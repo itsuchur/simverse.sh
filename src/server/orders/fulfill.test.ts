@@ -10,6 +10,7 @@ import {
   markCardlinkChargeback,
   markCardlinkRefunded,
   placeSupplierOrder,
+  recoverPendingOrders,
   syncPendingProfilesForUser,
 } from "~/server/orders/fulfill";
 import { fakeDb } from "~/test/fake-db";
@@ -606,4 +607,127 @@ describe("applyEsimStatus", () => {
       smdpStatus: null,
     });
   });
+});
+
+describe("checkout recovery regressions", () => {
+  test("a timed-out purchase retries the same transaction after cooldown", async () => {
+    const order = fakeDb.seedOrder({ paymentStatus: "paid", status: "paid" });
+    esimAccessPost.mockImplementation(async () => {
+      throw new Error("timeout");
+    });
+    await placeSupplierOrder(order);
+    expect(order.status).toBe("failed");
+    await recoverPendingOrders();
+    expect(esimOrderCallCount()).toBe(1);
+    order.updatedAt = new Date(Date.now() - 6 * 60_000);
+    stubEsimAccess({ orderNo: "EA-RECOVERED", profiles: [PROFILE] });
+    await recoverPendingOrders();
+    expect(order.status).toBe("issued");
+    const purchases = esimAccessPost.mock.calls.filter(
+      ([path]) => path === "/esim/order",
+    );
+    expect(purchases).toHaveLength(2);
+    expect(purchases[0]?.[1]).toEqual(purchases[1]?.[1]);
+  });
+
+  test("concurrent recovery workers claim one supplier purchase", async () => {
+    fakeDb.seedOrder({
+      paymentStatus: "paid",
+      status: "failed",
+      updatedAt: new Date(0),
+    });
+    stubEsimAccess({ profiles: [PROFILE] });
+    await Promise.all([recoverPendingOrders(), recoverPendingOrders()]);
+    expect(esimOrderCallCount()).toBe(1);
+  });
+
+  test("a lifecycle ICCID cannot prevent credentials from being fetched", async () => {
+    const order = fakeDb.seedOrder({
+      paymentStatus: "paid",
+      status: "ordering",
+      resellerOrderId: "EA-1",
+    });
+    await applyEsimStatus({
+      iccid: PROFILE.iccid,
+      orderNo: "EA-1",
+      transactionId: null,
+      esimStatus: "NOT_ACTIVE",
+      smdpStatus: null,
+    });
+    stubEsimAccess({ profiles: [PROFILE] });
+    await recoverPendingOrders();
+    expect(order.esimActivationCode).toBe(PROFILE.ac);
+    expect(order.status).toBe("issued");
+  });
+
+  test("an ICCID-only query stays pending until installation credentials arrive", async () => {
+    const order = fakeDb.seedOrder({
+      paymentStatus: "paid",
+      status: "ordering",
+      resellerOrderId: "EA-1",
+    });
+    stubEsimAccess({ profiles: [{ iccid: PROFILE.iccid }] });
+    await recoverPendingOrders();
+    expect(order.status).toBe("ordering");
+    expect(order.issuedAt).toBeNull();
+    stubEsimAccess({ profiles: [PROFILE] });
+    await recoverPendingOrders();
+    expect(order.status).toBe("issued");
+  });
+
+  test("repairs previously issued rows that have no credentials", async () => {
+    const order = fakeDb.seedOrder({
+      paymentStatus: "paid",
+      status: "issued",
+      resellerOrderId: "EA-1",
+      esimIccid: PROFILE.iccid,
+    });
+    stubEsimAccess({ profiles: [PROFILE] });
+    await recoverPendingOrders();
+    expect(order.esimActivationCode).toBe(PROFILE.ac);
+  });
+
+  for (const kind of ["refund", "chargeback"] as const) {
+    test(`${kind} before payment confirmation blocks fulfillment`, async () => {
+      const order = fakeDb.seedOrder({ paymentProvider: "cardlink" });
+      if (kind === "refund")
+        await markCardlinkRefunded({
+          orderUuid: order.orderUuid,
+          refundId: "REF-1",
+          amount: "10.99",
+          currency: "USD",
+        });
+      else
+        await markCardlinkChargeback({
+          orderUuid: order.orderUuid,
+          chargebackId: "CB-1",
+        });
+      await fulfillCardlinkPayment({
+        orderUuid: order.orderUuid,
+        billId: "BILL-1",
+        amount: "10.99",
+        currency: "USD",
+      });
+      await recoverPendingOrders();
+      expect(order.paymentStatus).toBe(
+        kind === "refund" ? "refunded" : "chargeback",
+      );
+      expect(esimOrderCallCount()).toBe(0);
+    });
+  }
+});
+
+test("Redis cart cleanup failure does not interrupt a confirmed payment", async () => {
+  const order = seedStarsOrder();
+  clearCart.mockRejectedValueOnce(new Error("Redis unavailable"));
+  stubEsimAccess({ profiles: [PROFILE] });
+  await fulfillStarsPayment({
+    orderUuid: order.orderUuid,
+    telegramPaymentChargeId: "charge-redis",
+    telegramId: "42",
+    totalAmount: 370,
+    currency: "XTR",
+  });
+  expect(order.status).toBe("issued");
+  expect(esimOrderCallCount()).toBe(1);
 });

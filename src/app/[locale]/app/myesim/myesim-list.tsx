@@ -13,9 +13,10 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { useRouter } from "~/i18n/navigation";
-import { lpaCardData } from "~/lib/esim-provisioning";
+import { hasEsimCredentials, lpaCardData } from "~/lib/esim-provisioning";
 import { esimStatusBadge } from "~/lib/esim-status";
-import { orderStatus } from "~/lib/order-status";
+import { needsDeliveryRefresh } from "~/lib/order-delivery";
+import { orderStatus, paymentStatus } from "~/lib/order-status";
 import {
   detectEsimInstallPlatform,
   type EsimInstallPlatform,
@@ -30,6 +31,7 @@ export type MyEsimOrder = {
   dataAmountMb: number | null;
   validityDays: number;
   status: string;
+  paymentStatus: string;
   failureReason: string | null;
   esimIccid: string | null;
   esimStatus: string | null;
@@ -58,20 +60,6 @@ function countryDisplayName(countryCode: string, locale: string) {
   } catch {
     return countryCode;
   }
-}
-
-function isPreparing(order: MyEsimOrder) {
-  if (order.esimIccid || order.status === orderStatus.failed) {
-    return false;
-  }
-  if (
-    order.status !== orderStatus.paid &&
-    order.status !== orderStatus.ordering
-  ) {
-    return false;
-  }
-  const age = Date.now() - new Date(order.createdAt).getTime();
-  return age < 15 * 60 * 1000;
 }
 
 function OrderCard({
@@ -128,9 +116,17 @@ function OrderCard({
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {order.status === orderStatus.failed ? (
+        {order.paymentStatus === paymentStatus.refunded ||
+        order.paymentStatus === paymentStatus.chargeback ? (
+          <p className="text-muted-foreground text-base">{t("reversed")}</p>
+        ) : order.paymentStatus === paymentStatus.pending ? (
+          <p className="text-muted-foreground text-base">
+            {t("awaitingPayment")}
+          </p>
+        ) : order.status === orderStatus.failed &&
+          order.paymentStatus !== paymentStatus.paid ? (
           <p className="text-destructive text-base">{t("failed")}</p>
-        ) : order.esimIccid ? (
+        ) : hasEsimCredentials(order) ? (
           <>
             {order.esimQrUrl ? (
               // Supplier QR URLs are short-lived HTTPS assets.
@@ -164,7 +160,7 @@ function subscribeNever() {
 export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
   const t = useTranslations("MyEsims");
   const router = useRouter();
-  const preparing = orders.some(isPreparing);
+  const preparing = orders.some(needsDeliveryRefresh);
   // Platform never changes during a session; the store only exists to read it
   // client-side (null during SSR/hydration).
   const platform = useSyncExternalStore<EsimInstallPlatform | null>(

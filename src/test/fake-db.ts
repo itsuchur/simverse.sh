@@ -33,6 +33,8 @@ export type FakeOrder = {
   paymentProvider: string;
   buyerIp: string | null;
   paymentInvoiceUrl: string | null;
+  paymentInvoiceClaim: string | null;
+  cartRevision: string | null;
   paymentStatus: string;
   paymentChargeId: string | null;
   paymentRefundId: string | null;
@@ -125,6 +127,8 @@ function orderDefaults(): Omit<
     paymentProvider: "trybit",
     buyerIp: null,
     paymentInvoiceUrl: null,
+    paymentInvoiceClaim: null,
+    cartRevision: null,
     paymentStatus: "pending",
     paymentChargeId: null,
     paymentRefundId: null,
@@ -216,7 +220,7 @@ class FakeDb {
 
   private withInclude(record: FakeOrder, args: OrderQueryArgs) {
     if (!args.include?.user) {
-      return record;
+      return { ...record };
     }
     return {
       ...record,
@@ -288,7 +292,9 @@ class FakeDb {
       return first ? this.withInclude(first, args) : null;
     },
     findMany: async (args: OrderQueryArgs) =>
-      this.orders.filter((order) => matchWhere(order, args.where)),
+      this.orders
+        .filter((order) => matchWhere(order, args.where))
+        .map((order) => ({ ...order })),
     update: async (args: OrderQueryArgs) => {
       const record = this.findByUniqueWhere(args.where);
       if (!record) {

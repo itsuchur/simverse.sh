@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { z } from "zod";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
@@ -15,10 +17,17 @@ export default async function AppMyESIms() {
 
   await syncPendingProfilesForUser(session.user.id);
 
+  const tracked = z
+    .string()
+    .uuid()
+    .safeParse((await cookies()).get("checkout_order")?.value);
   const rows = await db.order.findMany({
     where: {
       userId: session.user.id,
-      paymentStatus: paymentStatus.paid,
+      OR: [
+        { paymentStatus: paymentStatus.paid },
+        ...(tracked.success ? [{ orderUuid: tracked.data }] : []),
+      ],
     },
     orderBy: { createdAt: "desc" },
   });
@@ -30,6 +39,7 @@ export default async function AppMyESIms() {
     dataAmountMb: row.dataAmountMb,
     validityDays: row.validityDays,
     status: row.status,
+    paymentStatus: row.paymentStatus,
     failureReason: row.failureReason,
     esimIccid: row.esimIccid,
     esimStatus: row.esimStatus,

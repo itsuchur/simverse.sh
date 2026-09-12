@@ -5,7 +5,7 @@ import { CheckoutView } from "./checkout-view";
 import { buttonVariants } from "~/components/ui/button";
 import { Link, redirect } from "~/i18n/navigation";
 import { getSession } from "~/server/better-auth/server";
-import { getCartPlan } from "~/server/cart";
+import { getCartSnapshot } from "~/server/cart";
 import { miniappPathForRequest } from "~/server/miniapp-path";
 import { isSalesActive } from "~/server/sales";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
@@ -40,12 +40,13 @@ export default async function CheckoutPage() {
   }
 
   const telegramId = session.user.telegramId;
-  const plan =
+  const cart =
     typeof telegramId === "string" && telegramId.length > 0
-      ? await getCartPlan(telegramId)
+      ? await getCartSnapshot(telegramId)
       : null;
 
-  if (!plan) {
+  const plan = cart?.plan;
+  if (!plan || !cart?.revision) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 py-24 text-center">
         <p className="text-base leading-7">{t("empty")}</p>
@@ -92,7 +93,7 @@ export default async function CheckoutPage() {
   }
 
   if (hasBalance) {
-    return <CheckoutView plan={plan} />;
+    return <CheckoutView plan={plan} cartRevision={cart.revision} />;
   }
 
   redirect({ href: await miniappPathForRequest("/"), locale });

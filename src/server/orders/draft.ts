@@ -45,7 +45,10 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
     orderBy: { createdAt: "desc" },
   });
   if (existing) {
-    if (Date.now() - existing.createdAt.getTime() <= DRAFT_TTL_MS) {
+    if (
+      existing.cartRevision === (data.cartRevision ?? null) &&
+      Date.now() - existing.createdAt.getTime() <= DRAFT_TTL_MS
+    ) {
       return existing;
     }
     await failPendingInvoice(existing.id, "expired");
@@ -80,30 +83,72 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
       where,
       orderBy: { createdAt: "desc" },
     });
-    if (!raced) {
+    if (raced?.cartRevision !== (data.cartRevision ?? null)) {
       throw error;
     }
     return raced;
   }
 }
 
-/**
- * Stores the provider checkout link on the draft. Concurrent checkouts may
- * each mint an invoice; only the first is kept and handed out, so the user is
- * never shown two payable links for the same order.
- */
-export async function attachInvoiceUrl(orderId: bigint, url: string) {
-  const stored = await db.order.updateMany({
-    where: { id: orderId, paymentInvoiceUrl: null },
-    data: { paymentInvoiceUrl: url },
+/** Only one request may call the provider for a draft. An abandoned claim is
+ * retired with the draft TTL, never stolen while its outcome is unknown. */
+export async function createPendingInvoice(
+  orderId: bigint,
+  create: () => Promise<string>,
+): Promise<string | null> {
+  const claim = crypto.randomUUID();
+  const claimed = await db.order.updateMany({
+    where: {
+      id: orderId,
+      status: orderStatus.created,
+      paymentStatus: paymentStatus.pending,
+      paymentInvoiceUrl: null,
+      paymentInvoiceClaim: null,
+    },
+    data: { paymentInvoiceClaim: claim },
   });
-  if (stored.count > 0) {
-    return url;
+  if (!claimed.count) {
+    const current = await db.order.findUniqueOrThrow({
+      where: { id: orderId },
+    });
+    if (
+      current.paymentStatus !== paymentStatus.pending ||
+      current.status !== orderStatus.created
+    ) {
+      throw new Error("invoice_closed");
+    }
+    return current.paymentInvoiceUrl;
   }
-  const current = await db.order.findUniqueOrThrow({
-    where: { id: orderId },
-  });
-  return current.paymentInvoiceUrl ?? url;
+  try {
+    const url = await create();
+    const attached = await db.order.updateMany({
+      where: {
+        id: orderId,
+        paymentInvoiceClaim: claim,
+        paymentStatus: paymentStatus.pending,
+        status: orderStatus.created,
+      },
+      data: { paymentInvoiceUrl: url },
+    });
+    if (!attached.count) throw new Error("invoice_closed");
+    return url;
+  } catch (error) {
+    await db.order.updateMany({
+      where: {
+        id: orderId,
+        paymentInvoiceClaim: claim,
+        paymentInvoiceUrl: null,
+        paymentStatus: paymentStatus.pending,
+        status: orderStatus.created,
+      },
+      data: {
+        status: orderStatus.failed,
+        paymentStatus: paymentStatus.failed,
+        failureReason: "invoice_failed",
+      },
+    });
+    throw error;
+  }
 }
 
 export async function failPendingInvoice(orderId: bigint, reason: string) {

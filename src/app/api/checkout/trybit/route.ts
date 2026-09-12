@@ -1,3 +1,7 @@
+import {
+  checkoutRequestSchema,
+  invoiceResponse,
+} from "~/server/orders/checkout";
 import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "~/server/better-auth";
@@ -5,8 +9,7 @@ import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { getCartSnapshot } from "~/server/cart";
 import { TRYBIT_PAYMENT_PROVIDER } from "~/lib/order-status";
 import {
-  attachInvoiceUrl,
-  failPendingInvoice,
+  createPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
 import {
@@ -46,11 +49,20 @@ export async function POST(request: Request) {
     return unavailable();
   }
 
+  const body = checkoutRequestSchema.safeParse(
+    await request.json().catch(() => null),
+  );
+  if (!body.success)
+    return Response.json({ error: "invalid_checkout" }, { status: 400 });
+
   const cart = await getCartSnapshot(telegramId);
   if (!cart) {
     return Response.json({ error: "empty" }, { status: 404 });
   }
   const { plan, revision: cartRevision } = cart;
+  if (cartRevision !== body.data.cartRevision) {
+    return Response.json({ error: "cart_changed" }, { status: 409 });
+  }
 
   const cents = Math.round(plan.price * 100);
   if (!Number.isFinite(cents) || cents < 1) {
@@ -93,23 +105,23 @@ export async function POST(request: Request) {
     cartRevision,
   });
   if (order.paymentInvoiceUrl) {
-    return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
+    return invoiceResponse(order.orderUuid, order.paymentInvoiceUrl);
   }
 
   try {
-    const invoice = await createTrybitInvoice({
-      amount: cents / 100,
-      orderId: order.orderUuid,
+    const invoiceUrl = await createPendingInvoice(order.id, async () => {
+      const invoice = await createTrybitInvoice({
+        amount: cents / 100,
+        orderId: order.orderUuid,
+      });
+      return invoice.link;
     });
-    return Response.json({
-      invoiceUrl: await attachInvoiceUrl(order.id, invoice.link),
-    });
+    return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {
     Sentry.captureException(error, {
       tags: { component: "trybit", reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
-    await failPendingInvoice(order.id, "invoice_failed");
     return unavailable();
   }
 }

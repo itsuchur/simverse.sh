@@ -1,14 +1,15 @@
+import {
+  checkoutRequestSchema,
+  invoiceResponse,
+} from "~/server/orders/checkout";
 import * as Sentry from "@sentry/nextjs";
-import { z } from "zod";
 
 import { auth } from "~/server/better-auth";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { getCartSnapshot } from "~/server/cart";
 import { CARDLINK_PAYMENT_PROVIDER } from "~/lib/order-status";
-import { env } from "~/env";
 import {
-  attachInvoiceUrl,
-  failPendingInvoice,
+  createPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
 import {
@@ -28,10 +29,6 @@ function unauthorized() {
 function unavailable() {
   return Response.json({ error: "unavailable" }, { status: 503 });
 }
-
-const bodySchema = z.object({
-  locale: z.enum(["en", "ru"]).optional(),
-});
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -54,22 +51,22 @@ export async function POST(request: Request) {
     return unavailable();
   }
 
+  const body = checkoutRequestSchema.safeParse(
+    await request.json().catch(() => null),
+  );
+  if (!body.success)
+    return Response.json({ error: "invalid_checkout" }, { status: 400 });
+
   const cart = await getCartSnapshot(telegramId);
   if (!cart) {
     return Response.json({ error: "empty" }, { status: 404 });
   }
   const { plan, revision: cartRevision } = cart;
-
-  let locale: "en" | "ru" = "en";
-  try {
-    const json: unknown = await request.json();
-    const parsed = bodySchema.safeParse(json);
-    if (parsed.success && parsed.data.locale) {
-      locale = parsed.data.locale;
-    }
-  } catch {
-    // Empty or non-JSON body; default locale.
+  if (cartRevision !== body.data.cartRevision) {
+    return Response.json({ error: "cart_changed" }, { status: 409 });
   }
+
+  const locale = body.data.locale ?? "en";
 
   const currency = locale === "ru" ? "RUB" : "USD";
   const major = currency === "RUB" ? plan.price_rub : plan.price;
@@ -114,32 +111,32 @@ export async function POST(request: Request) {
     cartRevision,
   });
   if (order.paymentInvoiceUrl) {
-    return Response.json({ invoiceUrl: order.paymentInvoiceUrl });
+    return invoiceResponse(order.orderUuid, order.paymentInvoiceUrl);
   }
 
   const origin = miniappOrigin();
 
   try {
-    const bill = await createCardlinkBill({
-      amount: (cents / 100).toFixed(2),
-      orderId: order.orderUuid,
-      description: `${plan.name} · ${plan.validity_days}d`,
-      name: plan.name.slice(0, 64),
-      currency,
-      locale,
-      successUrl: `${origin}/api/checkout/cardlink/return?status=success`,
-      failUrl: `${origin}/api/checkout/cardlink/return?status=fail`,
-      returnUrl: miniappPublicUrl(origin, "/checkout"),
+    const invoiceUrl = await createPendingInvoice(order.id, async () => {
+      const bill = await createCardlinkBill({
+        amount: (cents / 100).toFixed(2),
+        orderId: order.orderUuid,
+        description: `${plan.name} · ${plan.validity_days}d`,
+        name: plan.name.slice(0, 64),
+        currency,
+        locale,
+        successUrl: `${origin}/api/checkout/cardlink/return?status=success`,
+        failUrl: `${origin}/api/checkout/cardlink/return?status=fail`,
+        returnUrl: miniappPublicUrl(origin, "/checkout"),
+      });
+      return bill.linkPageUrl;
     });
-    return Response.json({
-      invoiceUrl: await attachInvoiceUrl(order.id, bill.linkPageUrl),
-    });
+    return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {
     Sentry.captureException(error, {
       tags: { component: "cardlink", reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
-    await failPendingInvoice(order.id, "invoice_failed");
     return unavailable();
   }
 }
