@@ -75,7 +75,7 @@ What Compose injects:
 
 - **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, `BLOG_URL`, `STRAPI_URL`, `STRAPI_API_TOKEN`, Telegram, eSIM Access, Trybit, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`strapi`:** Postgres `DATABASE_*` (database name `strapi`), `PUBLIC_URL` from `STRAPI_PUBLIC_URL`, `APP_KEYS` / JWT / encryption secrets from `STRAPI_*`.
-- **`poller`:** `DATABASE_URL`, `REDIS_URL`, `ESIMACCESS_ACCESS_CODE`, `OPENROUTER_KEY`.
+- **`poller`:** same runtime env as **`app`**, plus `OPENROUTER_KEY`. Order recovery imports the app env schema, so production validation needs those secrets even though the worker is not the web app.
 - **`mcp`:** `MCP_HOST`, `MCP_PORT`, `REDIS_URL`, `OPENROUTER_API_KEY` (from `OPENROUTER_KEY`), `OPENROUTER_MODEL`. Not published; reach it at `http://mcp:4000` on `internal`.
 
 `TONCONSOLE_KEY` appears in `.env.example` but is **not** passed through `compose.prod.yaml`.
