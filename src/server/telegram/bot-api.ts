@@ -63,6 +63,27 @@ export async function answerPreCheckoutQuery(
   });
 }
 
+export type InlineKeyboardMarkup = {
+  inline_keyboard: Array<
+    Array<{
+      text: string;
+      web_app?: { url: string };
+    }>
+  >;
+};
+
+export async function sendMessage(input: {
+  chatId: number;
+  text: string;
+  replyMarkup?: InlineKeyboardMarkup;
+}) {
+  return botMethod<{ message_id: number }>("sendMessage", {
+    chat_id: input.chatId,
+    text: input.text,
+    ...(input.replyMarkup ? { reply_markup: input.replyMarkup } : {}),
+  });
+}
+
 export function verifyTelegramWebhookSecret(header: string | null): boolean {
   const secret = env.TELEGRAM_WEBHOOK_SECRET;
   if (!secret || !header) {
