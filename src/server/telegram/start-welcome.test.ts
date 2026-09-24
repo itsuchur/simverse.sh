@@ -21,7 +21,7 @@ describe("welcomeLocale", () => {
 });
 
 describe("startWelcome", () => {
-  test("returns English copy and Open shop web_app button by default", () => {
+  test("returns English copy and Open the App web_app button by default", () => {
     const welcome = startWelcome("en");
     expect(welcome.text).toContain("Welcome to Simverse!");
     expect(welcome.text).toContain("Mastercard, Visa, MIR, Russian SBP, or USDT");
@@ -29,19 +29,19 @@ describe("startWelcome", () => {
     expect(welcome.text).toContain("registered business");
     expect(welcome.text).not.toContain("Добро пожаловать");
     expect(welcome.replyMarkup.inline_keyboard[0]?.[0]).toEqual({
-      text: "Open shop",
+      text: "Open the App",
       web_app: { url: miniappOrigin() },
     });
   });
 
-  test("returns Russian copy and Открыть магазин for ru language codes", () => {
+  test("returns Russian copy and Открыть приложение for ru language codes", () => {
     const welcome = startWelcome("ru-RU");
     expect(welcome.text).toContain("Добро пожаловать в Simverse!");
     expect(welcome.text).toContain("Mastercard, Visa, МИР, СБП или USDT");
     expect(welcome.text).toContain("190 странах");
     expect(welcome.text).toContain("зарегистрированный бизнес");
     expect(welcome.replyMarkup.inline_keyboard[0]?.[0]?.text).toBe(
-      "Открыть магазин",
+      "Открыть приложение",
     );
   });
 });

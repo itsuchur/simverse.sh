@@ -32,7 +32,7 @@ const COPY = {
       "",
       "We're a registered business.",
     ].join("\n"),
-    button: "Open shop",
+    button: "Open the App",
   },
   ru: {
     text: [
@@ -46,7 +46,7 @@ const COPY = {
       "",
       "Мы — зарегистрированный бизнес.",
     ].join("\n"),
-    button: "Открыть магазин",
+    button: "Открыть приложение",
   },
 } as const;
 
