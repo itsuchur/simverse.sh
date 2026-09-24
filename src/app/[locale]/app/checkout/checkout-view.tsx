@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Astroid, Bitcoin, ChevronLeft, CreditCard, Globe } from "lucide-react";
+import { Bitcoin, ChevronLeft, CreditCard, Globe } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -10,7 +10,6 @@ import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
-import { openTelegramInvoice } from "~/lib/telegram-webapp";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
 
 async function checkoutHeaders() {
@@ -135,7 +134,6 @@ export function CheckoutView({
   const locale = useLocale();
   const router = useRouter();
   const homeHref = useMiniappPath("/");
-  const myEsimHref = useMiniappPath("/myesim");
   const [leaving, setLeaving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -172,7 +170,6 @@ export function CheckoutView({
           currency: "USD",
         });
 
-  const starsPrice = format.number(plan.price_stars);
   const duration = tCatalog("duration.day", { count: plan.validity_days });
   const data = formatDataGb(plan.data_gb);
   const coverage = coverageLabel(plan, locale);
@@ -231,61 +228,6 @@ export function CheckoutView({
             {payError}
           </p>
         ) : null}
-        <Button
-          type="button"
-          size="lg"
-          className="h-12 w-full text-lg"
-          disabled={leaving || paying}
-          onClick={() => {
-            setPaying(true);
-            setPayError(null);
-            captureAppEvent("checkout_method_selected", {
-              method: "stars",
-              packageCode: plan.packageCode,
-            });
-            void requestInvoice("/api/checkout/stars", cartRevision, locale)
-              .then((url) => {
-                captureAppEvent("checkout_invoice_opened", {
-                  method: "stars",
-                  packageCode: plan.packageCode,
-                });
-                return openTelegramInvoice(url);
-              })
-              .then((status) => {
-                if (status === "paid" || status === "pending") {
-                  router.push(myEsimHref);
-                  return;
-                }
-                if (status === "failed") {
-                  captureAppEvent("checkout_invoice_failed", {
-                    method: "stars",
-                    packageCode: plan.packageCode,
-                  });
-                  setPayError(t("payFailed"));
-                }
-              })
-              .catch((error: unknown) => {
-                console.error("[checkout] stars invoice", error);
-                captureAppEvent("checkout_invoice_failed", {
-                  method: "stars",
-                  packageCode: plan.packageCode,
-                });
-                setPayError(
-                  error instanceof Error && error.message === "cart_changed"
-                    ? t("cartChanged")
-                    : t("payFailed"),
-                );
-                if (error instanceof Error && error.message === "cart_changed")
-                  router.refresh();
-              })
-              .finally(() => {
-                setPaying(false);
-              });
-          }}
-        >
-          <Astroid data-icon="inline-start" className="size-6" />
-          {t("payStars", { price: starsPrice })}
-        </Button>
         <Button
           type="button"
           size="lg"
