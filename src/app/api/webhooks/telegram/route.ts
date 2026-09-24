@@ -6,11 +6,14 @@ import { db } from "~/server/db";
 import { fulfillStarsPayment } from "~/server/orders/fulfill";
 import {
   answerPreCheckoutQuery,
+  sendMessage,
   verifyTelegramWebhookSecret,
 } from "~/server/telegram/bot-api";
+import { startWelcome } from "~/server/telegram/start-welcome";
 
 const userSchema = z.object({
   id: z.number().int(),
+  language_code: z.string().optional(),
 });
 
 const preCheckoutQuerySchema = z.object({
@@ -32,11 +35,18 @@ const updateSchema = z.object({
   pre_checkout_query: preCheckoutQuerySchema.optional(),
   message: z
     .object({
+      chat: z.object({ id: z.number().int() }).optional(),
       from: userSchema.optional(),
+      text: z.string().optional(),
       successful_payment: successfulPaymentSchema.optional(),
     })
     .optional(),
 });
+
+/** `/start`, `/start@bot`, optional payload after a space. */
+export function isStartCommand(text: string | undefined): boolean {
+  return text !== undefined && /^\/start(?:@[A-Za-z0-9_]+)?(?:\s|$)/.test(text);
+}
 
 export const POST = withWebhookLogging(
   "telegram",
@@ -106,6 +116,17 @@ export const POST = withWebhookLogging(
         totalAmount: payment.total_amount,
         currency: payment.currency,
       });
+    } else if (isStartCommand(message?.text) && message?.chat?.id !== undefined) {
+      try {
+        const welcome = startWelcome(message.from?.language_code);
+        await sendMessage({
+          chatId: message.chat.id,
+          text: welcome.text,
+          replyMarkup: welcome.replyMarkup,
+        });
+      } catch {
+        // Welcome is best-effort; Telegram retries are more painful than a missed greeting.
+      }
     }
 
     return Response.json({ ok: true });
