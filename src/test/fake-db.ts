@@ -84,6 +84,20 @@ function matchValue(actual: unknown, condition: unknown): boolean {
         actual.getTime() < cond.lt.getTime()
       );
     }
+    if ("gte" in cond) {
+      return (
+        actual instanceof Date &&
+        cond.gte instanceof Date &&
+        actual.getTime() >= cond.gte.getTime()
+      );
+    }
+    if ("lte" in cond) {
+      return (
+        actual instanceof Date &&
+        cond.lte instanceof Date &&
+        actual.getTime() <= cond.lte.getTime()
+      );
+    }
     throw new Error(
       `fake-db: unsupported where condition ${JSON.stringify(condition)}`,
     );
