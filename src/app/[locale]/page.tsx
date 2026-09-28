@@ -44,6 +44,7 @@ export default async function Home() {
   const help = await getTranslations("Help");
   const tos = await getTranslations("Tos");
   const privacy = await getTranslations("PrivacyPolicy");
+  const refund = await getTranslations("RefundPolicy");
   const locale = await getLocale();
 
   return (
@@ -131,6 +132,12 @@ export default async function Home() {
             className="hover:text-foreground underline-offset-4 hover:underline"
           >
             {privacy("title")}
+          </Link>
+          <Link
+            href="/refund-policy"
+            className="hover:text-foreground underline-offset-4 hover:underline"
+          >
+            {refund("title")}
           </Link>
         </nav>
       </footer>
