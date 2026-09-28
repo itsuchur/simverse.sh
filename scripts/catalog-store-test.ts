@@ -180,10 +180,7 @@ async function main() {
     scope.local.map((g) => g.countryCode).join() === "FR,ES",
     scope.local.map((g) => g.countryCode),
   );
-  check(
-    "regional group",
-    scope.regional[0]?.regionLabel === "Europe(35 areas)",
-  );
+  check("regional group", scope.regional[0]?.regionLabel === "Europe");
   check("global bucket", scope.global[0]?.packageCode === "GL20");
 
   await redis.del(POPULAR_COUNTRIES_REDIS_KEY);

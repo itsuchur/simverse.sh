@@ -22,6 +22,7 @@ import type {
 } from "~/server/suppliers/esimaccess/catalog-types";
 import { esimAccessPost } from "~/server/suppliers/esimaccess/client";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
+import { groupRegionalPackages } from "~/server/suppliers/esimaccess/regional-groups";
 
 export type {
   CatalogByScope,
@@ -352,7 +353,7 @@ const GLOBAL_COUNTRY_THRESHOLD = 90;
 
 /**
  * Splits the full catalog by coverage: single-country packages grouped by
- * country, multi-country ones grouped by region label, and worldwide ones
+ * country, multi-country ones grouped by canonical region, and worldwide ones
  * (90+ countries) as a flat list.
  */
 export async function getCatalogByScope(
@@ -362,7 +363,7 @@ export async function getCatalogByScope(
   const packageList = cached?.packageList ?? [];
 
   const byCountry = new Map<string, CatalogPackage[]>();
-  const byRegion = new Map<string, RegionPackages>();
+  const regionalSources: EsimAccessPackage[] = [];
   const global: CatalogPackage[] = [];
 
   for (const pkg of packageList) {
@@ -373,14 +374,7 @@ export async function getCatalogByScope(
       packages.push(toCatalogPackage(pkg));
       byCountry.set(pkg.location, packages);
     } else if (countryCount < GLOBAL_COUNTRY_THRESHOLD) {
-      const label = parseName(pkg.name)?.label ?? pkg.name;
-      const group = byRegion.get(label) ?? {
-        regionLabel: label,
-        regionLabelRu: regionLabelRu(pkg),
-        packages: [],
-      };
-      group.packages.push(toCatalogPackage(pkg));
-      byRegion.set(label, group);
+      regionalSources.push(pkg);
     } else {
       global.push(toCatalogPackage(pkg));
     }
@@ -394,8 +388,12 @@ export async function getCatalogByScope(
     }))
     .sort((a, b) => a.countryName.localeCompare(b.countryName, locale));
 
-  const regional = [...byRegion.values()].sort((a, b) =>
-    a.regionLabel.localeCompare(b.regionLabel),
+  const regional: RegionPackages[] = groupRegionalPackages(regionalSources).map(
+    (group) => ({
+      regionLabel: group.regionLabel,
+      regionLabelRu: group.regionLabelRu,
+      packages: group.packages.map(toCatalogPackage),
+    }),
   );
 
   return { local, regional, global };
