@@ -169,6 +169,10 @@ export function CheckoutView({
           style: "currency",
           currency: "USD",
         });
+  const cryptoPrice =
+    locale === "ru"
+      ? `${format.number(plan.price, { maximumFractionDigits: 0 })} USDT`
+      : cardPrice;
 
   const duration = tCatalog("duration.day", { count: plan.validity_days });
   const data = formatDataGb(plan.data_gb);
@@ -308,7 +312,7 @@ export function CheckoutView({
           }}
         >
           <Bitcoin data-icon="inline-start" className="size-6" />
-          {t("payCrypto", { price: cardPrice })}
+          {t("payCrypto", { price: cryptoPrice })}
         </Button>
       </div>
     </main>
