@@ -30,7 +30,7 @@ export async function LegalPage({
   const content = await readLegalMarkdown(document, locale);
 
   return (
-    <FullScreenDocument title={t("title")}>
+    <FullScreenDocument title={t("title")} showCloseButton={false}>
       <p className="text-muted-foreground text-sm">{t("lastUpdated")}</p>
       <LegalMarkdown blocks={content} />
     </FullScreenDocument>
