@@ -95,11 +95,18 @@ describe("groupRegionalPackages", () => {
           volume: 3,
         }),
       ]),
-    ).toEqual([
-      "China (mainland & HK)",
-      "Europe (40+ areas) & Morocco",
-      "South America",
-    ]);
+    ).toEqual(["China (mainland & HK)", "Europe & Morocco", "South America"]);
+
+    expect(
+      groupRegionalPackages([
+        pkg({
+          packageCode: "EUM",
+          name: "Europe (40+ areas) & Morocco 10GB 30Days",
+          nameRu: "Европа (40+ направлений) и Марокко — 10 ГБ, 30 дней",
+          location: "FR,MA",
+        }),
+      ])[0]?.regionLabelRu,
+    ).toBe("Европа и Марокко");
   });
 
   test("drops Asia-20 and AUKUS", () => {

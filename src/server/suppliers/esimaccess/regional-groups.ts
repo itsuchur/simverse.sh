@@ -17,18 +17,20 @@ export type RegionalGroup<T extends RegionalPackageSource> = {
   packages: T[];
 };
 
-const EN_COVERAGE_SUFFIX = /\s*\(\d+\+?\s+(?:areas|countries)\)\s*$/i;
-const RU_COVERAGE_SUFFIX =
-  /\s*\(\d+\+?\s+(?:направлен\p{L}*|стран\p{L}*)\)\s*$/iu;
-
 const HIDDEN_LABELS = new Set(["asia-20", "aukus"]);
 
 const RENAMES: Record<string, { en: string; ru: string }> = {
   gcc: { en: "Gulf Region", ru: "Страны Персидского залива" },
 };
 
+function tidyLabel(label: string): string {
+  return label.replace(/\s{2,}/g, " ").trim();
+}
+
 function canonicalRegionLabel(label: string): string {
-  const stripped = label.replace(EN_COVERAGE_SUFFIX, "").trim();
+  const stripped = tidyLabel(
+    label.replace(/\s*\(\d+\+?\s+(?:areas|countries)\)/gi, ""),
+  );
   return stripped || label.trim();
 }
 
@@ -37,7 +39,9 @@ function canonicalRegionLabelRu(
 ): string | undefined {
   const label = nameRu?.split(" — ")[0]?.trim();
   if (!label) return undefined;
-  const stripped = label.replace(RU_COVERAGE_SUFFIX, "").trim();
+  const stripped = tidyLabel(
+    label.replace(/\s*\(\d+\+?\s+(?:направлен\p{L}*|стран\p{L}*)\)/giu, ""),
+  );
   return stripped || undefined;
 }
 
