@@ -24,7 +24,10 @@ import type {
 } from "~/server/suppliers/esimaccess/catalog-types";
 import { esimAccessPost } from "~/server/suppliers/esimaccess/client";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
-import { groupRegionalPackages } from "~/server/suppliers/esimaccess/regional-groups";
+import {
+  groupRegionalPackages,
+  preferPlans,
+} from "~/server/suppliers/esimaccess/regional-groups";
 
 export type {
   CatalogByScope,
@@ -348,9 +351,9 @@ export async function getPopularPackagesByCountry(
   return countryCodes.map((countryCode) => ({
     countryCode,
     countryName: countryDisplayName(countryCode, locale),
-    packages: packageList
-      .filter((pkg) => pkg.location === countryCode)
-      .map(toCatalogPackage),
+    packages: preferPlans(
+      packageList.filter((pkg) => pkg.location === countryCode),
+    ).map(toCatalogPackage),
   }));
 }
 
@@ -367,21 +370,21 @@ export async function getCatalogByScope(
   const cached = await getCachedEsimAccessPackages();
   const packageList = cached?.packageList ?? [];
 
-  const byCountry = new Map<string, CatalogPackage[]>();
+  const byCountry = new Map<string, EsimAccessPackage[]>();
   const regionalSources: EsimAccessPackage[] = [];
-  const global: CatalogPackage[] = [];
+  const globalSources: EsimAccessPackage[] = [];
 
   for (const pkg of packageList) {
     const countryCount = pkg.location.split(",").filter(Boolean).length;
 
     if (countryCount === 1) {
       const packages = byCountry.get(pkg.location) ?? [];
-      packages.push(toCatalogPackage(pkg));
+      packages.push(pkg);
       byCountry.set(pkg.location, packages);
     } else if (countryCount < GLOBAL_COUNTRY_THRESHOLD) {
       regionalSources.push(pkg);
     } else {
-      global.push(toCatalogPackage(pkg));
+      globalSources.push(pkg);
     }
   }
 
@@ -389,7 +392,7 @@ export async function getCatalogByScope(
     .map(([countryCode, packages]) => ({
       countryCode,
       countryName: countryDisplayName(countryCode, locale),
-      packages,
+      packages: preferPlans(packages).map(toCatalogPackage),
     }))
     .sort((a, b) => a.countryName.localeCompare(b.countryName, locale));
 
@@ -401,5 +404,9 @@ export async function getCatalogByScope(
     }),
   );
 
-  return { local, regional, global };
+  return {
+    local,
+    regional,
+    global: preferPlans(globalSources).map(toCatalogPackage),
+  };
 }

@@ -49,22 +49,28 @@ function countryCount(location: string): number {
   return location.split(",").filter(Boolean).length;
 }
 
-function shapeKey(pkg: RegionalPackageSource): string {
-  const parsed = parseName(pkg.name);
-  const fup = parsed?.fup;
-  return [
-    pkg.duration,
-    pkg.volume,
-    parsed?.perDay ? "day" : "total",
-    fup ? `${fup.value}${fup.unit}` : "",
-  ].join("\0");
+function isThrottled(name: string) {
+  return parseName(name)?.fup != null || /FUP\d+[KM]bps/i.test(name);
 }
 
-/** More countries, then the lower price, then a stable package code. */
+/** The button shows only duration and byte volume, so that is the identity. */
+function shapeKey(pkg: RegionalPackageSource): string {
+  return `${pkg.duration}\0${pkg.volume}`;
+}
+
+/**
+ * Full-speed over throttled, then more countries, then the lower price,
+ * then a stable package code.
+ */
 function beats(
   candidate: RegionalPackageSource,
   current: RegionalPackageSource,
 ) {
+  const candidateThrottled = isThrottled(candidate.name);
+  const currentThrottled = isThrottled(current.name);
+  if (candidateThrottled !== currentThrottled) {
+    return !candidateThrottled;
+  }
   const candidateCountries = countryCount(candidate.location);
   const currentCountries = countryCount(current.location);
   if (candidateCountries !== currentCountries) {
@@ -76,7 +82,10 @@ function beats(
   return candidate.packageCode < current.packageCode;
 }
 
-function preferPlans<T extends RegionalPackageSource>(packages: T[]): T[] {
+/** One plan per visible size inside a single destination. */
+export function preferPlans<T extends RegionalPackageSource>(
+  packages: T[],
+): T[] {
   const byShape = new Map<string, T>();
   for (const pkg of packages) {
     const current = byShape.get(shapeKey(pkg));

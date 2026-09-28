@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   groupRegionalPackages,
+  preferPlans,
   type RegionalPackageSource,
 } from "~/server/suppliers/esimaccess/regional-groups";
 
@@ -205,7 +206,7 @@ describe("groupRegionalPackages", () => {
     ]);
   });
 
-  test("keeps daily and throttled plans beside a total-data plan", () => {
+  test("keeps the wider full-speed plan when sizes match", () => {
     const groups = groupRegionalPackages([
       pkg({
         packageCode: "TOTAL",
@@ -227,10 +228,69 @@ describe("groupRegionalPackages", () => {
       }),
     ]);
 
-    expect(groups[0]?.packages.map((item) => item.packageCode).sort()).toEqual([
-      "DAILY",
-      "FUP",
+    expect(groups[0]?.packages.map((item) => item.packageCode)).toEqual([
       "TOTAL",
     ]);
+  });
+
+  test("keeps a narrow full-speed plan over a wider throttled plan", () => {
+    const groups = groupRegionalPackages([
+      pkg({
+        packageCode: "NARROW",
+        name: "Europe 5GB 30Days",
+        location: "FR,DE",
+        retailPrice: 20_000,
+      }),
+      pkg({
+        packageCode: "WIDE",
+        name: "Europe (35 areas) 5GB 30Days FUP1Mbps",
+        location: "FR,DE,IT,ES,PT",
+        retailPrice: 10_000,
+      }),
+    ]);
+
+    expect(groups[0]?.packages.map((item) => item.packageCode)).toEqual([
+      "NARROW",
+    ]);
+  });
+
+  test("keeps the cheaper plan when speed and coverage match", () => {
+    const kept = preferPlans([
+      pkg({
+        packageCode: "DAILY",
+        name: "Europe 3GB/Day 30Days",
+        location: "FR,DE",
+        volume: 3,
+        retailPrice: 20_000,
+      }),
+      pkg({
+        packageCode: "TOTAL",
+        name: "Europe 3GB 30Days",
+        location: "IT,ES",
+        volume: 3,
+        retailPrice: 10_000,
+      }),
+    ]);
+
+    expect(kept.map((item) => item.packageCode)).toEqual(["TOTAL"]);
+  });
+
+  test("collapses global product lines that display the same size", () => {
+    const kept = preferPlans([
+      pkg({
+        packageCode: "G120",
+        name: "Global (120+ areas) 5GB 30Days",
+        location: "FR,DE",
+        retailPrice: 10_000,
+      }),
+      pkg({
+        packageCode: "G139",
+        name: "Global139 5GB 30Days",
+        location: "FR,DE,IT",
+        retailPrice: 20_000,
+      }),
+    ]);
+
+    expect(kept.map((item) => item.packageCode)).toEqual(["G139"]);
   });
 });
