@@ -25,6 +25,7 @@ describe("esimStatusBadge", () => {
 
   test("terminal lifecycle beats SM-DP DISABLED", () => {
     expect(esimStatusBadge("USED_EXPIRED", "DISABLED")).toEqual({
+      label: "expired",
       text: "EXPIRED",
       className: "bg-red-800 text-white",
     });
@@ -50,6 +51,7 @@ describe("esimStatusBadge", () => {
 
   test("unknown statuses pass through as a muted badge", () => {
     expect(esimStatusBadge("RELEASED", null)).toEqual({
+      label: null,
       text: "RELEASED",
       className: "bg-muted",
     });

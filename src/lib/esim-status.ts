@@ -22,29 +22,59 @@ export function isEsimLifecycleStatus(value: string): boolean {
   return ESIM_LIFECYCLE_STATUSES.has(value);
 }
 
-type StatusBadge = { text: string; className: string };
+export const ESIM_STATUS_LABEL = {
+  notActivated: "notActivated",
+  inUse: "inUse",
+  expired: "expired",
+  usedUp: "usedUp",
+  cancelled: "cancelled",
+  revoked: "revoked",
+  deleted: "deleted",
+  disabled: "disabled",
+  enabled: "enabled",
+  installation: "installation",
+  download: "download",
+} as const;
+
+export type EsimStatusLabel =
+  (typeof ESIM_STATUS_LABEL)[keyof typeof ESIM_STATUS_LABEL];
+
+type StatusBadge = {
+  /** Message key under `EsimStatus`. Null keeps `text` as the raw code. */
+  label: EsimStatusLabel | null;
+  text: string;
+  className: string;
+};
 
 const AMBER = "bg-amber-200";
 const GREEN = "bg-green-200";
 const RED = "bg-red-200";
 const DARK_RED = "bg-red-800 text-white";
 
+function badge(
+  label: EsimStatusLabel,
+  text: string,
+  className: string,
+): StatusBadge {
+  return { label, text, className };
+}
+
 const LIFECYCLE_BADGES: Record<string, StatusBadge> = {
-  NOT_ACTIVE: { text: "NOT ACTIVATED", className: AMBER },
-  IN_USE: { text: "IN USE", className: GREEN },
-  USED_EXPIRED: { text: "EXPIRED", className: DARK_RED },
-  UNUSED_EXPIRED: { text: "EXPIRED", className: DARK_RED },
-  USED_UP: { text: "USED_UP", className: DARK_RED },
-  CANCEL: { text: "CANCELLED", className: DARK_RED },
-  REVOKED: { text: "REVOKED", className: DARK_RED },
+  NOT_ACTIVE: badge(ESIM_STATUS_LABEL.notActivated, "NOT ACTIVATED", AMBER),
+  IN_USE: badge(ESIM_STATUS_LABEL.inUse, "IN USE", GREEN),
+  USED_EXPIRED: badge(ESIM_STATUS_LABEL.expired, "EXPIRED", DARK_RED),
+  UNUSED_EXPIRED: badge(ESIM_STATUS_LABEL.expired, "EXPIRED", DARK_RED),
+  USED_UP: badge(ESIM_STATUS_LABEL.usedUp, "USED_UP", DARK_RED),
+  CANCEL: badge(ESIM_STATUS_LABEL.cancelled, "CANCELLED", DARK_RED),
+  REVOKED: badge(ESIM_STATUS_LABEL.revoked, "REVOKED", DARK_RED),
 };
 
 const SMDP_BADGES: Record<string, StatusBadge> = {
-  DELETED: { text: "DELETED", className: RED },
-  DISABLED: { text: "DISABLED", className: AMBER },
-  ENABLED: { text: "ENABLED", className: GREEN },
-  INSTALLATION: { text: "INSTALLATION", className: AMBER },
-  DOWNLOAD: { text: "DOWNLOAD", className: AMBER },
+  DELETED: badge(ESIM_STATUS_LABEL.deleted, "DELETED", RED),
+  DISABLED: badge(ESIM_STATUS_LABEL.disabled, "DISABLED", AMBER),
+  ENABLED: badge(ESIM_STATUS_LABEL.enabled, "ENABLED", GREEN),
+  INSTALLATION: badge(ESIM_STATUS_LABEL.installation, "INSTALLATION", AMBER),
+  DOWNLOAD: badge(ESIM_STATUS_LABEL.download, "DOWNLOAD", AMBER),
 };
 
 export function esimStatusBadge(
@@ -54,6 +84,7 @@ export function esimStatusBadge(
   if (esimStatus && TERMINAL_LIFECYCLE_STATUSES.has(esimStatus)) {
     return (
       LIFECYCLE_BADGES[esimStatus] ?? {
+        label: null,
         text: esimStatus,
         className: DARK_RED,
       }
@@ -71,5 +102,5 @@ export function esimStatusBadge(
   if (!esimStatus || esimStatus === "GOT_RESOURCE") {
     return LIFECYCLE_BADGES.NOT_ACTIVE ?? null;
   }
-  return { text: esimStatus, className: "bg-muted" };
+  return { label: null, text: esimStatus, className: "bg-muted" };
 }

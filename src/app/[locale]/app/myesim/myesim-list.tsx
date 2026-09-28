@@ -70,6 +70,7 @@ function OrderCard({
   platform: EsimInstallPlatform | null;
 }) {
   const t = useTranslations("MyEsims");
+  const tStatus = useTranslations("EsimStatus");
   const tCatalog = useTranslations("Catalog");
   const locale = useLocale();
   const data = formatData(order.dataAmountMb);
@@ -110,7 +111,9 @@ function OrderCard({
             <span
               className={`text-foreground w-fit rounded-lg px-2 py-1 text-xs font-bold tracking-wide ${statusBadge.className}`}
             >
-              {statusBadge.text}
+              {statusBadge.label
+                ? tStatus(statusBadge.label)
+                : statusBadge.text}
             </span>
           ) : null}
         </div>

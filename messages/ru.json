@@ -104,6 +104,19 @@
     "guideAndroid2": "Следуйте подсказкам, пока тариф не появится как установленный.",
     "guideAndroid3": "Если ничего не произошло, откройте Настройки → Сеть и интернет → SIM-карты → Добавить eSIM и отсканируйте QR-код."
   },
+  "EsimStatus": {
+    "notActivated": "НЕ АКТИВИРОВАНА",
+    "inUse": "ИСПОЛЬЗУЕТСЯ",
+    "expired": "ИСТЕКЛА",
+    "usedUp": "ИЗРАСХОДОВАНА",
+    "cancelled": "ОТМЕНЕНА",
+    "revoked": "ОТОЗВАНА",
+    "deleted": "УДАЛЕНА",
+    "disabled": "ОТКЛЮЧЕНА",
+    "enabled": "ВКЛЮЧЕНА",
+    "installation": "УСТАНОВКА",
+    "download": "ЗАГРУЗКА"
+  },
   "Profile": {
     "signedInWithTelegram": "Вход через Telegram",
     "premium": "Premium",

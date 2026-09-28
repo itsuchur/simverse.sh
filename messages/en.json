@@ -104,6 +104,19 @@
     "guideAndroid2": "Follow the prompts until the plan shows as installed.",
     "guideAndroid3": "If nothing happens, go to Settings → Network & internet → SIMs → Add eSIM and scan the QR code."
   },
+  "EsimStatus": {
+    "notActivated": "NOT ACTIVATED",
+    "inUse": "IN USE",
+    "expired": "EXPIRED",
+    "usedUp": "USED_UP",
+    "cancelled": "CANCELLED",
+    "revoked": "REVOKED",
+    "deleted": "DELETED",
+    "disabled": "DISABLED",
+    "enabled": "ENABLED",
+    "installation": "INSTALLATION",
+    "download": "DOWNLOAD"
+  },
   "Profile": {
     "signedInWithTelegram": "Signed in with Telegram",
     "premium": "Premium",
