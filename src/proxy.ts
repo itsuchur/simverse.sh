@@ -64,12 +64,15 @@ function isMiniappPassthrough(rest: string): boolean {
   );
 }
 
-function splitLocalePrefix(pathname: string): {
+function splitLocalePrefix(
+  pathname: string,
+  includeDefault = false,
+): {
   locale: (typeof routing.locales)[number] | null;
   rest: string;
 } {
   for (const locale of routing.locales) {
-    if (locale === routing.defaultLocale) continue;
+    if (!includeDefault && locale === routing.defaultLocale) continue;
     if (pathname === `/${locale}`) {
       return { locale, rest: "/" };
     }
@@ -89,6 +92,54 @@ function joinLocalePath(
   return `/${locale}${rest}`;
 }
 
+function hasPathPrefix(rest: string, prefixPath: string): boolean {
+  return rest === prefixPath || rest.startsWith(`${prefixPath}/`);
+}
+
+/** Internal App Router path: `/{locale}/{prefix}{rest}`. */
+function insertInternalPrefix(pathname: string, prefix: string): string {
+  const { locale, rest } = splitLocalePrefix(pathname, true);
+  const prefixPath = `/${prefix}`;
+  if (hasPathPrefix(rest, prefixPath)) {
+    return pathname;
+  }
+  const rewrittenRest = rest === "/" ? prefixPath : `${prefixPath}${rest}`;
+  return joinLocalePath(locale, rewrittenRest);
+}
+
+/**
+ * next-intl must see the public pathname. Mutating `nextUrl` first makes a
+ * Russian `/ru` look like the internal `/ru/app`, so next-intl returns
+ * `next()` and Next serves the marketing page at the original URL.
+ * Locale redirects stay public (`/` → `/ru`). Rewrites gain the host prefix
+ * afterwards (`/ru` → `/ru/app`).
+ */
+function prefixInternalRewrite(
+  response: NextResponse,
+  request: NextRequest,
+  prefix: string,
+): NextResponse {
+  if (response.headers.has("location")) {
+    return response;
+  }
+
+  const rewrite = response.headers.get("x-middleware-rewrite");
+  const target = new URL(rewrite ?? request.url);
+  const prefixedPath = insertInternalPrefix(target.pathname, prefix);
+  if (rewrite && prefixedPath === target.pathname) {
+    return response;
+  }
+
+  target.pathname = prefixedPath;
+  const headers = new Headers(response.headers);
+  headers.delete("x-middleware-next");
+  headers.delete("x-middleware-rewrite");
+  return NextResponse.rewrite(target, {
+    headers,
+    status: response.status,
+  });
+}
+
 export default function proxy(request: NextRequest) {
   const prefix = hostAppPrefix(requestHost(request));
   if (!prefix) {
@@ -97,9 +148,8 @@ export default function proxy(request: NextRequest) {
 
   const { locale, rest } = splitLocalePrefix(request.nextUrl.pathname);
   const prefixPath = `/${prefix}`;
-  const hasPrefix = rest === prefixPath || rest.startsWith(`${prefixPath}/`);
 
-  if (hasPrefix) {
+  if (hasPathPrefix(rest, prefixPath)) {
     const stripped = rest === prefixPath ? "/" : rest.slice(prefixPath.length);
     const url = request.nextUrl.clone();
     url.pathname = joinLocalePath(locale, stripped);
@@ -110,9 +160,7 @@ export default function proxy(request: NextRequest) {
     return handleI18n(request);
   }
 
-  const rewrittenRest = rest === "/" ? prefixPath : `${prefixPath}${rest}`;
-  request.nextUrl.pathname = joinLocalePath(locale, rewrittenRest);
-  return handleI18n(request);
+  return prefixInternalRewrite(handleI18n(request), request, prefix);
 }
 
 export const config = {
