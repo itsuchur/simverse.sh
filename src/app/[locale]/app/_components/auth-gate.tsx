@@ -16,6 +16,7 @@ import type enMessages from "../../../../../messages/en.json";
 import { LegalLink } from "../../_components/legal-link";
 import { getPathname, useRouter } from "~/i18n/navigation";
 import { autoSignInFromMiniApp } from "~/lib/auth-client";
+import { marketingUrl } from "~/lib/marketing-url";
 import { waitForTelegramInitData } from "~/lib/telegram-webapp";
 
 // Literal message types (from the generated en.json declaration) so the
@@ -229,7 +230,7 @@ function ConsentScreen({
               {t.rich("agreement", {
                 tos: (chunks) => (
                   <LegalLink
-                    href={getPathname({ href: "/tos", locale })}
+                    href={marketingUrl(getPathname({ href: "/tos", locale }))}
                     className="underline-offset-3"
                   >
                     {chunks}
@@ -237,7 +238,9 @@ function ConsentScreen({
                 ),
                 privacy: (chunks) => (
                   <LegalLink
-                    href={getPathname({ href: "/privacy-policy", locale })}
+                    href={marketingUrl(
+                      getPathname({ href: "/privacy-policy", locale }),
+                    )}
                     className="underline-offset-3"
                   >
                     {chunks}

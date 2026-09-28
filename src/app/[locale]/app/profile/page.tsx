@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { getPathname } from "~/i18n/navigation";
+import { marketingUrl } from "~/lib/marketing-url";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
@@ -81,17 +82,21 @@ export default async function AppProfile() {
     {
       label: t("refundPolicy"),
       icon: RotateCcw,
-      externalHref: getPathname({ href: "/refund-policy", locale }),
+      externalHref: marketingUrl(
+        getPathname({ href: "/refund-policy", locale }),
+      ),
     },
     {
       label: t("termsOfService"),
       icon: FileText,
-      externalHref: getPathname({ href: "/tos", locale }),
+      externalHref: marketingUrl(getPathname({ href: "/tos", locale })),
     },
     {
       label: t("privacyPolicy"),
       icon: Shield,
-      externalHref: getPathname({ href: "/privacy-policy", locale }),
+      externalHref: marketingUrl(
+        getPathname({ href: "/privacy-policy", locale }),
+      ),
     },
   ];
 
