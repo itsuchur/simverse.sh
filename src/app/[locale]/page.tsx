@@ -48,7 +48,9 @@ export default async function Home() {
   const locale = await getLocale();
 
   return (
-    <div className="bg-background flex min-h-dvh flex-col">
+    <div className="bg-background relative flex min-h-dvh flex-col">
+      {/* Temporary verification marker — revert after check */}
+      <p className="absolute top-2 left-2 z-50 text-sm">платега верификация</p>
       <HomeLocalePicker />
       <main className="flex flex-1 flex-col items-center px-6 py-16 text-center sm:py-24">
         <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-balance sm:text-6xl md:text-7xl">
