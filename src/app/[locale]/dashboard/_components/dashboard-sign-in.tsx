@@ -18,7 +18,7 @@ export function DashboardSignIn({
   const [pending, setPending] = useState(false);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-5 px-8">
+    <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-5 px-4 md:px-8">
       <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
       <p className="text-muted-foreground text-base">
         Sign in with Google using the support account to continue.

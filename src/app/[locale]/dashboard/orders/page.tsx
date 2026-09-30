@@ -1,7 +1,7 @@
 import { formatOrderPrice } from "~/lib/format-order-price";
 import { db } from "~/server/db";
 
-import { OrderRow, type OrderRecord } from "./order-row";
+import { OrderCard, OrderRow, type OrderRecord } from "./order-row";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +57,12 @@ function toOrderRecord(order: {
   paidAt: Date | null;
   issuedAt: Date | null;
   updatedAt: Date;
+  user: {
+    name: string;
+    telegramUsername: string | null;
+    telegramId: string | null;
+    email: string;
+  };
 }): OrderRecord {
   return {
     id: order.id.toString(),
@@ -94,6 +100,8 @@ function toOrderRecord(order: {
     paidAt: order.paidAt?.toISOString() ?? null,
     issuedAt: order.issuedAt?.toISOString() ?? null,
     updatedAt: order.updatedAt.toISOString(),
+    userLabel: formatUser(order.user),
+    userEmail: order.user.email,
   };
 }
 
@@ -113,10 +121,21 @@ export default async function DashboardOrdersPage() {
     },
   });
 
+  const records = orders.map(toOrderRecord);
+
   return (
     <main className="space-y-6">
       <h1 className="text-3xl font-semibold tracking-tight">Orders</h1>
-      <div className="ring-foreground/10 overflow-x-auto rounded-xl ring-1">
+
+      <div className="space-y-3 md:hidden">
+        {records.length === 0 ? (
+          <p className="text-muted-foreground py-8 text-center">No orders yet.</p>
+        ) : (
+          records.map((order) => <OrderCard key={order.orderUuid} order={order} />)
+        )}
+      </div>
+
+      <div className="ring-foreground/10 hidden overflow-x-auto rounded-xl ring-1 md:block">
         <table className="w-max min-w-full border-separate border-spacing-0 text-left text-base">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
@@ -141,8 +160,8 @@ export default async function DashboardOrdersPage() {
                 </td>
               </tr>
             ) : (
-              orders.map((order) => (
-                <OrderRow key={order.orderUuid} order={toOrderRecord(order)}>
+              orders.map((order, index) => (
+                <OrderRow key={order.orderUuid} order={records[index]!}>
                   <td className="border-border border-t px-5 py-3.5 font-mono whitespace-nowrap">
                     {order.id.toString()}
                   </td>

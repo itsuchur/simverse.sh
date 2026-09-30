@@ -76,6 +76,50 @@ function formatSyncedAt(iso: string) {
   return date.toISOString().replace("T", " ").slice(0, 19);
 }
 
+function PackageMobileCard({ pkg }: { pkg: EsimAccessPackage }) {
+  return (
+    <div className="ring-foreground/10 space-y-3 rounded-xl p-4 ring-1">
+      <div className="space-y-1">
+        <div className="font-medium">{pkg.name}</div>
+        {pkg.nameRu ? (
+          <div className="text-muted-foreground text-sm">{pkg.nameRu}</div>
+        ) : null}
+        <div className="font-mono text-sm">{pkg.packageCode}</div>
+      </div>
+      <div className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div>
+          <div className="text-foreground font-medium">Data</div>
+          {formatVolume(pkg.volume)}
+        </div>
+        <div>
+          <div className="text-foreground font-medium">Duration</div>
+          {pkg.duration} {pkg.durationUnit}
+        </div>
+        <div>
+          <div className="text-foreground font-medium">Cost</div>
+          {formatUsd(pkg.price)}
+        </div>
+        <div>
+          <div className="text-foreground font-medium">Retail</div>
+          {formatUsd(pkg.retailPrice)}
+        </div>
+        <div>
+          <div className="text-foreground font-medium">RUB</div>
+          {pkg.priceRub ?? "—"}
+        </div>
+        <div>
+          <div className="text-foreground font-medium">Stars</div>
+          {pkg.priceStars ?? "—"}
+        </div>
+      </div>
+      <div className="text-muted-foreground font-mono text-xs break-all">
+        {formatLocation(pkg.location)}
+      </div>
+      <PackageExclusionButton packageCode={pkg.packageCode} />
+    </div>
+  );
+}
+
 export default async function DashboardPackagesPage({
   searchParams,
 }: {
@@ -134,10 +178,10 @@ export default async function DashboardPackagesPage({
           </p>
         )}
       </div>
-      <div className="flex items-start gap-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
         <PackageProviderTabs provider={provider} query={query} />
         <div className="min-w-0 flex-1 space-y-4">
-          <section className="ring-foreground/10 rounded-xl p-5 ring-1">
+          <section className="ring-foreground/10 rounded-xl p-4 ring-1 md:p-5">
             <div className="mb-4">
               <h2 className="text-lg font-semibold">Excluded package codes</h2>
               <p className="text-muted-foreground text-sm">
@@ -156,7 +200,7 @@ export default async function DashboardPackagesPage({
                     key={packageCode}
                     className="bg-muted flex items-center gap-3 rounded-lg px-3 py-2"
                   >
-                    <code className="text-sm">{packageCode}</code>
+                    <code className="text-sm break-all">{packageCode}</code>
                     <PackageExclusionButton
                       packageCode={packageCode}
                       excluded
@@ -167,7 +211,20 @@ export default async function DashboardPackagesPage({
             )}
           </section>
           <PackageSearchForm provider={provider} query={query} />
-          <div className="ring-foreground/10 overflow-x-auto rounded-xl ring-1">
+
+          <div className="space-y-3 md:hidden">
+            {pagePackages.length === 0 ? (
+              <p className="text-muted-foreground py-8 text-center">
+                {emptyMessage}
+              </p>
+            ) : (
+              pagePackages.map((pkg) => (
+                <PackageMobileCard key={pkg.packageCode} pkg={pkg} />
+              ))
+            )}
+          </div>
+
+          <div className="ring-foreground/10 hidden overflow-x-auto rounded-xl ring-1 md:block">
             <table className="w-max min-w-full border-separate border-spacing-0 text-left text-base">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>

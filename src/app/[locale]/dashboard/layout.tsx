@@ -29,7 +29,7 @@ export default async function DashboardLayout({
   return (
     <div className="bg-background text-foreground min-h-dvh text-base">
       <DashboardNav />
-      <div className="px-8 py-8">{children}</div>
+      <div className="px-4 py-6 md:px-8 md:py-8">{children}</div>
     </div>
   );
 }
