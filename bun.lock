@@ -6,6 +6,7 @@
       "name": "simverse.sh",
       "dependencies": {
         "@base-ui/react": "^1.7.0",
+        "@esimfly/sdk": "^0.1.0",
         "@fingerprintjs/fingerprintjs": "^5.2.0",
         "@lottiefiles/dotlottie-react": "^0.19.15",
         "@prisma/client": "^6.6.0",
@@ -158,6 +159,8 @@
     "@emnapi/runtime": ["@emnapi/runtime@1.10.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA=="],
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
+
+    "@esimfly/sdk": ["@esimfly/sdk@0.1.0", "", {}, "sha512-ZDk+lmvzIr9o77ooqIyyuVBgb8q8+RBSKByKn6sw9Ojf3YSHKI22Cy7ZOvQpNYPTCfe9/V1hA+OvJbzqc3te1Q=="],
 
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.10.1", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-cuadcxVFE8sDK6iWJbs8Sn0av2Nrh2QSGQhVlBW9AaAHqHwjWsZHT8LJ4hFGPh7ASBV2deFdM7H/DPjulmh8rg=="],
 

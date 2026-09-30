@@ -57,6 +57,7 @@ and set production values. Origins have **no trailing slash**. Use strong
 | `REDIS_URL` | Compose: `redis://:PASSWORD@redis:6379` |
 | `ESIMACCESS_ACCESS_CODE` | eSIM Access API. |
 | `ESIMACCESS_WEBHOOK_SECRET` | ≥ 16 chars. Query token on the supplier webhook URL. |
+| `ESIMFLY_ACCESS_CODE`, `ESIMFLY_SECRET_KEY` | eSIMfly Business API. Optional; the poller skips the eSIMfly catalog sync when unset. |
 | `TRYBIT_API_KEY`, `TRYBIT_SHOP_ID`, `TRYBIT_SECRET_KEY` | Required in production. Checkout crypto invoices. |
 | `CARDLINK_API_TOKEN`, `CARDLINK_SHOP_ID` | Required in production. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Internal dashboard. |

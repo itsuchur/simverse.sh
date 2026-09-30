@@ -174,6 +174,8 @@ services:
       STRAPI_URL: "${STRAPI_URL:-http://strapi:1337}"
       STRAPI_API_TOKEN: "${STRAPI_API_TOKEN:-}"
       BLOG_URL: "${BLOG_URL:-https://blog.simverse.sh}"
+      ESIMFLY_ACCESS_CODE: "${ESIMFLY_ACCESS_CODE:-}"
+      ESIMFLY_SECRET_KEY: "${ESIMFLY_SECRET_KEY:-}"
       OPENROUTER_KEY: "${OPENROUTER_KEY}"
       NODE_ENV: production
     depends_on:

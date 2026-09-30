@@ -35,6 +35,10 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(16)
         : z.string().min(16).optional(),
+    // eSIMfly Business API (second catalog supplier). Optional: the poller
+    // skips the eSIMfly sync when either is missing.
+    ESIMFLY_ACCESS_CODE: z.string().min(1).optional(),
+    ESIMFLY_SECRET_KEY: z.string().min(1).optional(),
     TRYBIT_API_KEY:
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
@@ -97,6 +101,8 @@ export const env = createEnv({
     REDIS_URL: process.env.REDIS_URL,
     ESIMACCESS_ACCESS_CODE: process.env.ESIMACCESS_ACCESS_CODE,
     ESIMACCESS_WEBHOOK_SECRET: process.env.ESIMACCESS_WEBHOOK_SECRET,
+    ESIMFLY_ACCESS_CODE: process.env.ESIMFLY_ACCESS_CODE,
+    ESIMFLY_SECRET_KEY: process.env.ESIMFLY_SECRET_KEY,
     TRYBIT_API_KEY: process.env.TRYBIT_API_KEY,
     TRYBIT_SHOP_ID: process.env.TRYBIT_SHOP_ID,
     TRYBIT_SECRET_KEY: process.env.TRYBIT_SECRET_KEY,
