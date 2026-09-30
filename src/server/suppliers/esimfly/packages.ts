@@ -5,8 +5,18 @@ import type {
   ListAllPackagesOptions,
   Package as EsimflyApiPackage,
 } from "@esimfly/sdk";
+import { cache } from "react";
 
-import { writeCatalogGeneration } from "~/server/catalog/store";
+import {
+  filterExcludedPackages,
+  getExcludedPackageCodes,
+} from "~/server/catalog/package-exclusions";
+import {
+  readCatalogMeta,
+  readCatalogPackages,
+  searchCatalogPackageCodes,
+  writeCatalogGeneration,
+} from "~/server/catalog/store";
 import { countryNameToIso } from "~/server/suppliers/esimfly/country-codes";
 
 export const ESIMFLY_SUPPLIER = "esimfly";
@@ -49,6 +59,33 @@ export type EsimflyCatalogMeta = {
   count: number;
   currency: string;
 };
+
+export type CachedEsimflyPackages = EsimflyCatalogMeta & {
+  packageList: EsimflyPackage[];
+};
+
+/** One Redis catalog read per request; excluded packages are filtered out. */
+export const getCachedEsimflyPackages = cache(
+  async (): Promise<CachedEsimflyPackages | null> => {
+    const [meta, packageList, excludedCodes] = await Promise.all([
+      readCatalogMeta<EsimflyCatalogMeta>(ESIMFLY_SUPPLIER),
+      readCatalogPackages<EsimflyPackage>(ESIMFLY_SUPPLIER),
+      getExcludedPackageCodes(ESIMFLY_SUPPLIER),
+    ]);
+    if (!meta) {
+      return null;
+    }
+    return {
+      ...meta,
+      packageList: filterExcludedPackages(packageList, excludedCodes),
+    };
+  },
+);
+
+/** RediSearch-backed catalog search; null means "query too vague to filter". */
+export async function searchEsimflyPackageCodes(query: string) {
+  return searchCatalogPackageCodes(ESIMFLY_SUPPLIER, query);
+}
 
 function isoCodes(values: unknown[] | undefined): string[] {
   const codes = new Set<string>();

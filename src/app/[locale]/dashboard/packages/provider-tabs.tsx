@@ -1,12 +1,13 @@
 import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/utils";
 
-export const PACKAGE_PROVIDERS = ["esimaccess"] as const;
+export const PACKAGE_PROVIDERS = ["esimaccess", "esimfly"] as const;
 
 export type PackageProvider = (typeof PACKAGE_PROVIDERS)[number];
 
 export const PACKAGE_PROVIDER_LABELS: Record<PackageProvider, string> = {
   esimaccess: "eSIM Access",
+  esimfly: "eSIMfly",
 };
 
 export function isPackageProvider(value: string): value is PackageProvider {

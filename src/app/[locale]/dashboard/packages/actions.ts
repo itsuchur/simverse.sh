@@ -8,20 +8,32 @@ import {
   restorePackageCode,
 } from "~/server/catalog/package-exclusions";
 import { requireDashboardSession } from "~/server/dashboard/access";
-import { ESIMACCESS_SUPPLIER } from "~/server/suppliers/esimaccess/packages";
 
+import { PACKAGE_PROVIDERS } from "./provider-tabs";
+
+const providerSchema = z.enum(PACKAGE_PROVIDERS);
 const packageCodeSchema = z.string().trim().min(1).max(255);
 
-export async function excludePackageCodeAction(packageCode: string) {
+export async function excludePackageCodeAction(
+  provider: string,
+  packageCode: string,
+) {
   await requireDashboardSession();
-  const parsed = packageCodeSchema.parse(packageCode);
-  await excludePackageCode(ESIMACCESS_SUPPLIER, parsed);
+  await excludePackageCode(
+    providerSchema.parse(provider),
+    packageCodeSchema.parse(packageCode),
+  );
   revalidatePath("/dashboard/packages");
 }
 
-export async function restorePackageCodeAction(packageCode: string) {
+export async function restorePackageCodeAction(
+  provider: string,
+  packageCode: string,
+) {
   await requireDashboardSession();
-  const parsed = packageCodeSchema.parse(packageCode);
-  await restorePackageCode(ESIMACCESS_SUPPLIER, parsed);
+  await restorePackageCode(
+    providerSchema.parse(provider),
+    packageCodeSchema.parse(packageCode),
+  );
   revalidatePath("/dashboard/packages");
 }
