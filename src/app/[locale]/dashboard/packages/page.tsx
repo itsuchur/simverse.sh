@@ -1,12 +1,18 @@
+import { getExcludedPackageCodes } from "~/server/catalog/package-exclusions";
 import {
   ESIMACCESS_PRICE_SCALE,
   getCachedEsimAccessPackages,
   searchEsimAccessPackageCodes,
   type EsimAccessPackage,
 } from "~/server/suppliers/esimaccess/packages";
-import { getExcludedPackageCodes } from "~/server/catalog/package-exclusions";
+import {
+  getCachedEsimflyPackages,
+  searchEsimflyPackageCodes,
+  type EsimflyPackage,
+} from "~/server/suppliers/esimfly/packages";
 
 import { PackageExclusionButton } from "./package-exclusion-button";
+import { PackageTable, type PackageRow } from "./package-table";
 import { PackagePagination } from "./pagination";
 import {
   isPackageProvider,
@@ -18,7 +24,6 @@ import { PackageSearchForm } from "./search-form";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
-const LOCATION_PREVIEW = 6;
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -50,22 +55,25 @@ function formatVolume(bytes: number) {
   return `${Math.round(mib)} MB`;
 }
 
-function formatUsd(scaled: number) {
+/** eSIM Access money uses 10000 = $1.00. */
+function formatScaledUsd(scaled: number) {
   if (!Number.isFinite(scaled)) {
     return "—";
   }
   return `$${(scaled / ESIMACCESS_PRICE_SCALE).toFixed(2)}`;
 }
 
-function formatLocation(location: string) {
-  const codes = location.split(",").filter(Boolean);
-  if (codes.length === 0) {
+function formatMoney(amount: number, currency: string) {
+  if (!Number.isFinite(amount)) {
     return "—";
   }
-  if (codes.length <= LOCATION_PREVIEW) {
-    return codes.join(", ");
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency }).format(
+      amount,
+    );
+  } catch {
+    return `${amount} ${currency}`;
   }
-  return `${codes.slice(0, LOCATION_PREVIEW).join(", ")} +${codes.length - LOCATION_PREVIEW}`;
 }
 
 function formatSyncedAt(iso: string) {
@@ -76,48 +84,113 @@ function formatSyncedAt(iso: string) {
   return date.toISOString().replace("T", " ").slice(0, 19);
 }
 
-function PackageMobileCard({ pkg }: { pkg: EsimAccessPackage }) {
-  return (
-    <div className="ring-foreground/10 space-y-3 rounded-xl p-4 ring-1">
-      <div className="space-y-1">
-        <div className="font-medium">{pkg.name}</div>
-        {pkg.nameRu ? (
-          <div className="text-muted-foreground text-sm">{pkg.nameRu}</div>
-        ) : null}
-        <div className="font-mono text-sm">{pkg.packageCode}</div>
-      </div>
-      <div className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <div>
-          <div className="text-foreground font-medium">Data</div>
-          {formatVolume(pkg.volume)}
-        </div>
-        <div>
-          <div className="text-foreground font-medium">Duration</div>
-          {pkg.duration} {pkg.durationUnit}
-        </div>
-        <div>
-          <div className="text-foreground font-medium">Cost</div>
-          {formatUsd(pkg.price)}
-        </div>
-        <div>
-          <div className="text-foreground font-medium">Retail</div>
-          {formatUsd(pkg.retailPrice)}
-        </div>
-        <div>
-          <div className="text-foreground font-medium">RUB</div>
-          {pkg.priceRub ?? "—"}
-        </div>
-        <div>
-          <div className="text-foreground font-medium">Stars</div>
-          {pkg.priceStars ?? "—"}
-        </div>
-      </div>
-      <div className="text-muted-foreground font-mono text-xs break-all">
-        {formatLocation(pkg.location)}
-      </div>
-      <PackageExclusionButton packageCode={pkg.packageCode} />
-    </div>
-  );
+function yesNo(value: boolean) {
+  return value ? "Yes" : "No";
+}
+
+const ESIMACCESS_COLUMNS = ["Cost", "Retail", "RUB", "Stars"];
+
+function esimAccessRow(pkg: EsimAccessPackage): PackageRow {
+  return {
+    packageCode: pkg.packageCode,
+    name: pkg.name,
+    nameRu: pkg.nameRu,
+    location: pkg.location,
+    data: formatVolume(pkg.volume),
+    duration: `${pkg.duration} ${pkg.durationUnit}`,
+    extra: [
+      formatScaledUsd(pkg.price),
+      formatScaledUsd(pkg.retailPrice),
+      pkg.priceRub?.toString() ?? "—",
+      pkg.priceStars?.toString() ?? "—",
+    ],
+  };
+}
+
+const ESIMFLY_COLUMNS = [
+  "Type",
+  "Cost",
+  "Unlimited",
+  "Rechargeable",
+  "Carrier",
+];
+
+function esimflyRow(pkg: EsimflyPackage): PackageRow {
+  return {
+    packageCode: pkg.packageCode,
+    name: pkg.name,
+    nameRu: pkg.nameRu,
+    location: pkg.location,
+    data: pkg.isUnlimited ? "Unlimited" : formatVolume(pkg.volume),
+    duration: `${pkg.duration} ${pkg.durationUnit}`,
+    extra: [
+      pkg.type,
+      formatMoney(pkg.cost, pkg.currency),
+      yesNo(pkg.isUnlimited),
+      yesNo(pkg.features.isRechargeable),
+      pkg.networkCarrier ?? pkg.provider ?? "—",
+    ],
+  };
+}
+
+type ProviderCatalog = {
+  /** null until the poller has written a first generation. */
+  syncedAt: string | null;
+  activeCount: number;
+  extraColumns: string[];
+  rows: PackageRow[];
+};
+
+async function loadCatalog(
+  provider: PackageProvider,
+  query: string,
+): Promise<ProviderCatalog> {
+  switch (provider) {
+    case "esimaccess": {
+      const cached = await getCachedEsimAccessPackages();
+      const packages = await filterByQuery(
+        cached?.packageList ?? [],
+        query,
+        searchEsimAccessPackageCodes,
+      );
+      return {
+        syncedAt: cached?.syncedAt ?? null,
+        activeCount: cached?.packageList.length ?? 0,
+        extraColumns: ESIMACCESS_COLUMNS,
+        rows: packages.map(esimAccessRow),
+      };
+    }
+    case "esimfly": {
+      const cached = await getCachedEsimflyPackages();
+      const packages = await filterByQuery(
+        cached?.packageList ?? [],
+        query,
+        searchEsimflyPackageCodes,
+      );
+      return {
+        syncedAt: cached?.syncedAt ?? null,
+        activeCount: cached?.packageList.length ?? 0,
+        extraColumns: ESIMFLY_COLUMNS,
+        rows: packages.map(esimflyRow),
+      };
+    }
+  }
+}
+
+async function filterByQuery<T extends { packageCode: string }>(
+  packages: T[],
+  query: string,
+  search: (query: string) => Promise<string[] | null>,
+) {
+  if (!query) {
+    return packages;
+  }
+  const codes = await search(query);
+  if (codes === null) {
+    return packages;
+  }
+  const matching = new Set(codes);
+  return packages.filter((pkg) => matching.has(pkg.packageCode));
 }
 
 export default async function DashboardPackagesPage({
@@ -134,42 +207,32 @@ export default async function DashboardPackagesPage({
   const query = parseQuery(params.q);
   const requestedPage = parsePage(params.page);
 
-  const [cached, excludedCodeSet] = await Promise.all([
-    getCachedEsimAccessPackages(),
+  const [catalog, excludedCodeSet] = await Promise.all([
+    loadCatalog(provider, query),
     getExcludedPackageCodes(provider),
   ]);
   const excludedCodes = [...excludedCodeSet].sort((a, b) => a.localeCompare(b));
 
-  let packages: EsimAccessPackage[] = cached?.packageList ?? [];
-  if (query) {
-    const codes = await searchEsimAccessPackageCodes(query);
-    if (codes !== null) {
-      const matching = new Set(codes);
-      packages = packages.filter((pkg) => matching.has(pkg.packageCode));
-    }
-  }
+  const rows = [...catalog.rows].sort((a, b) => a.name.localeCompare(b.name));
 
-  packages.sort((a, b) => a.name.localeCompare(b.name));
-
-  const total = packages.length;
+  const total = rows.length;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(requestedPage, pageCount);
-  const pagePackages = packages.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const emptyMessage = cached
-    ? query
+  const emptyMessage =
+    catalog.syncedAt && query
       ? "No matching packages."
-      : "No packages in Redis."
-    : "No packages in Redis.";
+      : "No packages in Redis.";
 
   return (
     <main className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold tracking-tight">Packages</h1>
-        {cached ? (
+        {catalog.syncedAt ? (
           <p className="text-muted-foreground text-sm">
-            Last sync {formatSyncedAt(cached.syncedAt)} ·{" "}
-            {cached.packageList.length} active · {excludedCodes.length} excluded
+            Last sync {formatSyncedAt(catalog.syncedAt)} · {catalog.activeCount}{" "}
+            active · {excludedCodes.length} excluded
             {query ? ` · ${total} match${total === 1 ? "" : "es"}` : null}
           </p>
         ) : (
@@ -202,6 +265,7 @@ export default async function DashboardPackagesPage({
                   >
                     <code className="text-sm break-all">{packageCode}</code>
                     <PackageExclusionButton
+                      provider={provider}
                       packageCode={packageCode}
                       excluded
                     />
@@ -212,88 +276,13 @@ export default async function DashboardPackagesPage({
           </section>
           <PackageSearchForm provider={provider} query={query} />
 
-          <div className="space-y-3 md:hidden">
-            {pagePackages.length === 0 ? (
-              <p className="text-muted-foreground py-8 text-center">
-                {emptyMessage}
-              </p>
-            ) : (
-              pagePackages.map((pkg) => (
-                <PackageMobileCard key={pkg.packageCode} pkg={pkg} />
-              ))
-            )}
-          </div>
+          <PackageTable
+            provider={provider}
+            rows={pageRows}
+            extraColumns={catalog.extraColumns}
+            emptyMessage={emptyMessage}
+          />
 
-          <div className="ring-foreground/10 hidden overflow-x-auto rounded-xl ring-1 md:block">
-            <table className="w-max min-w-full border-separate border-spacing-0 text-left text-base">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th className="px-5 py-3.5 font-medium">Code</th>
-                  <th className="px-5 py-3.5 font-medium">Name</th>
-                  <th className="px-5 py-3.5 font-medium">Location</th>
-                  <th className="px-5 py-3.5 font-medium">Data</th>
-                  <th className="px-5 py-3.5 font-medium">Duration</th>
-                  <th className="px-5 py-3.5 font-medium">Cost</th>
-                  <th className="px-5 py-3.5 font-medium">Retail</th>
-                  <th className="px-5 py-3.5 font-medium">RUB</th>
-                  <th className="px-5 py-3.5 font-medium">Stars</th>
-                  <th className="px-5 py-3.5 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagePackages.length === 0 ? (
-                  <tr>
-                    <td
-                      className="text-muted-foreground px-5 py-8"
-                      colSpan={10}
-                    >
-                      {emptyMessage}
-                    </td>
-                  </tr>
-                ) : (
-                  pagePackages.map((pkg) => (
-                    <tr key={pkg.packageCode} className="align-top">
-                      <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
-                        {pkg.packageCode}
-                      </td>
-                      <td className="border-border min-w-48 border-t px-5 py-3.5">
-                        <div>{pkg.name}</div>
-                        {pkg.nameRu ? (
-                          <div className="text-muted-foreground text-sm">
-                            {pkg.nameRu}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="border-border max-w-72 border-t px-5 py-3.5 font-mono text-sm">
-                        {formatLocation(pkg.location)}
-                      </td>
-                      <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {formatVolume(pkg.volume)}
-                      </td>
-                      <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {pkg.duration} {pkg.durationUnit}
-                      </td>
-                      <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {formatUsd(pkg.price)}
-                      </td>
-                      <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {formatUsd(pkg.retailPrice)}
-                      </td>
-                      <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {pkg.priceRub ?? "—"}
-                      </td>
-                      <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                        {pkg.priceStars ?? "—"}
-                      </td>
-                      <td className="border-border border-t px-5 py-3.5">
-                        <PackageExclusionButton packageCode={pkg.packageCode} />
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
           <PackagePagination
             provider={provider}
             query={query}
