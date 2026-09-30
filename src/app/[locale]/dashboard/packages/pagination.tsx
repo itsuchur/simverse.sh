@@ -21,7 +21,7 @@ export function PackagePagination({
   }
 
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <p className="text-muted-foreground text-sm">
         Page {page} of {pageCount} · {total}{" "}
         {total === 1 ? "package" : "packages"}
@@ -32,7 +32,7 @@ export function PackagePagination({
             render={<Link href={packagesHref(provider, query, page - 1)} />}
             variant="outline"
             size="lg"
-            className="h-10 px-4 text-base"
+            className="h-10 flex-1 px-4 text-base sm:flex-none"
           >
             Previous
           </Button>
@@ -40,7 +40,7 @@ export function PackagePagination({
           <Button
             variant="outline"
             size="lg"
-            className="h-10 px-4 text-base"
+            className="h-10 flex-1 px-4 text-base sm:flex-none"
             disabled
           >
             Previous
@@ -51,7 +51,7 @@ export function PackagePagination({
             render={<Link href={packagesHref(provider, query, page + 1)} />}
             variant="outline"
             size="lg"
-            className="h-10 px-4 text-base"
+            className="h-10 flex-1 px-4 text-base sm:flex-none"
           >
             Next
           </Button>
@@ -59,7 +59,7 @@ export function PackagePagination({
           <Button
             variant="outline"
             size="lg"
-            className="h-10 px-4 text-base"
+            className="h-10 flex-1 px-4 text-base sm:flex-none"
             disabled
           >
             Next

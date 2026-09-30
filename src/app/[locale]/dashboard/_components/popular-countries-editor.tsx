@@ -93,7 +93,7 @@ export function PopularCountriesEditor({
           {countries.map((country, index) => (
             <li
               key={country.code}
-              className="bg-background flex items-center gap-3 px-3 py-2"
+              className="bg-background flex flex-wrap items-center gap-3 px-3 py-2"
             >
               <ReactCountryFlag
                 countryCode={country.code}
@@ -106,17 +106,17 @@ export function PopularCountriesEditor({
                 }}
                 aria-label={country.name}
               />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-32">
                 <div className="truncate font-medium">{country.name}</div>
                 <div className="text-muted-foreground text-xs">
                   {country.code}
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="ml-auto flex items-center gap-1">
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon-sm"
+                  size="icon"
                   disabled={pending || index === 0}
                   aria-label={`Move ${country.name} up`}
                   onClick={() => {
@@ -128,7 +128,7 @@ export function PopularCountriesEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon-sm"
+                  size="icon"
                   disabled={pending || index === countries.length - 1}
                   aria-label={`Move ${country.name} down`}
                   onClick={() => {
@@ -141,6 +141,7 @@ export function PopularCountriesEditor({
                   type="button"
                   variant="destructive"
                   size="sm"
+                  className="h-8"
                   disabled={pending}
                   onClick={() => {
                     removeCountry(index);

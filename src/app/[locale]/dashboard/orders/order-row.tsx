@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import { formatOrderPrice } from "~/lib/format-order-price";
 
 export type OrderRecord = {
   id: string;
@@ -46,6 +47,8 @@ export type OrderRecord = {
   paidAt: string | null;
   issuedAt: string | null;
   updatedAt: string;
+  userLabel: string;
+  userEmail: string | null;
 };
 
 const ORDER_FIELDS: {
@@ -108,6 +111,62 @@ function formatValue(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
+function OrderDetailDialog({
+  order,
+  open,
+  onOpenChange,
+}: {
+  order: OrderRecord;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 data-open:zoom-in-100 data-closed:zoom-out-100 top-auto bottom-0 left-1/2 max-h-[min(90dvh,48rem)] w-full max-w-[calc(100%-0rem)] translate-x-[-50%] translate-y-0 gap-4 overflow-y-auto rounded-t-2xl rounded-b-none p-6 text-base sm:top-1/2 sm:bottom-auto sm:max-w-3xl sm:translate-y-[-50%] sm:rounded-xl sm:data-open:slide-in-from-bottom-0 sm:data-closed:slide-out-to-bottom-0 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95">
+        <DialogHeader>
+          <DialogTitle className="text-xl">Order {order.id}</DialogTitle>
+          <DialogDescription>
+            All columns from the orders table.
+          </DialogDescription>
+        </DialogHeader>
+        <dl className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(10rem,14rem)_1fr] sm:gap-x-6 sm:gap-y-3">
+          {ORDER_FIELDS.map(({ column, value }) => {
+            const formatted = formatValue(value(order));
+            const multiline = formatted.includes("\n");
+            return (
+              <div key={column} className="space-y-1 sm:contents">
+                <dt className="text-muted-foreground font-mono text-sm leading-6">
+                  {column}
+                </dt>
+                <dd className="min-w-0 leading-6 break-all">
+                  {multiline ? (
+                    <pre className="bg-muted/40 max-h-64 overflow-auto rounded-lg p-3 font-mono text-sm whitespace-pre-wrap">
+                      {formatted}
+                    </pre>
+                  ) : (
+                    <span className="font-mono text-sm">{formatted}</span>
+                  )}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function useOrderDialog(order: OrderRecord) {
+  const [open, setOpen] = useState(false);
+  return {
+    open,
+    setOpen,
+    dialog: (
+      <OrderDetailDialog order={order} open={open} onOpenChange={setOpen} />
+    ),
+  };
+}
+
 export function OrderRow({
   order,
   children,
@@ -115,7 +174,7 @@ export function OrderRow({
   order: OrderRecord;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const { setOpen, dialog } = useOrderDialog(order);
 
   return (
     <>
@@ -135,38 +194,53 @@ export function OrderRow({
       >
         {children}
       </tr>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto p-6 text-base sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Order {order.id}</DialogTitle>
-            <DialogDescription>
-              All columns from the orders table.
-            </DialogDescription>
-          </DialogHeader>
-          <dl className="grid grid-cols-[minmax(10rem,14rem)_1fr] gap-x-6 gap-y-3">
-            {ORDER_FIELDS.map(({ column, value }) => {
-              const formatted = formatValue(value(order));
-              const multiline = formatted.includes("\n");
-              return (
-                <div key={column} className="contents">
-                  <dt className="text-muted-foreground font-mono text-sm leading-6">
-                    {column}
-                  </dt>
-                  <dd className="min-w-0 leading-6 break-all">
-                    {multiline ? (
-                      <pre className="bg-muted/40 max-h-64 overflow-auto rounded-lg p-3 font-mono text-sm whitespace-pre-wrap">
-                        {formatted}
-                      </pre>
-                    ) : (
-                      <span className="font-mono text-sm">{formatted}</span>
-                    )}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </DialogContent>
-      </Dialog>
+      {dialog}
+    </>
+  );
+}
+
+export function OrderCard({ order }: { order: OrderRecord }) {
+  const { setOpen, dialog } = useOrderDialog(order);
+  const created = order.createdAt.replace("T", " ").slice(0, 19);
+  const price = formatOrderPrice(
+    BigInt(order.priceAmount),
+    order.currency,
+    order.paymentProvider,
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        className="ring-foreground/10 hover:bg-muted/40 w-full rounded-xl p-4 text-left ring-1 transition-colors"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <div className="font-medium">{order.packageName}</div>
+            <div className="text-muted-foreground text-sm">
+              #{order.id} · {created}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="font-medium tabular-nums">{price}</div>
+            <div className="text-muted-foreground text-sm">{order.status}</div>
+          </div>
+        </div>
+        <div className="text-muted-foreground mt-3 space-y-0.5 text-sm">
+          <div className="truncate">{order.userLabel}</div>
+          {order.userEmail ? (
+            <div className="truncate">{order.userEmail}</div>
+          ) : null}
+          <div>
+            {order.paymentProvider} / {order.paymentStatus}
+            {order.countryCode ? ` · ${order.countryCode}` : null}
+          </div>
+        </div>
+      </button>
+      {dialog}
     </>
   );
 }

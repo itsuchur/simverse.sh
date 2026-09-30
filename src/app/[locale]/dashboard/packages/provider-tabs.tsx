@@ -37,7 +37,10 @@ export function PackageProviderTabs({
   query: string;
 }) {
   return (
-    <nav aria-label="eSIM provider" className="flex w-44 flex-col gap-1">
+    <nav
+      aria-label="eSIM provider"
+      className="flex w-full gap-1 overflow-x-auto pb-1 md:w-44 md:flex-col md:overflow-visible md:pb-0"
+    >
       {PACKAGE_PROVIDERS.map((value) => {
         const active = value === provider;
         return (
@@ -46,7 +49,7 @@ export function PackageProviderTabs({
             href={packagesHref(value, query)}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
+              "shrink-0 rounded-md px-3 py-2 text-sm font-medium md:py-1.5",
               active
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",

@@ -104,11 +104,11 @@ export function SalesGraph({
         </div>
       </CardHeader>
       <CardContent className="pt-2">
-        <div className="h-72 w-full min-w-0">
+        <div className="h-56 w-full min-w-0 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={series}
-              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
@@ -122,8 +122,8 @@ export function SalesGraph({
                 yAxisId="revenue"
                 tickLine={false}
                 axisLine={false}
-                width={56}
-                tick={{ fontSize: 12 }}
+                width={48}
+                tick={{ fontSize: 11 }}
                 tickFormatter={(value: number) => formatUsd(value)}
               />
               <YAxis
@@ -132,8 +132,8 @@ export function SalesGraph({
                 allowDecimals={false}
                 tickLine={false}
                 axisLine={false}
-                width={40}
-                tick={{ fontSize: 12 }}
+                width={32}
+                tick={{ fontSize: 11 }}
               />
               <Tooltip
                 formatter={(value, name) => {
@@ -145,7 +145,7 @@ export function SalesGraph({
                   return [numeric, "Orders"];
                 }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar
                 yAxisId="orders"
                 dataKey="orderCount"

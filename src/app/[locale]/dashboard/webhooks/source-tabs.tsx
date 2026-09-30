@@ -39,7 +39,10 @@ export function webhookLogsHref(source: WebhookSourceFilter, page = 1) {
 
 export function WebhookSourceTabs({ source }: { source: WebhookSourceFilter }) {
   return (
-    <nav aria-label="Webhook source" className="flex w-44 flex-col gap-1">
+    <nav
+      aria-label="Webhook source"
+      className="flex w-full gap-1 overflow-x-auto pb-1 md:w-44 md:flex-col md:overflow-visible md:pb-0"
+    >
       {WEBHOOK_SOURCES.map((value) => {
         const active = value === source;
         return (
@@ -48,7 +51,7 @@ export function WebhookSourceTabs({ source }: { source: WebhookSourceFilter }) {
             href={webhookLogsHref(value)}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium",
+              "shrink-0 rounded-md px-3 py-2 text-sm font-medium md:py-1.5",
               active
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
