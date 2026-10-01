@@ -14,6 +14,14 @@ export type FakeExcludedPackageCode = {
   updatedAt: Date;
 };
 
+export type FakeExcludedCountryCode = {
+  id: bigint;
+  resellerCode: string;
+  countryCode: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type FakeOrder = {
   id: bigint;
   orderUuid: string;
@@ -164,9 +172,11 @@ function orderDefaults(): Omit<
 class FakeDb {
   private orders: FakeOrder[] = [];
   private excludedPackageCodes: FakeExcludedPackageCode[] = [];
+  private excludedCountryCodes: FakeExcludedCountryCode[] = [];
   private users = new Map<string, FakeUser>();
   private nextOrderId = 1n;
   private nextExcludedPackageCodeId = 1n;
+  private nextExcludedCountryCodeId = 1n;
 
   webhookLogs: Array<{ source: string; headers: unknown; payload?: unknown }> =
     [];
@@ -174,10 +184,12 @@ class FakeDb {
   reset() {
     this.orders = [];
     this.excludedPackageCodes = [];
+    this.excludedCountryCodes = [];
     this.users.clear();
     this.webhookLogs = [];
     this.nextOrderId = 1n;
     this.nextExcludedPackageCodeId = 1n;
+    this.nextExcludedCountryCodeId = 1n;
   }
 
   seedUser(user: { id: string; telegramId?: string | null }): FakeUser {
@@ -401,6 +413,82 @@ class FakeDb {
           row.packageCode !== args.where.packageCode,
       );
       return { count: previousLength - this.excludedPackageCodes.length };
+    },
+  };
+
+  excludedCountryCode = {
+    findMany: async (args: {
+      where: { resellerCode: string };
+      select?: { countryCode?: boolean };
+    }) => {
+      const rows = this.excludedCountryCodes.filter(
+        (row) => row.resellerCode === args.where.resellerCode,
+      );
+      if (args.select?.countryCode) {
+        return rows.map(({ countryCode }) => ({ countryCode }));
+      }
+      return rows;
+    },
+    findUnique: async (args: {
+      where: {
+        resellerCode_countryCode: {
+          resellerCode: string;
+          countryCode: string;
+        };
+      };
+      select?: { id?: boolean };
+    }) => {
+      const key = args.where.resellerCode_countryCode;
+      const row =
+        this.excludedCountryCodes.find(
+          (candidate) =>
+            candidate.resellerCode === key.resellerCode &&
+            candidate.countryCode === key.countryCode,
+        ) ?? null;
+      if (row && args.select?.id) {
+        return { id: row.id };
+      }
+      return row;
+    },
+    upsert: async (args: {
+      where: {
+        resellerCode_countryCode: {
+          resellerCode: string;
+          countryCode: string;
+        };
+      };
+      create: { resellerCode: string; countryCode: string };
+      update: Record<string, never>;
+    }) => {
+      const key = args.where.resellerCode_countryCode;
+      const existing = this.excludedCountryCodes.find(
+        (candidate) =>
+          candidate.resellerCode === key.resellerCode &&
+          candidate.countryCode === key.countryCode,
+      );
+      if (existing) {
+        return existing;
+      }
+      const now = new Date();
+      const row: FakeExcludedCountryCode = {
+        id: this.nextExcludedCountryCodeId++,
+        ...args.create,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.excludedCountryCodes.push(row);
+      return row;
+    },
+    deleteMany: async (args: {
+      where: { resellerCode: string; countryCode: string };
+    }) => {
+      const previousLength = this.excludedCountryCodes.length;
+      this.excludedCountryCodes = this.excludedCountryCodes.filter(
+        (row) =>
+          row.resellerCode !== args.where.resellerCode ||
+          row.countryCode !== args.where.countryCode,
+      );
+      return { count: previousLength - this.excludedCountryCodes.length };
     },
   };
 

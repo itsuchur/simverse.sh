@@ -198,3 +198,16 @@ model ExcludedPackageCode {
   @@index([resellerCode], map: "idx_excluded_package_codes_reseller_code")
   @@map("excluded_package_codes")
 }
+
+/// Dashboard-managed ISO country codes whose single-country packages are omitted from the catalog.
+model ExcludedCountryCode {
+  id           BigInt   @id @default(autoincrement())
+  resellerCode String   @map("reseller_code")
+  countryCode  String   @map("country_code")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([resellerCode, countryCode], map: "uq_excluded_country_codes_reseller_country")
+  @@index([resellerCode], map: "idx_excluded_country_codes_reseller_code")
+  @@map("excluded_country_codes")
+}

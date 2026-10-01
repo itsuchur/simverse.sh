@@ -5,8 +5,8 @@ import { cache } from "react";
 import { usdToStars } from "~/lib/usd-to-stars";
 import {
   filterExcludedPackages,
-  getExcludedPackageCodes,
-  isPackageCodeExcluded,
+  getPackageExclusions,
+  isPackageExcluded,
 } from "~/server/catalog/package-exclusions";
 import {
   readCatalogMeta,
@@ -250,28 +250,30 @@ export async function writeEsimAccessCatalog(
 /** One Redis catalog read per request, shared by popular and scoped lists. */
 export const getCachedEsimAccessPackages = cache(
   async (): Promise<CachedEsimAccessPackages | null> => {
-    const [meta, packageList, excludedCodes] = await Promise.all([
+    const [meta, packageList, exclusions] = await Promise.all([
       readCatalogMeta<EsimAccessCatalogMeta>(ESIMACCESS_SUPPLIER),
       readCatalogPackages<EsimAccessPackage>(ESIMACCESS_SUPPLIER),
-      getExcludedPackageCodes(ESIMACCESS_SUPPLIER),
+      getPackageExclusions(ESIMACCESS_SUPPLIER),
     ]);
     if (!meta) {
       return null;
     }
     return {
       ...meta,
-      packageList: filterExcludedPackages(packageList, excludedCodes),
+      packageList: filterExcludedPackages(packageList, exclusions),
     };
   },
 );
 
 export async function getEsimAccessPackageByCode(packageCode: string) {
-  const [meta, pkg, excluded] = await Promise.all([
+  const [meta, pkg] = await Promise.all([
     readCatalogMeta<EsimAccessCatalogMeta>(ESIMACCESS_SUPPLIER),
     readCatalogPackage<EsimAccessPackage>(ESIMACCESS_SUPPLIER, packageCode),
-    isPackageCodeExcluded(ESIMACCESS_SUPPLIER, packageCode),
   ]);
-  if (!meta || !pkg || excluded) {
+  if (!meta || !pkg) {
+    return null;
+  }
+  if (await isPackageExcluded(ESIMACCESS_SUPPLIER, pkg)) {
     return null;
   }
   return { meta, pkg };

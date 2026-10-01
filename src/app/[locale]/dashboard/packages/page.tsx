@@ -4,8 +4,12 @@ import {
   searchEsimAccessPackageCodes,
   type EsimAccessPackage,
 } from "~/server/suppliers/esimaccess/packages";
-import { getExcludedPackageCodes } from "~/server/catalog/package-exclusions";
+import { getPackageExclusions } from "~/server/catalog/package-exclusions";
 
+import {
+  CountryExclusionEditor,
+  type CountryEntry,
+} from "./country-exclusion-editor";
 import { PackageExclusionButton } from "./package-exclusion-button";
 import { PackagePagination } from "./pagination";
 import {
@@ -66,6 +70,22 @@ function formatLocation(location: string) {
     return codes.join(", ");
   }
   return `${codes.slice(0, LOCATION_PREVIEW).join(", ")} +${codes.length - LOCATION_PREVIEW}`;
+}
+
+const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+function countryEntry(code: string): CountryEntry {
+  let name = code;
+  try {
+    name = countryNames.of(code) ?? code;
+  } catch {
+    // Non-ISO codes fall back to the raw code.
+  }
+  return { code, name };
+}
+
+function sortCountries(entries: CountryEntry[]) {
+  return entries.sort((a, b) => a.name.localeCompare(b.name, "en"));
 }
 
 function formatSyncedAt(iso: string) {
@@ -134,13 +154,29 @@ export default async function DashboardPackagesPage({
   const query = parseQuery(params.q);
   const requestedPage = parsePage(params.page);
 
-  const [cached, excludedCodeSet] = await Promise.all([
+  const [cached, exclusions] = await Promise.all([
     getCachedEsimAccessPackages(),
-    getExcludedPackageCodes(provider),
+    getPackageExclusions(provider),
   ]);
-  const excludedCodes = [...excludedCodeSet].sort((a, b) => a.localeCompare(b));
+  const excludedCodes = [...exclusions.packageCodes].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const excludedCountries = sortCountries(
+    [...exclusions.countryCodes].map(countryEntry),
+  );
 
   let packages: EsimAccessPackage[] = cached?.packageList ?? [];
+
+  // Single-country packages still in the catalog; excluded countries are already filtered out.
+  const availableCountries = sortCountries(
+    [
+      ...new Set(
+        packages
+          .map((pkg) => pkg.location)
+          .filter((location) => location && !location.includes(",")),
+      ),
+    ].map(countryEntry),
+  );
   if (query) {
     const codes = await searchEsimAccessPackageCodes(query);
     if (codes !== null) {
@@ -169,7 +205,8 @@ export default async function DashboardPackagesPage({
         {cached ? (
           <p className="text-muted-foreground text-sm">
             Last sync {formatSyncedAt(cached.syncedAt)} ·{" "}
-            {cached.packageList.length} active · {excludedCodes.length} excluded
+            {cached.packageList.length} active · {excludedCodes.length} codes
+            excluded · {excludedCountries.length} countries excluded
             {query ? ` · ${total} match${total === 1 ? "" : "es"}` : null}
           </p>
         ) : (
@@ -181,6 +218,20 @@ export default async function DashboardPackagesPage({
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
         <PackageProviderTabs provider={provider} query={query} />
         <div className="min-w-0 flex-1 space-y-4">
+          <section className="ring-foreground/10 rounded-xl p-4 ring-1 md:p-5">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Excluded countries</h2>
+              <p className="text-muted-foreground text-sm">
+                Single-country packages for an excluded country are blocked
+                immediately and omitted from future catalog syncs. Regional and
+                global bundles that cover the country are unaffected.
+              </p>
+            </div>
+            <CountryExclusionEditor
+              excluded={excludedCountries}
+              available={availableCountries}
+            />
+          </section>
           <section className="ring-foreground/10 rounded-xl p-4 ring-1 md:p-5">
             <div className="mb-4">
               <h2 className="text-lg font-semibold">Excluded package codes</h2>

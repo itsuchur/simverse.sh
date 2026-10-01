@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { cartPlanSchema, type CartPlan } from "~/lib/cart-plan";
-import { isPackageCodeExcluded } from "~/server/catalog/package-exclusions";
+import { isPackageExcluded } from "~/server/catalog/package-exclusions";
 import { getRedis } from "~/server/redis";
 import {
   ESIMACCESS_SUPPLIER,
@@ -191,7 +191,10 @@ export async function getCartSnapshot(
   const cart = parseStoredCart(value);
   if (
     !cart ||
-    (await isPackageCodeExcluded(ESIMACCESS_SUPPLIER, cart.plan.packageCode))
+    (await isPackageExcluded(ESIMACCESS_SUPPLIER, {
+      packageCode: cart.plan.packageCode,
+      location: cart.plan.country,
+    }))
   ) {
     return null;
   }

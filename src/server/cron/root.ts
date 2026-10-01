@@ -3,7 +3,7 @@ import { Cron } from "croner";
 
 import {
   filterExcludedPackages,
-  getExcludedPackageCodes,
+  getPackageExclusions,
 } from "~/server/catalog/package-exclusions";
 import { withRussianNames } from "~/server/suppliers/esimaccess/localize";
 import {
@@ -27,12 +27,12 @@ import {
 } from "~/server/suppliers/esimfly/packages";
 
 async function syncEsimAccessPackages() {
-  const [packages, fx, excludedCodes] = await Promise.all([
+  const [packages, fx, exclusions] = await Promise.all([
     fetchEsimAccessPackages(),
     fetchUsdRubRate(),
-    getExcludedPackageCodes(ESIMACCESS_SUPPLIER),
+    getPackageExclusions(ESIMACCESS_SUPPLIER),
   ]);
-  const included = filterExcludedPackages(packages, excludedCodes);
+  const included = filterExcludedPackages(packages, exclusions);
   const preferred = preferCatalogPackages(included);
   const packageList = await withRussianNames(withPriceRub(preferred, fx.rate));
 
@@ -47,7 +47,7 @@ async function syncEsimAccessPackages() {
   );
 
   console.log(
-    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (${excludedCodes.size} excluded, USD/RUB ${fx.rate})`,
+    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, USD/RUB ${fx.rate})`,
   );
 }
 
@@ -59,9 +59,9 @@ async function syncEsimflyPackages() {
     return;
   }
 
-  const [raw, excludedCodes] = await Promise.all([
+  const [raw, exclusions] = await Promise.all([
     fetchEsimflyPackages(getEsimflyClient()),
-    getExcludedPackageCodes(ESIMFLY_SUPPLIER),
+    getPackageExclusions(ESIMFLY_SUPPLIER),
   ]);
   const { packages, skipped, unresolvedNames } = normalizeEsimflyPackages(raw);
   if (unresolvedNames.length > 0) {
@@ -69,7 +69,7 @@ async function syncEsimflyPackages() {
       `[cron] eSIMfly: ${skipped.length} packages skipped; unresolved location names: ${unresolvedNames.join(", ")}`,
     );
   }
-  const included = filterExcludedPackages(packages, excludedCodes);
+  const included = filterExcludedPackages(packages, exclusions);
   const packageList = await withEsimflyRussianNames(included);
 
   const generation = await writeEsimflyCatalog(
@@ -82,7 +82,7 @@ async function syncEsimflyPackages() {
   );
 
   console.log(
-    `[cron] synced ${packageList.length} of ${raw.length} eSIMfly packages to RedisJSON catalog generation ${generation} (${excludedCodes.size} excluded, ${skipped.length} without resolvable location)`,
+    `[cron] synced ${packageList.length} of ${raw.length} eSIMfly packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, ${skipped.length} without resolvable location)`,
   );
 }
 
