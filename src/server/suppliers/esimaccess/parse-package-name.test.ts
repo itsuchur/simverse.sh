@@ -6,10 +6,34 @@ import {
 } from "~/server/suppliers/esimaccess/parse-package-name";
 
 describe("parseName", () => {
-  test("parses the FUP speed from a daily plan", () => {
-    expect(parseName("Japan 3GB/Day FUP1Mbps (IIJ)")?.fup).toEqual({
-      value: 1,
-      unit: "M",
+  test("parses the allowance and FUP speed from a daily plan", () => {
+    expect(parseName("Japan 3GB/Day FUP1Mbps (IIJ)")).toMatchObject({
+      amount: "3",
+      unit: "GB",
+      perDay: true,
+      fup: { value: 1, unit: "M" },
+    });
+  });
+
+  test("parses the allowance and FUP speed from a total plan", () => {
+    expect(parseName("Europe 5GB 30Days FUP512Kbps")).toMatchObject({
+      amount: "5",
+      unit: "GB",
+      perDay: false,
+      days: 30,
+      fup: { value: 512, unit: "K" },
+    });
+  });
+
+  test("keeps fixed plans distinct from FUP plans", () => {
+    expect(parseName("Spain 5GB 30Days")).toEqual({
+      label: "Spain",
+      amount: "5",
+      unit: "GB",
+      perDay: false,
+      days: 30,
+      fup: undefined,
+      modifier: undefined,
     });
   });
 });

@@ -6,6 +6,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
 import { Button } from "~/components/ui/button";
+import { UnlimitedDataLabel } from "~/components/ui/unlimited-data-label";
 import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
 import { discountedSbpCents } from "~/lib/platega";
@@ -52,16 +53,13 @@ async function requestInvoice(
   throw new Error("invoice_in_progress");
 }
 
-function formatDataGb(dataGb: number, unlimitedLabel?: string) {
-  let data: string;
+function formatDataGb(dataGb: number) {
   if (dataGb >= 1) {
-    data = Number.isInteger(dataGb)
+    return Number.isInteger(dataGb)
       ? `${dataGb} GB`
       : `${dataGb.toFixed(1)} GB`;
-  } else {
-    data = `${Math.round(dataGb * 1024)} MB`;
   }
-  return unlimitedLabel ? `${data} (${unlimitedLabel})` : data;
+  return `${Math.round(dataGb * 1024)} MB`;
 }
 
 function countryDisplayName(countryCode: string, locale: string) {
@@ -177,10 +175,7 @@ export function CheckoutView({
   });
 
   const duration = tCatalog("duration.day", { count: plan.validity_days });
-  const data = formatDataGb(
-    plan.data_gb,
-    plan.isUnlimited ? tCatalog("unlimitedLabel") : undefined,
-  );
+  const fullSpeedAmount = formatDataGb(plan.data_gb);
   const coverage = coverageLabel(plan, locale);
 
   return (
@@ -223,7 +218,16 @@ export function CheckoutView({
         </div>
         <div className="flex items-baseline justify-between gap-6">
           <dt className="text-muted-foreground shrink-0">{t("data")}</dt>
-          <dd className="font-medium">{data}</dd>
+          <dd className="font-medium">
+            {plan.isUnlimited ? (
+              <UnlimitedDataLabel
+                fullSpeedAmount={fullSpeedAmount}
+                packageName={plan.name}
+              />
+            ) : (
+              fullSpeedAmount
+            )}
+          </dd>
         </div>
         <div className="flex items-baseline justify-between gap-6">
           <dt className="text-muted-foreground shrink-0">{t("validity")}</dt>

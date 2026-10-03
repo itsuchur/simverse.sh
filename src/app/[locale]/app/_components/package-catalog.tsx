@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
+import { UnlimitedDataLabel } from "~/components/ui/unlimited-data-label";
 import {
   Dialog,
   DialogContent,
@@ -38,16 +39,13 @@ import { api } from "~/trpc/react";
 
 const tabValues = ["popular", "local", "regional", "global"] as const;
 
-function formatVolume(bytes: number, unlimitedLabel?: string) {
+function formatVolume(bytes: number) {
   const gib = bytes / 1024 ** 3;
-  let volume: string;
   if (gib >= 1) {
-    volume = Number.isInteger(gib) ? `${gib} GB` : `${gib.toFixed(1)} GB`;
-  } else {
-    const mib = bytes / 1024 ** 2;
-    volume = `${Math.round(mib)} MB`;
+    return Number.isInteger(gib) ? `${gib} GB` : `${gib.toFixed(1)} GB`;
   }
-  return unlimitedLabel ? `${volume} (${unlimitedLabel})` : volume;
+  const mib = bytes / 1024 ** 2;
+  return `${Math.round(mib)} MB`;
 }
 
 /**
@@ -223,34 +221,51 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
                       const selected =
                         selectedPkg?.packageCode === pkg.packageCode;
 
+                      const fullSpeedAmount = formatVolume(pkg.volume);
+
                       return (
-                        <button
+                        <div
                           key={pkg.packageCode}
-                          type="button"
-                          aria-pressed={selected}
                           className={cn(
-                            "flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left text-base leading-snug transition-colors",
-                            selected
-                              ? "bg-muted ring-foreground/20 font-medium ring-1"
-                              : "hover:bg-muted/60",
+                            "relative flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left text-base leading-snug",
+                            selected && "font-medium",
                           )}
-                          onClick={() => {
-                            setSelectedPkg(pkg);
-                            setConfirming(true);
-                          }}
                         >
-                          <span>
-                            {formatVolume(
-                              pkg.volume,
-                              pkg.isUnlimited ? t("unlimitedLabel") : undefined,
+                          <button
+                            type="button"
+                            aria-label={`${pkg.isUnlimited ? t("unlimitedLabel") : fullSpeedAmount}, ${price}`}
+                            aria-pressed={selected}
+                            className={cn(
+                              "focus-visible:ring-ring/50 absolute inset-0 rounded-xl transition-colors outline-none focus-visible:ring-3",
+                              selected
+                                ? "bg-muted ring-foreground/20 ring-1"
+                                : "hover:bg-muted/60",
+                            )}
+                            onClick={() => {
+                              setSelectedPkg(pkg);
+                              setConfirming(true);
+                            }}
+                          />
+                          <span className="pointer-events-none relative z-10 min-w-0">
+                            {pkg.isUnlimited ? (
+                              <UnlimitedDataLabel
+                                fullSpeedAmount={fullSpeedAmount}
+                                packageName={pkg.name}
+                                triggerClassName="pointer-events-auto"
+                              />
+                            ) : (
+                              fullSpeedAmount
                             )}
                           </span>
                           <span
-                            className={cn("pl-4", !selected && "font-medium")}
+                            className={cn(
+                              "pointer-events-none relative z-10 pl-4",
+                              !selected && "font-medium",
+                            )}
                           >
                             {price}
                           </span>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>

@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import { UnlimitedDataLabel } from "~/components/ui/unlimited-data-label";
 import { useRouter } from "~/i18n/navigation";
 import {
   catalogNumberFormatOptions,
@@ -21,16 +22,13 @@ import { captureAppEvent } from "~/lib/posthog/browser";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
 import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types";
 
-function formatVolume(bytes: number, unlimitedLabel?: string) {
+function formatVolume(bytes: number) {
   const gib = bytes / 1024 ** 3;
-  let volume: string;
   if (gib >= 1) {
-    volume = Number.isInteger(gib) ? `${gib} GB` : `${gib.toFixed(1)} GB`;
-  } else {
-    const mib = bytes / 1024 ** 2;
-    volume = `${Math.round(mib)} MB`;
+    return Number.isInteger(gib) ? `${gib} GB` : `${gib.toFixed(1)} GB`;
   }
-  return unlimitedLabel ? `${volume} (${unlimitedLabel})` : volume;
+  const mib = bytes / 1024 ** 2;
+  return `${Math.round(mib)} MB`;
 }
 
 export default function OrderConfirmation({
@@ -85,13 +83,16 @@ export default function OrderConfirmation({
           </DialogTitle>
           <p className="text-foreground text-base leading-snug font-medium">
             {destinationLabel ? `${destinationLabel} · ` : null}
-            {t("planSummary", {
-              data: formatVolume(
-                pkg.volume,
-                pkg.isUnlimited ? tCatalog("unlimitedLabel") : undefined,
-              ),
-              duration,
-            })}
+            {pkg.isUnlimited ? (
+              <UnlimitedDataLabel
+                fullSpeedAmount={formatVolume(pkg.volume)}
+                packageName={pkg.name}
+              />
+            ) : (
+              formatVolume(pkg.volume)
+            )}
+            {" · "}
+            {duration}
             {" · "}
             {price}
           </p>
