@@ -31,8 +31,8 @@ export function UnlimitedDataLabel({
   const perDay = parsed?.perDay === true;
   const speed = parsed?.fup
     ? parsed.fup.unit === "M"
-      ? t("unlimitedSpeedMbps", { speed: parsed.fup.value })
-      : t("unlimitedSpeedKbps", { speed: parsed.fup.value })
+      ? t("unlimitedSpeedMbps", { speed: String(parsed.fup.value) })
+      : t("unlimitedSpeedKbps", { speed: String(parsed.fup.value) })
     : null;
 
   let description: string;
