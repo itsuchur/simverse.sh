@@ -52,13 +52,16 @@ async function requestInvoice(
   throw new Error("invoice_in_progress");
 }
 
-function formatDataGb(dataGb: number) {
+function formatDataGb(dataGb: number, unlimitedLabel?: string) {
+  let data: string;
   if (dataGb >= 1) {
-    return Number.isInteger(dataGb)
+    data = Number.isInteger(dataGb)
       ? `${dataGb} GB`
       : `${dataGb.toFixed(1)} GB`;
+  } else {
+    data = `${Math.round(dataGb * 1024)} MB`;
   }
-  return `${Math.round(dataGb * 1024)} MB`;
+  return unlimitedLabel ? `${data} (${unlimitedLabel})` : data;
 }
 
 function countryDisplayName(countryCode: string, locale: string) {
@@ -174,7 +177,10 @@ export function CheckoutView({
   });
 
   const duration = tCatalog("duration.day", { count: plan.validity_days });
-  const data = formatDataGb(plan.data_gb);
+  const data = formatDataGb(
+    plan.data_gb,
+    plan.isUnlimited ? tCatalog("unlimitedLabel") : undefined,
+  );
   const coverage = coverageLabel(plan, locale);
 
   return (

@@ -1,4 +1,7 @@
-import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
+import {
+  isFupPackageName,
+  parseName,
+} from "~/server/suppliers/esimaccess/parse-package-name";
 
 /** Fields needed to collapse multi-country packages into one row per place. */
 export type RegionalPackageSource = {
@@ -49,10 +52,6 @@ function countryCount(location: string): number {
   return location.split(",").filter(Boolean).length;
 }
 
-function isThrottled(name: string) {
-  return parseName(name)?.fup != null || /FUP\d+[KM]bps/i.test(name);
-}
-
 /** The button shows only duration and byte volume, so that is the identity. */
 function shapeKey(pkg: RegionalPackageSource): string {
   return `${pkg.duration}\0${pkg.volume}`;
@@ -66,8 +65,8 @@ function beats(
   candidate: RegionalPackageSource,
   current: RegionalPackageSource,
 ) {
-  const candidateThrottled = isThrottled(candidate.name);
-  const currentThrottled = isThrottled(current.name);
+  const candidateThrottled = isFupPackageName(candidate.name);
+  const currentThrottled = isFupPackageName(current.name);
   if (candidateThrottled !== currentThrottled) {
     return !candidateThrottled;
   }

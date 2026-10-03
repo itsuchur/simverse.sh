@@ -16,6 +16,7 @@ export const cartPlanSchema = z.object({
   networks: z.array(z.string()),
   name: z.string().min(1),
   nameRu: z.string().optional(),
+  isUnlimited: z.boolean(),
 });
 
 export type CartPlan = z.infer<typeof cartPlanSchema>;

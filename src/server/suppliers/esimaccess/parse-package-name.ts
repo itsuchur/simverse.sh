@@ -15,6 +15,10 @@ export type ParsedName = {
   modifier?: string;
 };
 
+export function isFupPackageName(name: string): boolean {
+  return parseName(name)?.fup != null || /FUP\d+[KM]bps/i.test(name);
+}
+
 export function parseName(name: string): ParsedName | null {
   const match = NAME_PATTERN.exec(name.trim());
   if (!match?.groups) return null;

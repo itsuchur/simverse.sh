@@ -43,6 +43,7 @@
     },
     "fromPrice": "from {price}",
     "choosePackage": "Choose your package",
+    "unlimitedLabel": "Unlimited",
     "countriesAndNetworks": "{count} Countries and Networks",
     "noMatchingPlans": "No matching plans",
     "noMatchingDescription": "Try a different search.",

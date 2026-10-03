@@ -43,6 +43,7 @@
     },
     "fromPrice": "от {price}",
     "choosePackage": "Выберите пакет",
+    "unlimitedLabel": "Безлимитно",
     "countriesAndNetworks": "{count} стран и сетей",
     "noMatchingPlans": "Нет подходящих тарифов",
     "noMatchingDescription": "Попробуйте изменить запрос.",

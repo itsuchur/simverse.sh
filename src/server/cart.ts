@@ -13,6 +13,7 @@ import {
   retailPriceToUsd,
   type EsimAccessPackage,
 } from "~/server/suppliers/esimaccess/packages";
+import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
 
 export const CART_TTL_SECONDS = 86_400;
 
@@ -107,6 +108,7 @@ export function cartPlanFromPackage(
     networks: operatorNames(pkg.locationNetworkList),
     name: pkg.name,
     nameRu: pkg.nameRu,
+    isUnlimited: isFupPackageName(pkg.name),
   });
 }
 

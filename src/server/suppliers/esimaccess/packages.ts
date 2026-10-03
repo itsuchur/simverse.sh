@@ -23,7 +23,10 @@ import type {
   RegionPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
 import { esimAccessPost } from "~/server/suppliers/esimaccess/client";
-import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
+import {
+  isFupPackageName,
+  parseName,
+} from "~/server/suppliers/esimaccess/parse-package-name";
 import {
   groupRegionalPackages,
   preferPlans,
@@ -111,6 +114,7 @@ function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
     slug: pkg.slug,
     name: pkg.name,
     nameRu: pkg.nameRu,
+    isUnlimited: isFupPackageName(pkg.name),
     volume: pkg.volume,
     duration: pkg.duration,
     durationUnit: pkg.durationUnit,

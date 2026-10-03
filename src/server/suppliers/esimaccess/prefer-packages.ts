@@ -1,5 +1,5 @@
 import type { EsimAccessPackage } from "~/server/suppliers/esimaccess/packages";
-import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
+import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
 
 function isPremium(name: string) {
   return /\bPremium\b/i.test(name);
@@ -7,10 +7,6 @@ function isPremium(name: string) {
 
 function isNonhkip(name: string) {
   return /\(nonhkip\)/i.test(name);
-}
-
-function isFup(name: string) {
-  return parseName(name)?.fup != null || /FUP\d+[KM]bps/i.test(name);
 }
 
 function shapeKey(pkg: EsimAccessPackage) {
@@ -27,9 +23,9 @@ function dropFupIfTwin(packages: EsimAccessPackage[]) {
 
   const keep = new Set<string>();
   for (const group of byShape.values()) {
-    const hasNonFup = group.some((pkg) => !isFup(pkg.name));
+    const hasNonFup = group.some((pkg) => !isFupPackageName(pkg.name));
     for (const pkg of group) {
-      if (!hasNonFup || !isFup(pkg.name)) {
+      if (!hasNonFup || !isFupPackageName(pkg.name)) {
         keep.add(pkg.packageCode);
       }
     }

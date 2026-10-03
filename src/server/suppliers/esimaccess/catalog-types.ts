@@ -10,6 +10,8 @@ export type CatalogPackage = {
   name: string;
   /** Russian display name, precomputed by the poller. */
   nameRu?: string;
+  /** FUP plan: high-speed allowance followed by unlimited throttled data. */
+  isUnlimited: boolean;
   volume: number;
   duration: number;
   durationUnit: string;

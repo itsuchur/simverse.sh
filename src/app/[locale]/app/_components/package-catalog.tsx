@@ -38,13 +38,16 @@ import { api } from "~/trpc/react";
 
 const tabValues = ["popular", "local", "regional", "global"] as const;
 
-function formatVolume(bytes: number) {
+function formatVolume(bytes: number, unlimitedLabel?: string) {
   const gib = bytes / 1024 ** 3;
+  let volume: string;
   if (gib >= 1) {
-    return Number.isInteger(gib) ? `${gib} GB` : `${gib.toFixed(1)} GB`;
+    volume = Number.isInteger(gib) ? `${gib} GB` : `${gib.toFixed(1)} GB`;
+  } else {
+    const mib = bytes / 1024 ** 2;
+    volume = `${Math.round(mib)} MB`;
   }
-  const mib = bytes / 1024 ** 2;
-  return `${Math.round(mib)} MB`;
+  return unlimitedLabel ? `${volume} (${unlimitedLabel})` : volume;
 }
 
 /**
@@ -236,7 +239,12 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
                             setConfirming(true);
                           }}
                         >
-                          <span>{formatVolume(pkg.volume)}</span>
+                          <span>
+                            {formatVolume(
+                              pkg.volume,
+                              pkg.isUnlimited ? t("unlimitedLabel") : undefined,
+                            )}
+                          </span>
                           <span
                             className={cn("pl-4", !selected && "font-medium")}
                           >
