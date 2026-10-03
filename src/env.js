@@ -59,6 +59,14 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
         : z.string().min(1).optional(),
+    PLATEGA_MERCHANT_ID:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
+    PLATEGA_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
     GOOGLE_CLIENT_ID:
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
@@ -108,6 +116,8 @@ export const env = createEnv({
     TRYBIT_SECRET_KEY: process.env.TRYBIT_SECRET_KEY,
     CARDLINK_API_TOKEN: process.env.CARDLINK_API_TOKEN,
     CARDLINK_SHOP_ID: process.env.CARDLINK_SHOP_ID,
+    PLATEGA_MERCHANT_ID: process.env.PLATEGA_MERCHANT_ID,
+    PLATEGA_SECRET: process.env.PLATEGA_SECRET,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     NODE_ENV: process.env.NODE_ENV,

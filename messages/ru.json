@@ -72,6 +72,7 @@
     "validity": "Срок действия",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Банковская карта · {price}",
+    "paySbp": "СБП · {price} · −5%",
     "payCrypto": "Криптовалюта · {price}",
     "payFailed": "Не удалось начать оплату. Откройте приложение в Telegram и попробуйте снова."
   },

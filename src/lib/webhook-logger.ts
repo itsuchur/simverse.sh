@@ -38,7 +38,10 @@ function loggingUnavailableResponse() {
 export function withWebhookLogging(source: string, handler: Handler) {
   return async function (request: Request): Promise<Response> {
     const headers = Object.fromEntries(
-      request.headers.entries(),
+      Array.from(request.headers.entries(), ([name, value]) => [
+        name,
+        name === "x-secret" ? "[REDACTED]" : value,
+      ]),
     ) satisfies Prisma.InputJsonObject;
 
     let body: unknown = null;

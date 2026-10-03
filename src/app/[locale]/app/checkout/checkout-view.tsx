@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bitcoin, ChevronLeft, CreditCard, Globe } from "lucide-react";
+import { Bitcoin, ChevronLeft, CreditCard, Globe, QrCode } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
 import { Button } from "~/components/ui/button";
 import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
+import { discountedSbpCents } from "~/lib/platega";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
@@ -24,6 +25,7 @@ async function requestInvoice(
   path: string,
   cartRevision: string,
   locale: string,
+  paymentMethod?: "card" | "sbp",
 ) {
   for (let attempt = 0; attempt < 30; attempt++) {
     const response = await fetch(path, {
@@ -33,7 +35,7 @@ async function requestInvoice(
         ...(await checkoutHeaders()),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ cartRevision, locale }),
+      body: JSON.stringify({ cartRevision, locale, paymentMethod }),
     });
     const body = (await response.json()) as {
       invoiceUrl?: string;
@@ -173,6 +175,11 @@ export function CheckoutView({
     locale === "ru"
       ? `${format.number(plan.price, { maximumFractionDigits: 0 })} USDT`
       : cardPrice;
+  const sbpPrice = format.number(discountedSbpCents(plan.price_rub) / 100, {
+    style: "currency",
+    currency: "RUB",
+    maximumFractionDigits: 0,
+  });
 
   const duration = tCatalog("duration.day", { count: plan.validity_days });
   const data = formatDataGb(plan.data_gb);
@@ -232,6 +239,56 @@ export function CheckoutView({
             {payError}
           </p>
         ) : null}
+        {locale === "ru" ? (
+          <Button
+            type="button"
+            size="lg"
+            className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
+            disabled={leaving || paying}
+            onClick={() => {
+              setPaying(true);
+              setPayError(null);
+              captureAppEvent("checkout_method_selected", {
+                method: "platega_sbp",
+                packageCode: plan.packageCode,
+              });
+              void requestInvoice(
+                "/api/checkout/platega",
+                cartRevision,
+                locale,
+                "sbp",
+              )
+                .then((url) => {
+                  captureAppEvent("checkout_invoice_opened", {
+                    method: "platega_sbp",
+                    packageCode: plan.packageCode,
+                  });
+                  window.location.assign(url);
+                })
+                .catch((error: unknown) => {
+                  console.error("[checkout] platega SBP invoice", error);
+                  captureAppEvent("checkout_invoice_failed", {
+                    method: "platega_sbp",
+                    packageCode: plan.packageCode,
+                  });
+                  setPayError(
+                    error instanceof Error && error.message === "cart_changed"
+                      ? t("cartChanged")
+                      : t("payFailed"),
+                  );
+                  if (
+                    error instanceof Error &&
+                    error.message === "cart_changed"
+                  )
+                    router.refresh();
+                  setPaying(false);
+                });
+            }}
+          >
+            <QrCode data-icon="inline-start" className="size-6" />
+            {t("paySbp", { price: sbpPrice })}
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="lg"
@@ -242,21 +299,21 @@ export function CheckoutView({
             setPaying(true);
             setPayError(null);
             captureAppEvent("checkout_method_selected", {
-              method: "cardlink",
+              method: "platega",
               packageCode: plan.packageCode,
             });
-            void requestInvoice("/api/checkout/cardlink", cartRevision, locale)
+            void requestInvoice("/api/checkout/platega", cartRevision, locale)
               .then((url) => {
                 captureAppEvent("checkout_invoice_opened", {
-                  method: "cardlink",
+                  method: "platega",
                   packageCode: plan.packageCode,
                 });
                 window.location.assign(url);
               })
               .catch((error: unknown) => {
-                console.error("[checkout] cardlink invoice", error);
+                console.error("[checkout] platega invoice", error);
                 captureAppEvent("checkout_invoice_failed", {
-                  method: "cardlink",
+                  method: "platega",
                   packageCode: plan.packageCode,
                 });
                 setPayError(

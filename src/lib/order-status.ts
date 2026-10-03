@@ -17,3 +17,4 @@ export const paymentStatus = {
 export const STARS_PAYMENT_PROVIDER = "telegram_stars";
 export const TRYBIT_PAYMENT_PROVIDER = "trybit";
 export const CARDLINK_PAYMENT_PROVIDER = "cardlink";
+export const PLATEGA_PAYMENT_PROVIDER = "platega";

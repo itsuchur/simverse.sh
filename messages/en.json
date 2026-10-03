@@ -72,6 +72,7 @@
     "validity": "Validity",
     "payStars": "Telegram Stars · {price}",
     "payCard": "Credit Card · {price}",
+    "paySbp": "SBP · {price} · 5% off",
     "payCrypto": "Cryptocurrency · {price}",
     "payFailed": "Couldn't start payment. Open the app from Telegram and try again."
   },

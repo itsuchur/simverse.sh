@@ -15,6 +15,7 @@ void mock.module("~/server/sales", () => ({ isSalesActive: async () => true }));
 const { POST: stars } = await import("~/app/api/checkout/stars/route");
 const { POST: trybit } = await import("~/app/api/checkout/trybit/route");
 const { POST: cardlink } = await import("~/app/api/checkout/cardlink/route");
+const { POST: platega } = await import("~/app/api/checkout/platega/route");
 
 beforeEach(resetTestState);
 
@@ -22,6 +23,7 @@ for (const [name, post] of [
   ["stars", stars],
   ["trybit", trybit],
   ["cardlink", cardlink],
+  ["platega", platega],
 ] as const) {
   describe(`${name} cart revision`, () => {
     test("rejects a stale displayed cart before invoicing or checking balance", async () => {

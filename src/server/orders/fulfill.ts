@@ -13,6 +13,7 @@ import {
 } from "~/server/suppliers/esimaccess/order";
 import {
   CARDLINK_PAYMENT_PROVIDER,
+  PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
@@ -23,6 +24,7 @@ import { captureServerEvent } from "~/lib/posthog/server";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
+  PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
@@ -636,6 +638,84 @@ export async function fulfillCardlinkPayment(input: {
 
 export async function failCardlinkPayment(orderUuid: string) {
   await failPendingPayment(orderUuid, CARDLINK_PAYMENT_PROVIDER);
+}
+
+export async function fulfillPlategaPayment(input: {
+  orderUuid: string;
+  transactionId: string;
+  amount: number;
+  currency: string;
+}) {
+  await fulfillPayment({
+    provider: PLATEGA_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.transactionId,
+    validate: (order) => {
+      if (input.currency.toUpperCase() !== order.currency) {
+        Sentry.captureMessage("Platega webhook currency mismatch", {
+          level: "error",
+          tags: { component: "platega", reason: "currency_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.currency,
+            received: input.currency,
+          },
+        });
+        return false;
+      }
+
+      const cents = usdNumberToCents(input.amount);
+      if (cents === null || cents !== order.priceAmount) {
+        Sentry.captureMessage("Platega webhook amount mismatch", {
+          level: "error",
+          tags: { component: "platega", reason: "amount_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.priceAmount.toString(),
+            received: input.amount,
+          },
+        });
+        return false;
+      }
+      return true;
+    },
+  });
+}
+
+export async function failPlategaPayment(orderUuid: string) {
+  await failPendingPayment(orderUuid, PLATEGA_PAYMENT_PROVIDER);
+}
+
+export async function markPlategaChargeback(input: {
+  orderUuid: string;
+  transactionId: string;
+}) {
+  await db.order.updateMany({
+    where: {
+      orderUuid: input.orderUuid,
+      paymentProvider: PLATEGA_PAYMENT_PROVIDER,
+      OR: [
+        {
+          paymentStatus: {
+            in: [
+              paymentStatus.pending,
+              paymentStatus.failed,
+              paymentStatus.paid,
+              paymentStatus.refunded,
+            ],
+          },
+        },
+        {
+          paymentStatus: paymentStatus.chargeback,
+          paymentChargebackId: input.transactionId,
+        },
+      ],
+    },
+    data: {
+      paymentStatus: paymentStatus.chargeback,
+      paymentChargebackId: input.transactionId,
+    },
+  });
 }
 
 export async function markCardlinkRefunded(input: {

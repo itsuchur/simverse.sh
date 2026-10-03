@@ -30,6 +30,8 @@ process.env.TRYBIT_SHOP_ID = "test-trybit-shop";
 process.env.TRYBIT_SECRET_KEY = "test-trybit-secret";
 process.env.CARDLINK_API_TOKEN = "test-cardlink-token";
 process.env.CARDLINK_SHOP_ID = "test-cardlink-shop";
+process.env.PLATEGA_MERCHANT_ID = "test-platega-merchant";
+process.env.PLATEGA_SECRET = "test-platega-secret";
 
 void mock.module("server-only", () => ({}));
 
