@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bitcoin, ChevronLeft, CreditCard, Globe, QrCode } from "lucide-react";
+import { Bitcoin, ChevronLeft, Globe, QrCode } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -160,21 +160,13 @@ export function CheckoutView({
     plan.price_stars,
   ]);
 
-  const cardPrice =
+  const cryptoPrice =
     locale === "ru"
-      ? format.number(plan.price_rub, {
-          style: "currency",
-          currency: "RUB",
-          maximumFractionDigits: 0,
-        })
+      ? `${format.number(plan.price, { maximumFractionDigits: 0 })} USDT`
       : format.number(plan.price, {
           style: "currency",
           currency: "USD",
         });
-  const cryptoPrice =
-    locale === "ru"
-      ? `${format.number(plan.price, { maximumFractionDigits: 0 })} USDT`
-      : cardPrice;
   const sbpPrice = format.number(discountedSbpCents(plan.price_rub) / 100, {
     style: "currency",
     currency: "RUB",
@@ -289,47 +281,6 @@ export function CheckoutView({
             {t("paySbp", { price: sbpPrice })}
           </Button>
         ) : null}
-        <Button
-          type="button"
-          size="lg"
-          variant="outline"
-          className="h-12 w-full text-lg"
-          disabled={leaving || paying}
-          onClick={() => {
-            setPaying(true);
-            setPayError(null);
-            captureAppEvent("checkout_method_selected", {
-              method: "platega",
-              packageCode: plan.packageCode,
-            });
-            void requestInvoice("/api/checkout/platega", cartRevision, locale)
-              .then((url) => {
-                captureAppEvent("checkout_invoice_opened", {
-                  method: "platega",
-                  packageCode: plan.packageCode,
-                });
-                window.location.assign(url);
-              })
-              .catch((error: unknown) => {
-                console.error("[checkout] platega invoice", error);
-                captureAppEvent("checkout_invoice_failed", {
-                  method: "platega",
-                  packageCode: plan.packageCode,
-                });
-                setPayError(
-                  error instanceof Error && error.message === "cart_changed"
-                    ? t("cartChanged")
-                    : t("payFailed"),
-                );
-                if (error instanceof Error && error.message === "cart_changed")
-                  router.refresh();
-                setPaying(false);
-              });
-          }}
-        >
-          <CreditCard data-icon="inline-start" className="size-6" />
-          {t("payCard", { price: cardPrice })}
-        </Button>
         <Button
           type="button"
           size="lg"
