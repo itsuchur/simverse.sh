@@ -37,7 +37,7 @@ import type {
 } from "~/server/suppliers/esimaccess/catalog-types";
 import { api } from "~/trpc/react";
 
-const tabValues = ["popular", "local", "regional", "global"] as const;
+const tabValues = ["popular", "local", "regional"] as const;
 
 function formatVolume(bytes: number) {
   const gib = bytes / 1024 ** 3;
@@ -336,59 +336,54 @@ function CountryGroupsPanel({ groups }: { groups: PopularCountryPackages[] }) {
   return <DestinationGroupsPanel groups={destinations} />;
 }
 
-function RegionGroupsPanel({ groups }: { groups: RegionPackages[] }) {
+function RegionGroupsPanel({
+  groups,
+  globalPackages = [],
+}: {
+  groups: RegionPackages[];
+  globalPackages?: CatalogPackage[];
+}) {
   const locale = useLocale();
-
-  const destinations = useMemo(
-    () =>
-      groups
-        .map((group) => ({
-          id: group.regionLabel,
-          label:
-            locale === "ru" && group.regionLabelRu
-              ? group.regionLabelRu
-              : group.regionLabel,
-          packages: group.packages,
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label, locale))
-        .map(({ id, label, packages }) => ({
-          id,
-          label,
-          title: <span>{label}</span>,
-          packages,
-        })),
-    [groups, locale],
-  );
-
-  return <DestinationGroupsPanel groups={destinations} />;
-}
-
-function GlobalPanel({ packages }: { packages: CatalogPackage[] }) {
   const t = useTranslations("Catalog");
 
-  if (packages.length === 0) {
-    return <NoMatches />;
-  }
+  const destinations = useMemo(() => {
+    const regional = groups
+      .map((group) => ({
+        id: group.regionLabel,
+        label:
+          locale === "ru" && group.regionLabelRu
+            ? group.regionLabelRu
+            : group.regionLabel,
+        packages: group.packages,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale))
+      .map(({ id, label, packages }) => ({
+        id,
+        label,
+        title: <span>{label}</span>,
+        packages,
+      }));
 
-  const label = t("tabs.global");
+    if (globalPackages.length === 0) return regional;
 
-  return (
-    <DestinationGroupsPanel
-      groups={[
-        {
-          id: "global",
-          label,
-          title: (
-            <>
-              <Globe className="size-7 shrink-0" aria-hidden />
-              <span className="min-w-0">{label}</span>
-            </>
-          ),
-          packages,
-        },
-      ]}
-    />
-  );
+    const label = t("tabs.global");
+    return [
+      {
+        id: "global",
+        label,
+        title: (
+          <>
+            <Globe className="size-7 shrink-0" aria-hidden />
+            <span className="min-w-0">{label}</span>
+          </>
+        ),
+        packages: globalPackages,
+      },
+      ...regional,
+    ];
+  }, [globalPackages, groups, locale, t]);
+
+  return <DestinationGroupsPanel groups={destinations} />;
 }
 
 export function PackageCatalog({
@@ -480,7 +475,7 @@ export function PackageCatalog({
         }}
         className="gap-4"
       >
-        <TabsList className="grid h-11 w-full grid-cols-4">
+        <TabsList className="grid h-11 w-full grid-cols-3">
           {tabValues.map((value) => (
             <TabsTrigger
               key={value}
@@ -501,11 +496,10 @@ export function PackageCatalog({
         </TabsContent>
 
         <TabsContent value="regional" className="space-y-3">
-          <RegionGroupsPanel groups={regionalGroups} />
-        </TabsContent>
-
-        <TabsContent value="global" className="space-y-3">
-          <GlobalPanel packages={globalPackages} />
+          <RegionGroupsPanel
+            groups={regionalGroups}
+            globalPackages={globalPackages}
+          />
         </TabsContent>
       </Tabs>
     </div>

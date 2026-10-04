@@ -37,8 +37,8 @@
     "searchPlaceholder": "Поиск стран или регионов",
     "tabs": {
       "popular": "Популярные",
-      "local": "Локальные",
-      "regional": "Региональные",
+      "local": "По странам",
+      "regional": "По регионам",
       "global": "Глобальные"
     },
     "fromPrice": "от {price}",
