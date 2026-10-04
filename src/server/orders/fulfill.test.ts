@@ -9,6 +9,8 @@ import {
   fulfillTrybitPayment,
   markCardlinkChargeback,
   markCardlinkRefunded,
+  markPlategaChargeback,
+  markPlategaRefunded,
   placeSupplierOrder,
   recoverPendingOrders,
   syncPendingProfilesForUser,
@@ -367,6 +369,47 @@ describe("failTrybitPayment", () => {
     expect(pending.failureReason).toBe("payment_failed");
     expect(paid.status).toBe("paid");
     expect(paid.paymentStatus).toBe("paid");
+  });
+});
+
+describe("markPlategaRefunded / markPlategaChargeback", () => {
+  test("refund marks a paid platega order", async () => {
+    const order = fakeDb.seedOrder({
+      paymentProvider: "platega",
+      paymentStatus: "paid",
+      status: "issued",
+      priceAmount: 1099n,
+      paymentChargeId: "tx-1",
+    });
+
+    await markPlategaRefunded({
+      orderUuid: order.orderUuid,
+      transactionId: "tx-1",
+      refundedAmount: 1099n,
+    });
+
+    expect(order.paymentStatus).toBe("refunded");
+    expect(order.paymentRefundId).toBe("tx-1");
+    expect(order.refundedAmount).toBe(1099n);
+  });
+
+  test("chargeback does not overwrite a refunded platega order", async () => {
+    const order = fakeDb.seedOrder({
+      paymentProvider: "platega",
+      paymentStatus: "refunded",
+      status: "issued",
+      paymentChargeId: "tx-1",
+      paymentRefundId: "tx-1",
+      refundedAmount: 1099n,
+    });
+
+    await markPlategaChargeback({
+      orderUuid: order.orderUuid,
+      transactionId: "tx-1",
+    });
+
+    expect(order.paymentStatus).toBe("refunded");
+    expect(order.paymentChargebackId).toBeNull();
   });
 });
 

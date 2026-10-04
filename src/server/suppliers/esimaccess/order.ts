@@ -9,12 +9,26 @@ export type EsimAccessOrderResult = {
 
 export type EsimAccessProfile = {
   iccid: string;
+  esimTranNo?: string;
   ac?: string;
   qrCodeUrl?: string;
   smdpAddress?: string;
   esimStatus?: string;
   smdpStatus?: string;
 };
+
+const UNUSED_ESIM_STATUSES = new Set(["GOT_RESOURCE", "NOT_ACTIVE"]);
+const UNUSED_SMDP_STATUSES = new Set(["RELEASED"]);
+
+export function isUnusedEsimAccessProfile(profile: EsimAccessProfile) {
+  const esimOk =
+    profile.esimStatus === undefined ||
+    UNUSED_ESIM_STATUSES.has(profile.esimStatus);
+  const smdpOk =
+    profile.smdpStatus === undefined ||
+    UNUSED_SMDP_STATUSES.has(profile.smdpStatus);
+  return esimOk && smdpOk;
+}
 
 type OrderResponse = {
   orderNo?: string;
@@ -47,6 +61,7 @@ function mapProfile(raw: unknown): EsimAccessProfile | null {
   const ac = asString(row.ac);
   return {
     iccid,
+    esimTranNo: asString(row.esimTranNo),
     ac,
     qrCodeUrl: asString(row.qrCodeUrl),
     smdpAddress: asString(row.smdpAddress) ?? smdpFromActivationCode(ac),
@@ -86,4 +101,8 @@ export async function queryEsimAccessProfiles(
   return (envelope.obj?.esimList ?? [])
     .map(mapProfile)
     .filter((profile): profile is EsimAccessProfile => profile !== null);
+}
+
+export async function cancelEsimAccessProfile(esimTranNo: string) {
+  await esimAccessPost("/esim/cancel", { esimTranNo });
 }

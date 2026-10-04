@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import {
+  cancelEsimAccessProfile,
+  isUnusedEsimAccessProfile,
   orderEsimAccessPackage,
   queryEsimAccessProfiles,
 } from "~/server/suppliers/esimaccess/order";
@@ -45,6 +47,7 @@ describe("queryEsimAccessProfiles", () => {
         esimList: [
           {
             iccid: "890",
+            esimTranNo: "26041021130002",
             ac: "LPA:1$rsp.example.com$K1",
             qrCodeUrl: "https://qr.example/890",
             esimStatus: "GOT_RESOURCE",
@@ -63,6 +66,7 @@ describe("queryEsimAccessProfiles", () => {
     expect(profiles).toHaveLength(2);
     expect(profiles[0]).toEqual({
       iccid: "890",
+      esimTranNo: "26041021130002",
       ac: "LPA:1$rsp.example.com$K1",
       qrCodeUrl: "https://qr.example/890",
       smdpAddress: "rsp.example.com",
@@ -75,5 +79,47 @@ describe("queryEsimAccessProfiles", () => {
   test("returns an empty list when the supplier has no profiles yet", async () => {
     esimAccessPost.mockResolvedValueOnce({ success: true, obj: {} });
     expect(await queryEsimAccessProfiles("EA-1")).toEqual([]);
+  });
+});
+
+describe("isUnusedEsimAccessProfile", () => {
+  test("treats GOT_RESOURCE + RELEASED as unused", () => {
+    expect(
+      isUnusedEsimAccessProfile({
+        iccid: "890",
+        esimStatus: "GOT_RESOURCE",
+        smdpStatus: "RELEASED",
+      }),
+    ).toBe(true);
+  });
+
+  test("rejects activated or installed profiles", () => {
+    expect(
+      isUnusedEsimAccessProfile({
+        iccid: "890",
+        esimStatus: "IN_USE",
+        smdpStatus: "ENABLED",
+      }),
+    ).toBe(false);
+    expect(
+      isUnusedEsimAccessProfile({
+        iccid: "890",
+        esimStatus: "GOT_RESOURCE",
+        smdpStatus: "DOWNLOAD",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("cancelEsimAccessProfile", () => {
+  test("posts the esimTranNo to /esim/cancel", async () => {
+    esimAccessPost.mockResolvedValueOnce({ success: true, obj: {} });
+
+    await cancelEsimAccessProfile("26041021130002");
+
+    expect(esimAccessPost.mock.calls[0]?.[0]).toBe("/esim/cancel");
+    expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
+      esimTranNo: "26041021130002",
+    });
   });
 });

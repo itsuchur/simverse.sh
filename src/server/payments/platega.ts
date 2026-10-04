@@ -20,6 +20,20 @@ type PlategaCreateResponse = {
   message?: string;
 };
 
+export type PlategaCancelSupported = {
+  supported: boolean;
+  totalDeductUsdt: number;
+  penaltyUsdt: number | null;
+  blockReason: string | null;
+};
+
+export type PlategaCancelResult = {
+  transactionId: string;
+  accepted: boolean;
+  manualControlRequired: boolean;
+  message: string;
+};
+
 function valuesEqual(left: string, right: string) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
@@ -27,6 +41,15 @@ function valuesEqual(left: string, right: string) {
     return false;
   }
   return timingSafeEqual(a, b);
+}
+
+function plategaAuthHeaders(extra?: Record<string, string>) {
+  return {
+    Accept: "text/plain",
+    "X-MerchantId": env.PLATEGA_MERCHANT_ID!,
+    "X-Secret": env.PLATEGA_SECRET!,
+    ...extra,
+  };
 }
 
 export function plategaConfigured() {
@@ -70,11 +93,9 @@ export async function createPlategaTransaction(input: {
 
   const response = await fetch(`${PLATEGA_API_BASE}/transaction/process`, {
     method: "POST",
-    headers: {
+    headers: plategaAuthHeaders({
       "Content-Type": "application/json",
-      "X-MerchantId": env.PLATEGA_MERCHANT_ID!,
-      "X-Secret": env.PLATEGA_SECRET!,
-    },
+    }),
     body: JSON.stringify({
       paymentMethod:
         input.paymentMethod ?? plategaPaymentMethod(input.currency),
@@ -107,5 +128,87 @@ export async function createPlategaTransaction(input: {
   return {
     transactionId: payload.transactionId,
     redirect: payload.redirect,
+  };
+}
+
+export async function checkPlategaCancelSupported(
+  transactionId: string,
+): Promise<PlategaCancelSupported> {
+  if (!plategaConfigured()) {
+    throw new Error("platega_not_configured");
+  }
+
+  const response = await fetch(
+    `${PLATEGA_API_BASE}/transaction/${transactionId}/cancel-supported`,
+    {
+      method: "GET",
+      headers: plategaAuthHeaders(),
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as {
+    supported?: boolean;
+    totalDeductUsdt?: number;
+    penaltyUsdt?: number | null;
+    blockReason?: string | null;
+    message?: string;
+  } | null;
+
+  if (!response.ok || typeof payload?.supported !== "boolean") {
+    throw new Error(
+      `Platega cancel-supported failed: ${payload?.message ?? response.statusText}`,
+    );
+  }
+
+  return {
+    supported: payload.supported,
+    totalDeductUsdt:
+      typeof payload.totalDeductUsdt === "number" ? payload.totalDeductUsdt : 0,
+    penaltyUsdt:
+      typeof payload.penaltyUsdt === "number" ? payload.penaltyUsdt : null,
+    blockReason:
+      typeof payload.blockReason === "string" ? payload.blockReason : null,
+  };
+}
+
+export async function cancelPlategaTransaction(
+  transactionId: string,
+): Promise<PlategaCancelResult> {
+  if (!plategaConfigured()) {
+    throw new Error("platega_not_configured");
+  }
+
+  const response = await fetch(
+    `${PLATEGA_API_BASE}/transaction/${transactionId}/cancel`,
+    {
+      method: "POST",
+      headers: plategaAuthHeaders(),
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as {
+    transactionId?: string;
+    accepted?: boolean;
+    manualControlRequired?: boolean;
+    message?: string;
+  } | null;
+
+  if (
+    !response.ok ||
+    !payload?.transactionId ||
+    typeof payload.accepted !== "boolean" ||
+    typeof payload.manualControlRequired !== "boolean" ||
+    typeof payload.message !== "string"
+  ) {
+    throw new Error(
+      `Platega cancel failed: ${payload?.message ?? response.statusText}`,
+    );
+  }
+
+  return {
+    transactionId: payload.transactionId,
+    accepted: payload.accepted,
+    manualControlRequired: payload.manualControlRequired,
+    message: payload.message,
   };
 }

@@ -686,6 +686,33 @@ export async function failPlategaPayment(orderUuid: string) {
   await failPendingPayment(orderUuid, PLATEGA_PAYMENT_PROVIDER);
 }
 
+export async function markPlategaRefunded(input: {
+  orderUuid: string;
+  transactionId: string;
+  refundedAmount: bigint;
+}) {
+  await db.order.updateMany({
+    where: {
+      orderUuid: input.orderUuid,
+      paymentProvider: PLATEGA_PAYMENT_PROVIDER,
+      OR: [
+        {
+          paymentStatus: paymentStatus.paid,
+        },
+        {
+          paymentStatus: paymentStatus.refunded,
+          paymentRefundId: input.transactionId,
+        },
+      ],
+    },
+    data: {
+      paymentStatus: paymentStatus.refunded,
+      paymentRefundId: input.transactionId,
+      refundedAmount: input.refundedAmount,
+    },
+  });
+}
+
 export async function markPlategaChargeback(input: {
   orderUuid: string;
   transactionId: string;
@@ -701,7 +728,6 @@ export async function markPlategaChargeback(input: {
               paymentStatus.pending,
               paymentStatus.failed,
               paymentStatus.paid,
-              paymentStatus.refunded,
             ],
           },
         },

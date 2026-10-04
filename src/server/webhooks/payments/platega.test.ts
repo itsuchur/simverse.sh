@@ -150,4 +150,23 @@ describe("handlePlategaWebhook", () => {
     expect(order.paymentStatus).toBe("chargeback");
     expect(order.paymentChargebackId).toBe(TRANSACTION_ID);
   });
+
+  test("CHARGEBACKED callback does not overwrite a refunded order", async () => {
+    const order = fakeDb.seedOrder({
+      paymentProvider: "platega",
+      paymentStatus: "refunded",
+      status: "issued",
+      paymentChargeId: TRANSACTION_ID,
+      paymentRefundId: TRANSACTION_ID,
+      refundedAmount: 1099n,
+    });
+
+    const response = await handlePlategaWebhook(
+      callback(payload(order.orderUuid, { status: "CHARGEBACKED" })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(order.paymentStatus).toBe("refunded");
+    expect(order.paymentChargebackId).toBeNull();
+  });
 });

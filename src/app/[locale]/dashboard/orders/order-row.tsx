@@ -10,6 +10,12 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { formatOrderPrice } from "~/lib/format-order-price";
+import {
+  PLATEGA_PAYMENT_PROVIDER,
+  paymentStatus,
+} from "~/lib/order-status";
+
+import { RefundOrderButton } from "./refund-order-button";
 
 export type OrderRecord = {
   id: string;
@@ -207,39 +213,46 @@ export function OrderCard({ order }: { order: OrderRecord }) {
     order.currency,
     order.paymentProvider,
   );
+  const canRefund =
+    order.paymentProvider === PLATEGA_PAYMENT_PROVIDER &&
+    order.paymentStatus === paymentStatus.paid &&
+    !!order.paymentChargeId;
 
   return (
     <>
-      <button
-        type="button"
-        className="ring-foreground/10 hover:bg-muted/40 w-full rounded-xl p-4 text-left ring-1 transition-colors"
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <div className="font-medium">{order.packageName}</div>
-            <div className="text-muted-foreground text-sm">
-              #{order.id} · {created}
+      <div className="ring-foreground/10 space-y-3 rounded-xl p-4 ring-1">
+        <button
+          type="button"
+          className="hover:bg-muted/40 w-full rounded-lg text-left transition-colors"
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <div className="font-medium">{order.packageName}</div>
+              <div className="text-muted-foreground text-sm">
+                #{order.id} · {created}
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="font-medium tabular-nums">{price}</div>
+              <div className="text-muted-foreground text-sm">{order.status}</div>
             </div>
           </div>
-          <div className="shrink-0 text-right">
-            <div className="font-medium tabular-nums">{price}</div>
-            <div className="text-muted-foreground text-sm">{order.status}</div>
+          <div className="text-muted-foreground mt-3 space-y-0.5 text-sm">
+            <div className="truncate">{order.userLabel}</div>
+            {order.userEmail ? (
+              <div className="truncate">{order.userEmail}</div>
+            ) : null}
+            <div>
+              {order.paymentProvider} / {order.paymentStatus}
+              {order.countryCode ? ` · ${order.countryCode}` : null}
+            </div>
           </div>
-        </div>
-        <div className="text-muted-foreground mt-3 space-y-0.5 text-sm">
-          <div className="truncate">{order.userLabel}</div>
-          {order.userEmail ? (
-            <div className="truncate">{order.userEmail}</div>
-          ) : null}
-          <div>
-            {order.paymentProvider} / {order.paymentStatus}
-            {order.countryCode ? ` · ${order.countryCode}` : null}
-          </div>
-        </div>
-      </button>
+        </button>
+        {canRefund ? <RefundOrderButton orderUuid={order.orderUuid} /> : null}
+      </div>
       {dialog}
     </>
   );

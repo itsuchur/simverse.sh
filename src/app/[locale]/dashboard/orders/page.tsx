@@ -1,7 +1,24 @@
 import { formatOrderPrice } from "~/lib/format-order-price";
+import {
+  PLATEGA_PAYMENT_PROVIDER,
+  paymentStatus,
+} from "~/lib/order-status";
 import { db } from "~/server/db";
 
 import { OrderCard, OrderRow, type OrderRecord } from "./order-row";
+import { RefundOrderButton } from "./refund-order-button";
+
+function canRefundPlategaOrder(order: {
+  paymentProvider: string;
+  paymentStatus: string;
+  paymentChargeId: string | null;
+}) {
+  return (
+    order.paymentProvider === PLATEGA_PAYMENT_PROVIDER &&
+    order.paymentStatus === paymentStatus.paid &&
+    !!order.paymentChargeId
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -150,12 +167,13 @@ export default async function DashboardOrdersPage() {
               <th className="px-5 py-3.5 font-medium">Payment</th>
               <th className="px-5 py-3.5 font-medium">Status</th>
               <th className="px-5 py-3.5 font-medium">ICCID</th>
+              <th className="px-5 py-3.5 font-medium"> </th>
             </tr>
           </thead>
           <tbody>
             {orders.length === 0 ? (
               <tr>
-                <td className="text-muted-foreground px-5 py-8" colSpan={11}>
+                <td className="text-muted-foreground px-5 py-8" colSpan={12}>
                   No orders yet.
                 </td>
               </tr>
@@ -204,6 +222,11 @@ export default async function DashboardOrdersPage() {
                   </td>
                   <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
                     {order.esimIccid ?? "—"}
+                  </td>
+                  <td className="border-border border-t px-5 py-3.5">
+                    {canRefundPlategaOrder(order) ? (
+                      <RefundOrderButton orderUuid={order.orderUuid} />
+                    ) : null}
                   </td>
                 </OrderRow>
               ))
