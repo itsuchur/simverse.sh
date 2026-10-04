@@ -233,7 +233,7 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
                         >
                           <button
                             type="button"
-                            aria-label={`${pkg.isUnlimited ? t("unlimitedLabel") : fullSpeedAmount}, ${price}`}
+                            aria-label={`${pkg.isUnlimited ? t("unlimitedLabel", { amount: fullSpeedAmount }) : fullSpeedAmount}, ${price}`}
                             aria-pressed={selected}
                             className={cn(
                               "focus-visible:ring-ring/50 absolute inset-0 rounded-xl transition-colors outline-none focus-visible:ring-3",

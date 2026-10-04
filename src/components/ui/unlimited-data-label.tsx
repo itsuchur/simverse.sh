@@ -58,7 +58,7 @@ export function UnlimitedDataLabel({
 
   return (
     <span className={cn("inline-flex items-baseline", className)}>
-      <span>{t("unlimitedLabel")}</span>
+      <span>{t("unlimitedLabel", { amount: fullSpeedAmount })}</span>
       <Popover>
         <PopoverTrigger
           aria-label={t("unlimitedHelpLabel")}

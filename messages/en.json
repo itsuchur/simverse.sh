@@ -43,7 +43,7 @@
     },
     "fromPrice": "from {price}",
     "choosePackage": "Choose your package",
-    "unlimitedLabel": "Unlimited",
+    "unlimitedLabel": "Unlimited (max speed until {amount})",
     "unlimitedHelpLabel": "About unlimited data",
     "unlimitedHelpTitle": "Unlimited data",
     "unlimitedDetails": "First {amount} at maximum speed, then unlimited data at reduced speed.",

@@ -43,7 +43,7 @@
     },
     "fromPrice": "от {price}",
     "choosePackage": "Выберите пакет",
-    "unlimitedLabel": "Безлимитно",
+    "unlimitedLabel": "Безлимитно (макс. скорость до {amount})",
     "unlimitedHelpLabel": "Подробнее о безлимитном интернете",
     "unlimitedHelpTitle": "Безлимитный интернет",
     "unlimitedDetails": "Сначала {amount} на максимальной скорости, затем безлимитный интернет на пониженной скорости.",
