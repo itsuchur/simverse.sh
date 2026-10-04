@@ -9,7 +9,6 @@ import { Button } from "~/components/ui/button";
 import { UnlimitedDataLabel } from "~/components/ui/unlimited-data-label";
 import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
-import { discountedSbpCents } from "~/lib/platega";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
@@ -168,7 +167,7 @@ export function CheckoutView({
           style: "currency",
           currency: "USD",
         });
-  const sbpPrice = format.number(discountedSbpCents(plan.price_rub) / 100, {
+  const sbpPrice = format.number(plan.price_rub, {
     style: "currency",
     currency: "RUB",
     maximumFractionDigits: 0,

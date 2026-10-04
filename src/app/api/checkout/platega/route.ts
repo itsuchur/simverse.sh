@@ -9,7 +9,6 @@ import { auth } from "~/server/better-auth";
 import { getCartSnapshot } from "~/server/cart";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { PLATEGA_PAYMENT_PROVIDER } from "~/lib/order-status";
-import { discountedSbpCents } from "~/lib/platega";
 import {
   createPendingInvoice,
   findOrCreatePendingOrder,
@@ -79,10 +78,7 @@ export async function POST(request: Request) {
   }
   const currency = locale === "ru" ? "RUB" : "USD";
   const major = currency === "RUB" ? plan.price_rub : plan.price;
-  const cents =
-    paymentMethod === "sbp"
-      ? discountedSbpCents(plan.price_rub)
-      : Math.round(major * 100);
+  const cents = Math.round(major * 100);
   if (!Number.isFinite(cents) || cents < 1) {
     return unavailable();
   }
