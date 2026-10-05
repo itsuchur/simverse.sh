@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bitcoin, ChevronLeft, CreditCard, Globe, QrCode } from "lucide-react";
+import { Bitcoin, ChevronLeft, Globe, QrCode } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -241,104 +241,54 @@ export function CheckoutView({
           </p>
         ) : null}
         {locale === "ru" ? (
-          <>
-            <Button
-              type="button"
-              size="lg"
-              className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
-              disabled={leaving || paying}
-              onClick={() => {
-                setPaying(true);
-                setPayError(null);
-                captureAppEvent("checkout_method_selected", {
-                  method: "xhub_sbp",
-                  packageCode: plan.packageCode,
-                });
-                void requestInvoice(
-                  "/api/checkout/xhub",
-                  cartRevision,
-                  locale,
-                  "sbp",
-                )
-                  .then((url) => {
-                    captureAppEvent("checkout_invoice_opened", {
-                      method: "xhub_sbp",
-                      packageCode: plan.packageCode,
-                    });
-                    window.location.assign(url);
-                  })
-                  .catch((error: unknown) => {
-                    console.error("[checkout] xhub SBP invoice", error);
-                    captureAppEvent("checkout_invoice_failed", {
-                      method: "xhub_sbp",
-                      packageCode: plan.packageCode,
-                    });
-                    setPayError(
-                      error instanceof Error && error.message === "cart_changed"
-                        ? t("cartChanged")
-                        : t("payFailed"),
-                    );
-                    if (
-                      error instanceof Error &&
-                      error.message === "cart_changed"
-                    )
-                      router.refresh();
-                    setPaying(false);
+          <Button
+            type="button"
+            size="lg"
+            className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
+            disabled={leaving || paying}
+            onClick={() => {
+              setPaying(true);
+              setPayError(null);
+              captureAppEvent("checkout_method_selected", {
+                method: "xhub_sbp",
+                packageCode: plan.packageCode,
+              });
+              void requestInvoice(
+                "/api/checkout/xhub",
+                cartRevision,
+                locale,
+                "sbp",
+              )
+                .then((url) => {
+                  captureAppEvent("checkout_invoice_opened", {
+                    method: "xhub_sbp",
+                    packageCode: plan.packageCode,
                   });
-              }}
-            >
-              <QrCode data-icon="inline-start" className="size-6" />
-              {t("paySbp", { price: sbpPrice })}
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              className="h-12 w-full text-lg"
-              disabled={leaving || paying}
-              onClick={() => {
-                setPaying(true);
-                setPayError(null);
-                captureAppEvent("checkout_method_selected", {
-                  method: "xhub_card",
-                  packageCode: plan.packageCode,
-                });
-                void requestInvoice(
-                  "/api/checkout/xhub",
-                  cartRevision,
-                  locale,
-                  "card",
-                )
-                  .then((url) => {
-                    captureAppEvent("checkout_invoice_opened", {
-                      method: "xhub_card",
-                      packageCode: plan.packageCode,
-                    });
-                    window.location.assign(url);
-                  })
-                  .catch((error: unknown) => {
-                    console.error("[checkout] xhub card invoice", error);
-                    captureAppEvent("checkout_invoice_failed", {
-                      method: "xhub_card",
-                      packageCode: plan.packageCode,
-                    });
-                    setPayError(
-                      error instanceof Error && error.message === "cart_changed"
-                        ? t("cartChanged")
-                        : t("payFailed"),
-                    );
-                    if (
-                      error instanceof Error &&
-                      error.message === "cart_changed"
-                    )
-                      router.refresh();
-                    setPaying(false);
+                  window.location.assign(url);
+                })
+                .catch((error: unknown) => {
+                  console.error("[checkout] xhub SBP invoice", error);
+                  captureAppEvent("checkout_invoice_failed", {
+                    method: "xhub_sbp",
+                    packageCode: plan.packageCode,
                   });
-              }}
-            >
-              <CreditCard data-icon="inline-start" className="size-6" />
-              {t("payCard", { price: sbpPrice })}
-            </Button>
-          </>
+                  setPayError(
+                    error instanceof Error && error.message === "cart_changed"
+                      ? t("cartChanged")
+                      : t("payFailed"),
+                  );
+                  if (
+                    error instanceof Error &&
+                    error.message === "cart_changed"
+                  )
+                    router.refresh();
+                  setPaying(false);
+                });
+            }}
+          >
+            <QrCode data-icon="inline-start" className="size-6" />
+            {t("paySbp", { price: sbpPrice })}
+          </Button>
         ) : null}
         <Button
           type="button"
