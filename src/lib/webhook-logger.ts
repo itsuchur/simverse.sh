@@ -9,6 +9,7 @@ import { db } from "~/server/db";
 type Handler = (
   request: Request,
   body: unknown,
+  rawBody: string,
 ) => Response | Promise<Response>;
 
 function captureWebhookError(
@@ -44,17 +45,20 @@ export function withWebhookLogging(source: string, handler: Handler) {
       ]),
     ) satisfies Prisma.InputJsonObject;
 
+    let rawBody = "";
     let body: unknown = null;
     try {
-      const text = await request.text();
+      rawBody = await request.text();
       const contentType = request.headers.get("content-type") ?? "";
       if (contentType.includes("application/x-www-form-urlencoded")) {
-        body = text ? Object.fromEntries(new URLSearchParams(text)) : null;
+        body = rawBody
+          ? Object.fromEntries(new URLSearchParams(rawBody))
+          : null;
       } else {
         try {
-          body = text ? JSON.parse(text) : null;
+          body = rawBody ? JSON.parse(rawBody) : null;
         } catch {
-          body = text;
+          body = rawBody;
         }
       }
     } catch (error) {
@@ -88,6 +92,6 @@ export function withWebhookLogging(source: string, handler: Handler) {
       return loggingUnavailableResponse();
     }
 
-    return handler(request, body);
+    return handler(request, body, rawBody);
   };
 }

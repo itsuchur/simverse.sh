@@ -67,6 +67,18 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
         : z.string().min(1).optional(),
+    XHUB_API_KEY:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
+    XHUB_API_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
+    XHUB_WEBHOOK_SECRET:
+      process.env.NODE_ENV === "production"
+        ? z.string().min(1)
+        : z.string().min(1).optional(),
     GOOGLE_CLIENT_ID:
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
@@ -118,6 +130,9 @@ export const env = createEnv({
     CARDLINK_SHOP_ID: process.env.CARDLINK_SHOP_ID,
     PLATEGA_MERCHANT_ID: process.env.PLATEGA_MERCHANT_ID,
     PLATEGA_SECRET: process.env.PLATEGA_SECRET,
+    XHUB_API_KEY: process.env.XHUB_API_KEY,
+    XHUB_API_SECRET: process.env.XHUB_API_SECRET,
+    XHUB_WEBHOOK_SECRET: process.env.XHUB_WEBHOOK_SECRET,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     NODE_ENV: process.env.NODE_ENV,

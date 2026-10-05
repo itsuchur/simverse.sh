@@ -32,6 +32,9 @@ process.env.CARDLINK_API_TOKEN = "test-cardlink-token";
 process.env.CARDLINK_SHOP_ID = "test-cardlink-shop";
 process.env.PLATEGA_MERCHANT_ID = "test-platega-merchant";
 process.env.PLATEGA_SECRET = "test-platega-secret";
+process.env.XHUB_API_KEY = "xh_test_key";
+process.env.XHUB_API_SECRET = "test-xhub-api-secret";
+process.env.XHUB_WEBHOOK_SECRET = "test-xhub-webhook-secret";
 
 void mock.module("server-only", () => ({}));
 

@@ -7,6 +7,7 @@ export const WEBHOOK_SOURCES = [
   "esimaccess",
   "trybit",
   "platega",
+  "xhub",
   "cardlink",
 ] as const;
 
@@ -18,6 +19,7 @@ export const WEBHOOK_SOURCE_LABELS: Record<WebhookSourceFilter, string> = {
   esimaccess: "eSIM Access",
   trybit: "Trybit",
   platega: "Platega",
+  xhub: "X-Hub",
   cardlink: "Cardlink",
 };
 

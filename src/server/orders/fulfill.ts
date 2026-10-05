@@ -15,6 +15,7 @@ import {
   CARDLINK_PAYMENT_PROVIDER,
   PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
+  XHUB_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -26,6 +27,7 @@ export {
   CARDLINK_PAYMENT_PROVIDER,
   PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
+  XHUB_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -740,6 +742,78 @@ export async function markPlategaChargeback(input: {
     data: {
       paymentStatus: paymentStatus.chargeback,
       paymentChargebackId: input.transactionId,
+    },
+  });
+}
+
+export async function fulfillXhubPayment(input: {
+  orderUuid: string;
+  paymentId: string;
+  amountRub: string;
+}) {
+  await fulfillPayment({
+    provider: XHUB_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.paymentId,
+    validate: (order) => {
+      if (order.currency !== "RUB") {
+        Sentry.captureMessage("X-Hub webhook currency mismatch", {
+          level: "error",
+          tags: { component: "xhub", reason: "currency_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.currency,
+            received: "RUB",
+          },
+        });
+        return false;
+      }
+
+      const kopecks = usdAmountToCents(input.amountRub);
+      if (kopecks === null || kopecks !== order.priceAmount) {
+        Sentry.captureMessage("X-Hub webhook amount mismatch", {
+          level: "error",
+          tags: { component: "xhub", reason: "amount_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.priceAmount.toString(),
+            received: input.amountRub,
+          },
+        });
+        return false;
+      }
+      return true;
+    },
+  });
+}
+
+export async function failXhubPayment(orderUuid: string) {
+  await failPendingPayment(orderUuid, XHUB_PAYMENT_PROVIDER);
+}
+
+export async function markXhubRefunded(input: {
+  orderUuid: string;
+  paymentId: string;
+  refundedAmount: bigint;
+}) {
+  await db.order.updateMany({
+    where: {
+      orderUuid: input.orderUuid,
+      paymentProvider: XHUB_PAYMENT_PROVIDER,
+      OR: [
+        {
+          paymentStatus: paymentStatus.paid,
+        },
+        {
+          paymentStatus: paymentStatus.refunded,
+          paymentRefundId: input.paymentId,
+        },
+      ],
+    },
+    data: {
+      paymentStatus: paymentStatus.refunded,
+      paymentRefundId: input.paymentId,
+      refundedAmount: input.refundedAmount,
     },
   });
 }
