@@ -13,7 +13,7 @@ import { Acknowledgments } from "./acknowledgments";
 import { DeleteAccount } from "./delete-account";
 import { Preferences } from "./preferences";
 import { ProfileOptionCard, type ProfileOption } from "./profile-option-card";
-import { TransactionHistory, type HistoryOrder } from "./transaction-history";
+import { TransactionHistory } from "./transaction-history";
 import {
   Card,
   CardDescription,
@@ -22,9 +22,7 @@ import {
 } from "~/components/ui/card";
 import { getPathname } from "~/i18n/navigation";
 import { marketingUrl } from "~/lib/marketing-url";
-import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
-import { db } from "~/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -42,35 +40,6 @@ export default async function AppProfile() {
   const t = await getTranslations("Profile");
   const locale = await getLocale();
   const { user } = session;
-
-  const rows = await db.order.findMany({
-    where: { userId: session.user.id, paymentStatus: paymentStatus.paid },
-    orderBy: { createdAt: "desc" },
-    select: {
-      orderUuid: true,
-      packageName: true,
-      countryCode: true,
-      dataAmountMb: true,
-      validityDays: true,
-      priceAmount: true,
-      currency: true,
-      paymentProvider: true,
-      paidAt: true,
-      createdAt: true,
-    },
-  });
-
-  const orders: HistoryOrder[] = rows.map((row) => ({
-    orderUuid: row.orderUuid,
-    packageName: row.packageName,
-    countryCode: row.countryCode,
-    dataAmountMb: row.dataAmountMb,
-    validityDays: row.validityDays,
-    priceAmount: row.priceAmount.toString(),
-    currency: row.currency,
-    paymentProvider: row.paymentProvider,
-    purchasedAt: (row.paidAt ?? row.createdAt).toISOString(),
-  }));
 
   const helpOption: ProfileOption = {
     label: t("help"),
@@ -136,7 +105,7 @@ export default async function AppProfile() {
       </Card>
 
       <Preferences />
-      <TransactionHistory orders={orders} />
+      <TransactionHistory />
       <ProfileOptionCard option={helpOption} />
       {legalOptions.map((option) => (
         <ProfileOptionCard key={option.label} option={option} />

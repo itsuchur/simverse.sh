@@ -1,4 +1,5 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { after } from "next/server";
 import { z } from "zod";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
@@ -15,7 +16,18 @@ export default async function AppMyESIms() {
     return null;
   }
 
-  await syncPendingProfilesForUser(session.user.id);
+  const requestHeaders = await headers();
+  const isPrefetch =
+    requestHeaders.get("next-router-prefetch") === "1" ||
+    requestHeaders.get("next-router-segment-prefetch") === "1";
+  if (!isPrefetch) {
+    const userId = session.user.id;
+    after(() =>
+      syncPendingProfilesForUser(userId).catch((error: unknown) => {
+        console.error("[myesim] pending profile sync failed", error);
+      }),
+    );
+  }
 
   const tracked = z
     .string()

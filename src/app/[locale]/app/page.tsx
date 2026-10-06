@@ -2,10 +2,7 @@ import { getLocale } from "next-intl/server";
 
 import { PackageCatalog } from "./_components/package-catalog";
 import { getSession } from "~/server/better-auth/server";
-import {
-  getCatalogByScope,
-  getPopularPackagesByCountry,
-} from "~/server/suppliers/esimaccess/packages";
+import { getStoreCatalog } from "~/server/suppliers/esimaccess/packages";
 
 // The catalog is refreshed daily in Redis; render it per-request instead of
 // freezing it into static HTML at build time (which would also require a
@@ -22,17 +19,7 @@ export default async function AppHome() {
   }
 
   const locale = await getLocale();
-  const [popular, catalog] = await Promise.all([
-    getPopularPackagesByCountry(locale),
-    getCatalogByScope(locale),
-  ]);
+  const catalog = await getStoreCatalog(locale);
 
-  return (
-    <PackageCatalog
-      popular={popular}
-      local={catalog.local}
-      regional={catalog.regional}
-      global={catalog.global}
-    />
-  );
+  return <PackageCatalog popular={catalog.popular} />;
 }

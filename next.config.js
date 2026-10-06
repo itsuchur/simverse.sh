@@ -53,6 +53,13 @@ const config = {
   allowedDevOrigins: ["magical-guinea-utterly.ngrok-free.app"],
   // PostHog ingest paths use trailing slashes; do not 308 them away.
   skipTrailingSlashRedirect: true,
+  // Dynamic pages are not reused by default (0s). Keep a short window so
+  // tab switches that were not fully prefetched can still paint immediately.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+    },
+  },
   async rewrites() {
     const strapiOrigin = (
       process.env.STRAPI_URL ?? "http://localhost:1337"

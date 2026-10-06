@@ -50,6 +50,7 @@ export function AppBottomNav() {
               <Link
                 key={href}
                 href={href}
+                prefetch={true}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-2 py-1.5 text-[11px] font-medium transition-colors",

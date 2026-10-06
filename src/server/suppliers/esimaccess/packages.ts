@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
 import { usdToStars } from "~/lib/usd-to-stars";
@@ -9,6 +10,7 @@ import {
   isPackageExcluded,
 } from "~/server/catalog/package-exclusions";
 import {
+  readCatalogGeneration,
   readCatalogMeta,
   readCatalogPackage,
   readCatalogPackages,
@@ -344,37 +346,60 @@ export async function setPopularCountryCodes(codes: string[]) {
   await multi.exec();
 }
 
-/** Single-country packages whose `location` is listed in `popularCountries`. */
-export async function getPopularPackagesByCountry(
-  locale: string,
-): Promise<PopularCountryPackages[]> {
+const GLOBAL_COUNTRY_THRESHOLD = 90;
+
+export type StoreCatalog = CatalogByScope & {
+  popular: PopularCountryPackages[];
+};
+
+/** Backstop if a generation, popular-list, or exclusion change is missed. */
+const STORE_CATALOG_REVALIDATE_SECONDS = 60 * 60 * 24;
+
+async function storeCatalogCacheKey() {
+  const [generation, popular, exclusions] = await Promise.all([
+    readCatalogGeneration(ESIMACCESS_SUPPLIER),
+    getPopularCountryCodes(),
+    getPackageExclusions(ESIMACCESS_SUPPLIER),
+  ]);
+
+  return [
+    generation ?? "none",
+    popular.join(","),
+    [...exclusions.packageCodes].sort().join(","),
+    [...exclusions.countryCodes].sort().join(","),
+  ].join("\n");
+}
+
+/**
+ * Shaped storefront catalog. The full-text scan stays inside `unstable_cache`;
+ * the key is the Redis generation, popular-country order, and exclusions, so
+ * the separate cron process invalidates it by writing a new generation.
+ */
+const loadStoreCatalog = unstable_cache(
+  async (locale: string, _cacheKey: string) => buildStoreCatalog(locale),
+  ["esimaccess-store-catalog"],
+  { revalidate: STORE_CATALOG_REVALIDATE_SECONDS },
+);
+
+export async function getStoreCatalog(locale: string): Promise<StoreCatalog> {
+  const cacheKey = await storeCatalogCacheKey();
+  return loadStoreCatalog(locale, cacheKey);
+}
+
+async function buildStoreCatalog(locale: string): Promise<StoreCatalog> {
   const [countryCodes, cached] = await Promise.all([
     getPopularCountryCodes(),
     getCachedEsimAccessPackages(),
   ]);
   const packageList = cached?.packageList ?? [];
 
-  return countryCodes.map((countryCode) => ({
+  const popular = countryCodes.map((countryCode) => ({
     countryCode,
     countryName: countryDisplayName(countryCode, locale),
     packages: preferPlans(
       packageList.filter((pkg) => pkg.location === countryCode),
     ).map(toCatalogPackage),
   }));
-}
-
-const GLOBAL_COUNTRY_THRESHOLD = 90;
-
-/**
- * Splits the full catalog by coverage: single-country packages grouped by
- * country, multi-country ones grouped by canonical region, and worldwide ones
- * (90+ countries) as a flat list.
- */
-export async function getCatalogByScope(
-  locale: string,
-): Promise<CatalogByScope> {
-  const cached = await getCachedEsimAccessPackages();
-  const packageList = cached?.packageList ?? [];
 
   const byCountry = new Map<string, EsimAccessPackage[]>();
   const regionalSources: EsimAccessPackage[] = [];
@@ -411,8 +436,28 @@ export async function getCatalogByScope(
   );
 
   return {
+    popular,
     local,
     regional,
     global: preferPlans(globalSources).map(toCatalogPackage),
   };
+}
+
+/** Single-country packages whose `location` is listed in `popularCountries`. */
+export async function getPopularPackagesByCountry(
+  locale: string,
+): Promise<PopularCountryPackages[]> {
+  return (await buildStoreCatalog(locale)).popular;
+}
+
+/**
+ * Splits the full catalog by coverage: single-country packages grouped by
+ * country, multi-country ones grouped by canonical region, and worldwide ones
+ * (90+ countries) as a flat list.
+ */
+export async function getCatalogByScope(
+  locale: string,
+): Promise<CatalogByScope> {
+  const { local, regional, global } = await buildStoreCatalog(locale);
+  return { local, regional, global };
 }

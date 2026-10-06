@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Globe, History } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
+
+import { api } from "~/trpc/react";
 
 import { Card, CardDescription, CardTitle } from "~/components/ui/card";
 import {
@@ -56,14 +59,17 @@ function isSingleCountryCode(
   return Boolean(countryCode && !countryCode.includes(","));
 }
 
-export function TransactionHistory({ orders }: { orders: HistoryOrder[] }) {
+export function TransactionHistory() {
   const t = useTranslations("Profile");
   const tCatalog = useTranslations("Catalog");
   const format = useFormatter();
   const locale = useLocale();
+  const [open, setOpen] = useState(false);
+  const history = api.orders.history.useQuery(undefined, { enabled: open });
+  const orders = history.data ?? [];
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
           <Card
@@ -86,13 +92,18 @@ export function TransactionHistory({ orders }: { orders: HistoryOrder[] }) {
           <DialogTitle className="text-lg leading-snug">
             {t("transactionHistory")}
           </DialogTitle>
-          {orders.length === 0 ? (
+          {history.isSuccess && orders.length === 0 ? (
             <DialogDescription className="text-base">
               {t("transactionHistoryEmpty")}
             </DialogDescription>
           ) : null}
         </DialogHeader>
-        {orders.length > 0 ? (
+        {open && history.isPending ? (
+          <div className="px-6 pb-6" aria-hidden>
+            <div className="bg-muted h-16 animate-pulse rounded-xl" />
+            <div className="bg-muted mt-3 h-16 animate-pulse rounded-xl" />
+          </div>
+        ) : orders.length > 0 ? (
           <div className="[max-height:calc(min(88vh,42rem)-5.75rem)] min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch]">
             <div className="flex flex-col gap-3">
               {orders.map((order) => {

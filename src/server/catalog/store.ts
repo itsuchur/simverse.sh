@@ -153,6 +153,11 @@ async function currentGeneration(supplier: string) {
   return redis.get(currentGenerationKey(supplier));
 }
 
+/** Active catalog generation, or null before the first sync. */
+export async function readCatalogGeneration(supplier: string) {
+  return currentGeneration(supplier);
+}
+
 export async function readCatalogMeta<Meta>(
   supplier: string,
 ): Promise<Meta | null> {

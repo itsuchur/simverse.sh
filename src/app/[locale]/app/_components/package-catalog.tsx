@@ -125,6 +125,30 @@ function NoMatches() {
   );
 }
 
+function CatalogScopeLoading() {
+  return (
+    <div className="flex flex-col gap-3" aria-hidden>
+      <div className="bg-muted h-16 animate-pulse rounded-xl" />
+      <div className="bg-muted h-16 animate-pulse rounded-xl" />
+      <div className="bg-muted h-16 animate-pulse rounded-xl" />
+    </div>
+  );
+}
+
+function CatalogScopeBody({
+  ready,
+  loading,
+  children,
+}: {
+  ready: boolean;
+  loading: boolean;
+  children: ReactNode;
+}) {
+  if (ready) return children;
+  if (loading) return <CatalogScopeLoading />;
+  return <NoMatches />;
+}
+
 type DestinationGroup = {
   id: string;
   label: string;
@@ -388,19 +412,20 @@ function RegionGroupsPanel({
 
 export function PackageCatalog({
   popular,
-  local,
-  regional,
-  global,
 }: {
   popular: PopularCountryPackages[];
-  local: PopularCountryPackages[];
-  regional: RegionPackages[];
-  global: CatalogPackage[];
 }) {
   const t = useTranslations("Catalog");
+  const locale = useLocale();
+  const catalogLocale = locale === "ru" ? "ru" : "en";
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [tab, setTab] = useState("popular");
+  const browseScope = tab === "regional" ? "regional" : "local";
+  const browse = api.catalog.browse.useQuery(
+    { locale: catalogLocale, scope: browseScope },
+    { enabled: tab === "local" || tab === "regional" },
+  );
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -431,21 +456,20 @@ export function PackageCatalog({
     () => filterCountryGroups(popular, matchedCodes),
     [popular, matchedCodes],
   );
-  const localGroups = useMemo(
-    () => filterCountryGroups(local, matchedCodes),
-    [local, matchedCodes],
-  );
-  const regionalGroups = useMemo(
-    () => filterRegionGroups(regional, matchedCodes),
-    [regional, matchedCodes],
-  );
-  const globalPackages = useMemo(
-    () =>
-      matchedCodes
-        ? global.filter((pkg) => matchedCodes.has(pkg.packageCode))
-        : global,
-    [global, matchedCodes],
-  );
+  const localGroups = useMemo(() => {
+    if (browse.data?.scope !== "local") return [];
+    return filterCountryGroups(browse.data.local, matchedCodes);
+  }, [browse.data, matchedCodes]);
+  const regionalGroups = useMemo(() => {
+    if (browse.data?.scope !== "regional") return [];
+    return filterRegionGroups(browse.data.regional, matchedCodes);
+  }, [browse.data, matchedCodes]);
+  const globalPackages = useMemo(() => {
+    if (browse.data?.scope !== "regional") return [];
+    return matchedCodes
+      ? browse.data.global.filter((pkg) => matchedCodes.has(pkg.packageCode))
+      : browse.data.global;
+  }, [browse.data, matchedCodes]);
 
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -492,14 +516,28 @@ export function PackageCatalog({
         </TabsContent>
 
         <TabsContent value="local" className="space-y-3">
-          <CountryGroupsPanel groups={localGroups} />
+          {tab === "local" ? (
+            <CatalogScopeBody
+              ready={browse.data?.scope === "local"}
+              loading={browse.isLoading}
+            >
+              <CountryGroupsPanel groups={localGroups} />
+            </CatalogScopeBody>
+          ) : null}
         </TabsContent>
 
         <TabsContent value="regional" className="space-y-3">
-          <RegionGroupsPanel
-            groups={regionalGroups}
-            globalPackages={globalPackages}
-          />
+          {tab === "regional" ? (
+            <CatalogScopeBody
+              ready={browse.data?.scope === "regional"}
+              loading={browse.isLoading}
+            >
+              <RegionGroupsPanel
+                groups={regionalGroups}
+                globalPackages={globalPackages}
+              />
+            </CatalogScopeBody>
+          ) : null}
         </TabsContent>
       </Tabs>
     </div>

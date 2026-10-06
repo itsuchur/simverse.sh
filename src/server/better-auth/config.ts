@@ -45,6 +45,15 @@ export const auth = betterAuth({
     storeStateStrategy: "database",
     skipStateCookieCheck: true,
   },
+  // Avoid a database session read on every mini-app navigation. Purchase bans
+  // still read isBanned from Postgres.
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,
+      strategy: "compact",
+    },
+  },
   socialProviders:
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? {
