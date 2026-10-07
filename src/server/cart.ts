@@ -141,12 +141,14 @@ function parseStoredCart(value: unknown): {
 export async function replaceCartPlan(telegramId: string, plan: CartPlan) {
   const redis = await getRedis();
   const key = cartKey(telegramId);
-  const stored: StoredCart = { revision: randomUUID(), plan };
+  const revision = randomUUID();
+  const stored: StoredCart = { revision, plan };
   await redis
     .multi()
     .json.set(key, "$", stored)
     .expire(key, CART_TTL_SECONDS)
     .exec();
+  return revision;
 }
 
 export async function clearCart(telegramId: string) {

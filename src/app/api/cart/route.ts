@@ -58,8 +58,8 @@ export async function PUT(request: Request) {
 
   try {
     const plan = await cartPlanForPackageCode(body.data.packageCode);
-    await replaceCartPlan(telegramId, plan);
-    return Response.json({ plan });
+    const revision = await replaceCartPlan(telegramId, plan);
+    return Response.json({ plan, revision });
   } catch (error) {
     if (error instanceof UnknownPackageError) {
       return Response.json({ error: "Unknown package" }, { status: 404 });

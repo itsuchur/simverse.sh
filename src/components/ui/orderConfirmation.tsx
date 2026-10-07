@@ -135,13 +135,28 @@ export default function OrderConfirmation({
                     return;
                   }
 
+                  const payload = (await response.json()) as {
+                    revision?: unknown;
+                  };
+                  if (
+                    typeof payload.revision !== "string" ||
+                    payload.revision.length === 0
+                  ) {
+                    setError(t("buyFailed"));
+                    return;
+                  }
+
                   captureAppEvent("cart_updated", {
                     packageCode: pkg.packageCode,
                     volume: pkg.volume,
                     duration: pkg.duration,
                     priceRub: pkg.priceRub,
                   });
-                  router.push(checkoutHref);
+                  // A new revision makes this a different checkout URL, so the
+                  // client router cannot replay the previous package.
+                  router.push(
+                    `${checkoutHref}?revision=${encodeURIComponent(payload.revision)}`,
+                  );
                 } catch {
                   setError(t("buyFailed"));
                 } finally {

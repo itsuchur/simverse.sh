@@ -12,7 +12,15 @@ import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 
 export const dynamic = "force-dynamic";
 
-export default async function CheckoutPage() {
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ revision?: string | string[] }>;
+}) {
+  // Tie this render to the revision query. The query is only a cache key;
+  // the package still comes from the cart snapshot below.
+  await searchParams;
+
   const session = await getSession();
   if (!session) {
     return null;
