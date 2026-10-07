@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bitcoin, ChevronLeft, Globe, QrCode } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
@@ -11,6 +11,7 @@ import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
+import { openExternalLink } from "~/lib/telegram-webapp";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
 
 async function checkoutHeaders() {
@@ -139,6 +140,56 @@ export function CheckoutView({
   const [leaving, setLeaving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const invoiceUrls = useRef(new Map<string, string>());
+
+  function openInvoice(method: "xhub_sbp" | "trybit", url: string) {
+    invoiceUrls.current.set(`${cartRevision}:${method}`, url);
+    openExternalLink(url);
+  }
+
+  function pay(
+    method: "xhub_sbp" | "trybit",
+    path: string,
+    paymentMethod?: "card" | "sbp",
+  ) {
+    const ready = invoiceUrls.current.get(`${cartRevision}:${method}`);
+    if (ready) {
+      openExternalLink(ready);
+      return;
+    }
+
+    setPaying(true);
+    setPayError(null);
+    captureAppEvent("checkout_method_selected", {
+      method,
+      packageCode: plan.packageCode,
+    });
+    void requestInvoice(path, cartRevision, locale, paymentMethod)
+      .then((url) => {
+        captureAppEvent("checkout_invoice_opened", {
+          method,
+          packageCode: plan.packageCode,
+        });
+        openInvoice(method, url);
+        setPaying(false);
+      })
+      .catch((error: unknown) => {
+        console.error(`[checkout] ${method} invoice`, error);
+        captureAppEvent("checkout_invoice_failed", {
+          method,
+          packageCode: plan.packageCode,
+        });
+        setPayError(
+          error instanceof Error && error.message === "cart_changed"
+            ? t("cartChanged")
+            : t("payFailed"),
+        );
+        if (error instanceof Error && error.message === "cart_changed") {
+          router.refresh();
+        }
+        setPaying(false);
+      });
+  }
 
   useEffect(() => {
     captureAppEvent("checkout_started", {
@@ -246,45 +297,7 @@ export function CheckoutView({
             size="lg"
             className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
             disabled={leaving || paying}
-            onClick={() => {
-              setPaying(true);
-              setPayError(null);
-              captureAppEvent("checkout_method_selected", {
-                method: "xhub_sbp",
-                packageCode: plan.packageCode,
-              });
-              void requestInvoice(
-                "/api/checkout/xhub",
-                cartRevision,
-                locale,
-                "sbp",
-              )
-                .then((url) => {
-                  captureAppEvent("checkout_invoice_opened", {
-                    method: "xhub_sbp",
-                    packageCode: plan.packageCode,
-                  });
-                  window.location.assign(url);
-                })
-                .catch((error: unknown) => {
-                  console.error("[checkout] xhub SBP invoice", error);
-                  captureAppEvent("checkout_invoice_failed", {
-                    method: "xhub_sbp",
-                    packageCode: plan.packageCode,
-                  });
-                  setPayError(
-                    error instanceof Error && error.message === "cart_changed"
-                      ? t("cartChanged")
-                      : t("payFailed"),
-                  );
-                  if (
-                    error instanceof Error &&
-                    error.message === "cart_changed"
-                  )
-                    router.refresh();
-                  setPaying(false);
-                });
-            }}
+            onClick={() => pay("xhub_sbp", "/api/checkout/xhub", "sbp")}
           >
             <QrCode data-icon="inline-start" className="size-6" />
             {t("paySbp", { price: sbpPrice })}
@@ -296,37 +309,7 @@ export function CheckoutView({
           variant="outline"
           className="h-12 w-full text-lg"
           disabled={leaving || paying}
-          onClick={() => {
-            setPaying(true);
-            setPayError(null);
-            captureAppEvent("checkout_method_selected", {
-              method: "trybit",
-              packageCode: plan.packageCode,
-            });
-            void requestInvoice("/api/checkout/trybit", cartRevision, locale)
-              .then((url) => {
-                captureAppEvent("checkout_invoice_opened", {
-                  method: "trybit",
-                  packageCode: plan.packageCode,
-                });
-                window.location.assign(url);
-              })
-              .catch((error: unknown) => {
-                console.error("[checkout] trybit invoice", error);
-                captureAppEvent("checkout_invoice_failed", {
-                  method: "trybit",
-                  packageCode: plan.packageCode,
-                });
-                setPayError(
-                  error instanceof Error && error.message === "cart_changed"
-                    ? t("cartChanged")
-                    : t("payFailed"),
-                );
-                if (error instanceof Error && error.message === "cart_changed")
-                  router.refresh();
-                setPaying(false);
-              });
-          }}
+          onClick={() => pay("trybit", "/api/checkout/trybit")}
         >
           <Bitcoin data-icon="inline-start" className="size-6" />
           {t("payCrypto", { price: cryptoPrice })}
