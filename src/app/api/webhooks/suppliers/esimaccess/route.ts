@@ -7,11 +7,14 @@ import { withWebhookLogging } from "~/lib/webhook-logger";
 
 export const POST = withWebhookLogging(
   "esimaccess",
-  async (request: Request, payload: unknown) => {
+  async (request: Request, payload: unknown, _rawBody, persist) => {
     const token = new URL(request.url).searchParams.get("token");
     if (!verifyEsimAccessWebhookToken(token)) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
 
     if (typeof payload === "string") {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });

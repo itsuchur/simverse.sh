@@ -29,7 +29,7 @@ const postbackSchema = z.object({
 
 export const handleCardlinkWebhook = withWebhookLogging(
   "cardlink",
-  async (_request: Request, payload: unknown) => {
+  async (_request: Request, payload: unknown, _rawBody, persist) => {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return Response.json({ error: "Invalid body" }, { status: 400 });
     }
@@ -51,6 +51,9 @@ export const handleCardlinkWebhook = withWebhookLogging(
     if (!verifyCardlinkSign({ outSum: amount, invId: orderUuid, signature })) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
 
     if (PAID_STATUSES.has(status)) {
       await fulfillCardlinkPayment({
@@ -100,7 +103,7 @@ function unauthorizedResponse() {
 
 export const handleCardlinkRefundWebhook = withWebhookLogging(
   "cardlink",
-  async (_request: Request, payload: unknown) => {
+  async (_request: Request, payload: unknown, _rawBody, persist) => {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return invalidBodyResponse();
     }
@@ -134,6 +137,9 @@ export const handleCardlinkRefundWebhook = withWebhookLogging(
       return unauthorizedResponse();
     }
 
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
+
     if (status === "SUCCESS") {
       await markCardlinkRefunded({
         orderUuid,
@@ -149,7 +155,7 @@ export const handleCardlinkRefundWebhook = withWebhookLogging(
 
 export const handleCardlinkChargebackWebhook = withWebhookLogging(
   "cardlink",
-  async (_request: Request, payload: unknown) => {
+  async (_request: Request, payload: unknown, _rawBody, persist) => {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return invalidBodyResponse();
     }
@@ -178,6 +184,9 @@ export const handleCardlinkChargebackWebhook = withWebhookLogging(
     ) {
       return unauthorizedResponse();
     }
+
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
 
     if (status === "SUCCESS") {
       await markCardlinkChargeback({

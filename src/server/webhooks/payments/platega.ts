@@ -21,12 +21,15 @@ const callbackSchema = z.object({
 
 export const handlePlategaWebhook = withWebhookLogging(
   "platega",
-  async (request: Request, payload: unknown) => {
+  async (request: Request, payload: unknown, _rawBody, persist) => {
     const merchantId = request.headers.get("x-merchantid") ?? "";
     const secret = request.headers.get("x-secret") ?? "";
     if (!verifyPlategaCallbackCredentials({ merchantId, secret })) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
 
     const parsed = callbackSchema.safeParse(payload);
     if (!parsed.success) {

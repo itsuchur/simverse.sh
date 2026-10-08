@@ -103,6 +103,7 @@ describe("handleXhubWebhook", () => {
 
     expect(response.status).toBe(401);
     expect(order.paymentStatus).toBe("pending");
+    expect(fakeDb.webhookLogs).toHaveLength(0);
   });
 
   test("cancelled webhook fails a pending order", async () => {

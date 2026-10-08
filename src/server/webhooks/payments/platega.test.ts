@@ -92,6 +92,7 @@ describe("handlePlategaWebhook", () => {
 
     expect(response.status).toBe(401);
     expect(order.paymentStatus).toBe("pending");
+    expect(fakeDb.webhookLogs).toHaveLength(0);
   });
 
   test("CANCELED callback fails a pending order", async () => {

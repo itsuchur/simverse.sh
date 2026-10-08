@@ -53,7 +53,7 @@ function usdAmount(info: z.infer<typeof invoiceInfoSchema>) {
 
 export const handleTrybitWebhook = withWebhookLogging(
   "trybit",
-  async (_request: Request, payload: unknown) => {
+  async (_request: Request, payload: unknown, _rawBody, persist) => {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
@@ -73,6 +73,9 @@ export const handleTrybitWebhook = withWebhookLogging(
     if (!verifyTrybitPostbackToken(token)) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
 
     const invoiceStatus = invoice_info?.status;
     const invoiceResult = invoice_info?.invoice_status;

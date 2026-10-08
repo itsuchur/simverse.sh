@@ -50,11 +50,14 @@ export function isStartCommand(text: string | undefined): boolean {
 
 export const POST = withWebhookLogging(
   "telegram",
-  async (request: Request, payload: unknown) => {
+  async (request: Request, payload: unknown, _rawBody, persist) => {
     const secret = request.headers.get("x-telegram-bot-api-secret-token");
     if (!verifyTelegramWebhookSecret(secret)) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
 
     const parsed = updateSchema.safeParse(payload);
     if (!parsed.success) {

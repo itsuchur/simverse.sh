@@ -6,10 +6,14 @@ import type { Prisma } from "../../generated/prisma";
 
 import { db } from "~/server/db";
 
+/** `null` = ok; `Response` = 503 logging-unavailable. */
+export type PersistWebhookLog = () => Promise<Response | null>;
+
 type Handler = (
   request: Request,
   body: unknown,
   rawBody: string,
+  persist: PersistWebhookLog,
 ) => Response | Promise<Response>;
 
 function captureWebhookError(
@@ -63,35 +67,31 @@ export function withWebhookLogging(source: string, handler: Handler) {
       }
     } catch (error) {
       captureWebhookError(error, source, "read-body");
-
-      try {
-        await db.webhookLog.create({ data: { source, headers } });
-      } catch (loggingError) {
-        captureWebhookError(loggingError, source, "persist");
-        return loggingUnavailableResponse();
-      }
-
       return Response.json(
         { error: "Unable to read webhook body" },
         { status: 400 },
       );
     }
 
-    // Persist before dispatch. Returning a retryable error on failure prevents
-    // provider logic from running without a durable audit record.
-    try {
-      await db.webhookLog.create({
-        data: {
-          source,
-          headers,
-          ...(body === null ? {} : { payload: body }),
-        },
-      });
-    } catch (error) {
-      captureWebhookError(error, source, "persist");
-      return loggingUnavailableResponse();
-    }
+    // Call after signature/credential verification and before business logic.
+    // Returning a retryable error on failure prevents provider logic from
+    // running without a durable audit record.
+    const persist: PersistWebhookLog = async () => {
+      try {
+        await db.webhookLog.create({
+          data: {
+            source,
+            headers,
+            ...(body === null ? {} : { payload: body }),
+          },
+        });
+        return null;
+      } catch (error) {
+        captureWebhookError(error, source, "persist");
+        return loggingUnavailableResponse();
+      }
+    };
 
-    return handler(request, body, rawBody);
+    return handler(request, body, rawBody, persist);
   };
 }

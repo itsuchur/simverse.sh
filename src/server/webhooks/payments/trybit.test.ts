@@ -145,6 +145,7 @@ describe("handleTrybitWebhook", () => {
 
     expect(response.status).toBe(401);
     expect(order.paymentStatus).toBe("pending");
+    expect(fakeDb.webhookLogs).toHaveLength(0);
   });
 
   test("canceled invoice fails the pending order", async () => {

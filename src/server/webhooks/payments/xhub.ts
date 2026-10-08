@@ -40,7 +40,7 @@ function rubStringToKopecks(amount: string) {
 
 export const handleXhubWebhook = withWebhookLogging(
   "xhub",
-  async (request: Request, payload: unknown, rawBody: string) => {
+  async (request: Request, payload: unknown, rawBody: string, persist) => {
     const signature = request.headers.get("x-webhook-signature");
     const timestamp = request.headers.get("x-webhook-timestamp");
     if (
@@ -52,6 +52,9 @@ export const handleXhubWebhook = withWebhookLogging(
     ) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const unavailable = await persist();
+    if (unavailable) return unavailable;
 
     if (
       !payload ||

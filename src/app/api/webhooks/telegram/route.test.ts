@@ -64,6 +64,24 @@ describe("isStartCommand", () => {
   });
 });
 
+describe("telegram webhook auth", () => {
+  test("rejects invalid secret without logging", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/webhooks/telegram", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-telegram-bot-api-secret-token": "wrong-secret",
+        },
+        body: JSON.stringify({ message: { text: "/start", chat: { id: 1 } } }),
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(fakeDb.webhookLogs).toHaveLength(0);
+  });
+});
+
 describe("telegram webhook /start", () => {
   test("sends English welcome for /start without language_code", async () => {
     const response = await postUpdate({
@@ -84,6 +102,8 @@ describe("telegram webhook /start", () => {
       replyMarkup: expected.replyMarkup,
     });
     expect(expected.text).toContain("Welcome to Simverse!");
+    expect(fakeDb.webhookLogs).toHaveLength(1);
+    expect(fakeDb.webhookLogs[0]?.source).toBe("telegram");
   });
 
   test("sends Russian welcome when language_code starts with ru", async () => {

@@ -89,6 +89,7 @@ describe("handleCardlinkWebhook", () => {
 
     expect(response.status).toBe(401);
     expect(order.paymentStatus).toBe("pending");
+    expect(fakeDb.webhookLogs).toHaveLength(0);
   });
 
   test("currency mismatch keeps the order pending and alerts", async () => {
@@ -240,6 +241,7 @@ describe("handleCardlinkRefundWebhook", () => {
 
     expect(response.status).toBe(401);
     expect(order.paymentStatus).toBe("paid");
+    expect(fakeDb.webhookLogs).toHaveLength(0);
   });
 });
 
@@ -284,5 +286,27 @@ describe("handleCardlinkChargebackWebhook", () => {
     await handleCardlinkChargebackWebhook(chargebackForm(order));
 
     expect(order.paymentStatus).toBe("chargeback");
+  });
+
+  test("invalid signature returns 401", async () => {
+    const order = fakeDb.seedOrder({
+      paymentProvider: "cardlink",
+      paymentStatus: "paid",
+      status: "issued",
+    });
+    const response = await handleCardlinkChargebackWebhook(
+      postForm({
+        Id: "CB-1",
+        Status: "SUCCESS",
+        InvId: order.orderUuid,
+        BillId: "BILL-1",
+        PaymentId: "PAY-1",
+        SignatureValue: "0".repeat(32),
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(order.paymentStatus).toBe("paid");
+    expect(fakeDb.webhookLogs).toHaveLength(0);
   });
 });
