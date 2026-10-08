@@ -1,6 +1,5 @@
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { after } from "next/server";
-import { z } from "zod";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
@@ -29,17 +28,12 @@ export default async function AppMyESIms() {
     );
   }
 
-  const tracked = z
-    .string()
-    .uuid()
-    .safeParse((await cookies()).get("checkout_order")?.value);
   const rows = await db.order.findMany({
     where: {
       userId: session.user.id,
-      OR: [
-        { paymentStatus: paymentStatus.paid },
-        ...(tracked.success ? [{ orderUuid: tracked.data }] : []),
-      ],
+      paymentStatus: {
+        in: [paymentStatus.paid, paymentStatus.pending],
+      },
     },
     orderBy: { createdAt: "desc" },
   });
