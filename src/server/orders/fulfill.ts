@@ -22,6 +22,7 @@ import {
 } from "~/lib/order-status";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
 import { captureServerEvent } from "~/lib/posthog/server";
+import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
@@ -128,6 +129,8 @@ async function applyProfile(
     orderUuid: updated.orderUuid,
     properties: { packageCode: updated.resellerPlanId },
   });
+
+  await notifyBuyerEsimDelivery(orderId);
 }
 
 function captureOrderPaid(input: {

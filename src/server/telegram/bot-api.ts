@@ -63,23 +63,42 @@ export async function answerPreCheckoutQuery(
   });
 }
 
+export type InlineKeyboardButton = {
+  text: string;
+  url?: string;
+  web_app?: { url: string };
+};
+
 export type InlineKeyboardMarkup = {
-  inline_keyboard: Array<
-    Array<{
-      text: string;
-      web_app?: { url: string };
-    }>
-  >;
+  inline_keyboard: Array<Array<InlineKeyboardButton>>;
 };
 
 export async function sendMessage(input: {
   chatId: number;
   text: string;
+  parseMode?: "HTML";
   replyMarkup?: InlineKeyboardMarkup;
 }) {
   return botMethod<{ message_id: number }>("sendMessage", {
     chat_id: input.chatId,
     text: input.text,
+    ...(input.parseMode ? { parse_mode: input.parseMode } : {}),
+    ...(input.replyMarkup ? { reply_markup: input.replyMarkup } : {}),
+  });
+}
+
+export async function sendPhoto(input: {
+  chatId: number;
+  photo: string;
+  caption?: string;
+  parseMode?: "HTML";
+  replyMarkup?: InlineKeyboardMarkup;
+}) {
+  return botMethod<{ message_id: number }>("sendPhoto", {
+    chat_id: input.chatId,
+    photo: input.photo,
+    ...(input.caption ? { caption: input.caption } : {}),
+    ...(input.parseMode ? { parse_mode: input.parseMode } : {}),
     ...(input.replyMarkup ? { reply_markup: input.replyMarkup } : {}),
   });
 }
