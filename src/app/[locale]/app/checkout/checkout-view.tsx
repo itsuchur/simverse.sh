@@ -139,8 +139,10 @@ export function CheckoutView({
   const homeHref = useMiniappPath("/");
   const [leaving, setLeaving] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [paymentOpened, setPaymentOpened] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const invoiceUrls = useRef(new Map<string, string>());
+  const controlsLocked = leaving || paying || paymentOpened;
 
   function openInvoice(method: "xhub_sbp" | "trybit", url: string) {
     invoiceUrls.current.set(`${cartRevision}:${method}`, url);
@@ -154,6 +156,8 @@ export function CheckoutView({
   ) {
     const ready = invoiceUrls.current.get(`${cartRevision}:${method}`);
     if (ready) {
+      setPayError(null);
+      setPaymentOpened(true);
       openExternalLink(ready);
       return;
     }
@@ -171,6 +175,7 @@ export function CheckoutView({
           packageCode: plan.packageCode,
         });
         openInvoice(method, url);
+        setPaymentOpened(true);
         setPaying(false);
       })
       .catch((error: unknown) => {
@@ -236,7 +241,7 @@ export function CheckoutView({
           variant="ghost"
           size="icon"
           className="text-foreground -ml-1.5"
-          disabled={leaving || paying}
+          disabled={controlsLocked}
           aria-label={t("backToApp")}
           onClick={() => {
             void (async () => {
@@ -296,7 +301,7 @@ export function CheckoutView({
             type="button"
             size="lg"
             className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
-            disabled={leaving || paying}
+            disabled={controlsLocked}
             onClick={() => pay("xhub_sbp", "/api/checkout/xhub", "sbp")}
           >
             <QrCode data-icon="inline-start" className="size-6" />
@@ -308,7 +313,7 @@ export function CheckoutView({
           size="lg"
           variant="outline"
           className="h-12 w-full text-lg"
-          disabled={leaving || paying}
+          disabled={controlsLocked}
           onClick={() => pay("trybit", "/api/checkout/trybit")}
         >
           <Bitcoin data-icon="inline-start" className="size-6" />
