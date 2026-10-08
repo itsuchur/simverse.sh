@@ -992,12 +992,11 @@ export async function attachGotResource(input: {
   await syncEsimProfile(current);
 }
 
-export async function applyEsimStatus(input: {
+/** Resolve an eSIM Access webhook to a local order (ICCID, then orderNo/transactionId). */
+export async function findOrderForEsimWebhook(input: {
   iccid: string | null;
   orderNo: string | null;
   transactionId: string | null;
-  esimStatus: string | null;
-  smdpStatus: string | null;
 }) {
   let order = input.iccid
     ? await db.order.findFirst({ where: { esimIccid: input.iccid } })
@@ -1007,6 +1006,18 @@ export async function applyEsimStatus(input: {
     orderNo: input.orderNo,
     transactionId: input.transactionId,
   });
+
+  return order;
+}
+
+export async function applyEsimStatus(input: {
+  iccid: string | null;
+  orderNo: string | null;
+  transactionId: string | null;
+  esimStatus: string | null;
+  smdpStatus: string | null;
+}) {
+  const order = await findOrderForEsimWebhook(input);
 
   if (!order) {
     return;
