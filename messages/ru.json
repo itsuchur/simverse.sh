@@ -52,7 +52,8 @@
     "unlimitedDetailsPerDayWithSpeed": "Сначала {amount} в день на максимальной скорости, затем безлимитный интернет на скорости до {speed}.",
     "unlimitedSpeedMbps": "{speed} Мбит/с",
     "unlimitedSpeedKbps": "{speed} Кбит/с",
-    "countriesAndNetworks": "{count} стран и сетей",
+    "countriesCount": "{count} стран",
+    "supportedCountries": "Поддерживаемые страны",
     "noMatchingPlans": "Нет подходящих тарифов",
     "noMatchingDescription": "Попробуйте изменить запрос.",
     "duration": {

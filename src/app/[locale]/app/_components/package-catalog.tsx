@@ -96,6 +96,31 @@ function uniqueOperators(packages: CatalogPackage[]): string[] {
   return names;
 }
 
+function uniqueCountries(packages: CatalogPackage[]): string[] {
+  const seen = new Set<string>();
+  const codes: string[] = [];
+  for (const pkg of packages) {
+    for (const code of pkg.location.split(",").filter(Boolean)) {
+      const normalized = code.trim().toUpperCase();
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      codes.push(normalized);
+    }
+  }
+  return codes;
+}
+
+function countryDisplayName(countryCode: string, locale: string) {
+  try {
+    return (
+      new Intl.DisplayNames([locale], { type: "region" }).of(countryCode) ??
+      countryCode
+    );
+  } catch {
+    return countryCode;
+  }
+}
+
 function groupPackagesByDuration(packages: CatalogPackage[]) {
   const byDuration = new Map<number, CatalogPackage[]>();
 
@@ -161,8 +186,21 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
   const format = useFormatter();
   const locale = useLocale();
   const [open, setOpen] = useState(false);
+  const [countriesOpen, setCountriesOpen] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<CatalogPackage | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const countries = uniqueCountries(group.packages);
+  const isMultiCountry = countries.length > 1;
+  const countryNames = useMemo(
+    () =>
+      countries
+        .map((code) => ({
+          code,
+          name: countryDisplayName(code, locale),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, locale)),
+    [countries, locale],
+  );
   const operators = uniqueOperators(group.packages);
   const durationGroups = groupPackagesByDuration(group.packages);
   const fromPrice = lowestCatalogPrice(group.packages, locale);
@@ -176,6 +214,7 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
         if (!next) {
           setSelectedPkg(null);
           setConfirming(false);
+          setCountriesOpen(false);
         }
       }}
     >
@@ -211,20 +250,38 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
           <div className="flex flex-col gap-6">
             <hr className="border-border" />
 
-            {operators.length > 0 ? (
-              operators.length > 3 ? (
-                <p className="text-muted-foreground leading-7">
-                  {t("countriesAndNetworks", {
-                    count: String(operators.length),
-                  })}
-                </p>
-              ) : (
-                <ul className="text-muted-foreground list-inside list-disc space-y-1 leading-7">
-                  {operators.map((name) => (
-                    <li key={name}>{name}</li>
-                  ))}
-                </ul>
-              )
+            {isMultiCountry ? (
+              <>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground w-fit cursor-pointer text-left leading-7 underline underline-offset-2"
+                  onClick={() => setCountriesOpen(true)}
+                >
+                  {t("countriesCount", { count: String(countries.length) })}
+                </button>
+                <Dialog open={countriesOpen} onOpenChange={setCountriesOpen}>
+                  <DialogContent className="flex max-h-[min(88vh,36rem)] flex-col gap-0 overflow-hidden p-0 text-base sm:max-w-md">
+                    <DialogHeader className="shrink-0 px-6 pt-7 pr-14 pb-4">
+                      <DialogTitle className="text-lg leading-snug">
+                        {t("supportedCountries")}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="[max-height:calc(min(88vh,36rem)-5.75rem)] min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch]">
+                      <ul className="text-muted-foreground list-inside list-disc space-y-1 leading-7">
+                        {countryNames.map(({ code, name }) => (
+                          <li key={code}>{name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
+            ) : operators.length > 0 && operators.length <= 3 ? (
+              <ul className="text-muted-foreground list-inside list-disc space-y-1 leading-7">
+                {operators.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
             ) : null}
 
             <p className="text-base font-medium">{t("choosePackage")}</p>
