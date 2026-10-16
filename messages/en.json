@@ -28,7 +28,6 @@
     "tryAgain": "Try again"
   },
   "Consent": {
-    "welcome": "Welcome to simverse.",
     "agreement": "By continuing, I agree to <tos>Terms of Service</tos> and <privacy>Privacy Policy</privacy>",
     "continue": "Continue"
   },

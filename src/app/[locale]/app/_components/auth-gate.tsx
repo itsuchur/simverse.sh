@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { LoaderCircle } from "lucide-react";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 
@@ -215,10 +216,13 @@ function ConsentScreen({
   return (
     <main className="flex flex-1 flex-col justify-center py-24">
       <Card>
-        <CardHeader>
-          <CardTitle>{t("welcome")}</CardTitle>
-        </CardHeader>
-        <div className="space-y-4 px-6 pb-6">
+        <div className="space-y-4 px-6 pt-6 pb-6">
+          <DotLottieReact
+            src="/welcomeScreenESIM.json"
+            loop
+            autoplay
+            className="mx-auto aspect-[4/3] w-full max-w-xs"
+          />
           <div className="flex items-start gap-3">
             <Checkbox
               id="consent-agreement"
