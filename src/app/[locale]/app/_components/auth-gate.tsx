@@ -214,50 +214,48 @@ function ConsentScreen({
   const [agreed, setAgreed] = useState(false);
 
   return (
-    <main className="flex flex-1 flex-col justify-center py-24">
-      <Card>
-        <div className="space-y-4 px-6 pt-6 pb-6">
-          <DotLottieReact
-            src="/welcomeScreenESIM.json"
-            loop
-            autoplay
-            className="mx-auto aspect-[4/3] w-full max-w-xs"
+    <main className="flex flex-1 flex-col justify-center px-6 py-24">
+      <div className="space-y-4">
+        <DotLottieReact
+          src="/welcomeScreenESIM.json"
+          loop
+          autoplay
+          className="mx-auto aspect-[4/3] w-full max-w-xs"
+        />
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="consent-agreement"
+            checked={agreed}
+            onCheckedChange={(checked) => setAgreed(checked)}
+            className="mt-0.5"
           />
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="consent-agreement"
-              checked={agreed}
-              onCheckedChange={(checked) => setAgreed(checked)}
-              className="mt-0.5"
-            />
-            <label htmlFor="consent-agreement" className="text-sm">
-              {t.rich("agreement", {
-                tos: (chunks) => (
-                  <LegalLink
-                    href={marketingUrl(getPathname({ href: "/tos", locale }))}
-                    className="underline-offset-3"
-                  >
-                    {chunks}
-                  </LegalLink>
-                ),
-                privacy: (chunks) => (
-                  <LegalLink
-                    href={marketingUrl(
-                      getPathname({ href: "/privacy-policy", locale }),
-                    )}
-                    className="underline-offset-3"
-                  >
-                    {chunks}
-                  </LegalLink>
-                ),
-              })}
-            </label>
-          </div>
-          <Button className="w-full" disabled={!agreed} onClick={onContinue}>
-            {t("continue")}
-          </Button>
+          <label htmlFor="consent-agreement" className="text-sm">
+            {t.rich("agreement", {
+              tos: (chunks) => (
+                <LegalLink
+                  href={marketingUrl(getPathname({ href: "/tos", locale }))}
+                  className="underline-offset-3"
+                >
+                  {chunks}
+                </LegalLink>
+              ),
+              privacy: (chunks) => (
+                <LegalLink
+                  href={marketingUrl(
+                    getPathname({ href: "/privacy-policy", locale }),
+                  )}
+                  className="underline-offset-3"
+                >
+                  {chunks}
+                </LegalLink>
+              ),
+            })}
+          </label>
         </div>
-      </Card>
+        <Button className="w-full" disabled={!agreed} onClick={onContinue}>
+          {t("continue")}
+        </Button>
+      </div>
     </main>
   );
 }
