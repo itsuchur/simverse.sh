@@ -15,6 +15,10 @@ export type EsimAccessProfile = {
   smdpAddress?: string;
   esimStatus?: string;
   smdpStatus?: string;
+  activateTime?: string | null;
+  expiredTime?: string | null;
+  totalVolume?: number;
+  orderUsage?: number;
 };
 
 const UNUSED_ESIM_STATUSES = new Set(["GOT_RESOURCE", "NOT_ACTIVE"]);
@@ -43,6 +47,20 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function asFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function asProviderTime(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  return asString(value);
+}
+
 function smdpFromActivationCode(ac: string | undefined): string | undefined {
   if (!ac) return undefined;
   const parts = ac.split("$");
@@ -59,6 +77,10 @@ function mapProfile(raw: unknown): EsimAccessProfile | null {
   if (!iccid) return null;
 
   const ac = asString(row.ac);
+  const activateTime = asProviderTime(row.activateTime);
+  const expiredTime = asProviderTime(row.expiredTime);
+  const totalVolume = asFiniteNumber(row.totalVolume);
+  const orderUsage = asFiniteNumber(row.orderUsage);
   return {
     iccid,
     esimTranNo: asString(row.esimTranNo),
@@ -67,6 +89,10 @@ function mapProfile(raw: unknown): EsimAccessProfile | null {
     smdpAddress: asString(row.smdpAddress) ?? smdpFromActivationCode(ac),
     esimStatus: asString(row.esimStatus),
     smdpStatus: asString(row.smdpStatus),
+    ...(activateTime !== undefined ? { activateTime } : {}),
+    ...(expiredTime !== undefined ? { expiredTime } : {}),
+    ...(totalVolume !== undefined ? { totalVolume } : {}),
+    ...(orderUsage !== undefined ? { orderUsage } : {}),
   };
 }
 

@@ -111,7 +111,16 @@
     "guideIos3": "If nothing happens, go to Settings → Cellular → Add eSIM and scan the QR code.",
     "guideAndroid1": "Tap Install eSIM and allow the eSIM to be added.",
     "guideAndroid2": "Follow the prompts until the plan shows as installed.",
-    "guideAndroid3": "If nothing happens, go to Settings → Network & internet → SIMs → Add eSIM and scan the QR code."
+    "guideAndroid3": "If nothing happens, go to Settings → Network & internet → SIMs → Add eSIM and scan the QR code.",
+    "showInstallationDetails": "Show installation details",
+    "remainingData": "{amount} remaining",
+    "usageDelayed": "Usage updates may be delayed.",
+    "usageUpdatedAt": "Last updated {time}",
+    "usageUnavailable": "Data usage isn't available yet.",
+    "expiredOn": "Expired {date}",
+    "expiryDateUnavailable": "Expiry date isn't available.",
+    "dataExhausted": "Data is used up.",
+    "expiredBeforeActivation": "Expired before activation."
   },
   "EsimStatus": {
     "notActivated": "NOT ACTIVATED",

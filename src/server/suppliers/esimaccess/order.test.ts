@@ -76,6 +76,33 @@ describe("queryEsimAccessProfiles", () => {
     expect(profiles[1]?.smdpAddress).toBe("rsp2.example.com");
   });
 
+  test("keeps activation time, expiry, and usage from the query profile", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        esimList: [
+          {
+            iccid: "890",
+            activateTime: "2026-04-10T21:13:01+0000",
+            expiredTime: null,
+            totalVolume: 1000,
+            orderUsage: 0,
+          },
+        ],
+      },
+    });
+
+    const profiles = await queryEsimAccessProfiles("EA-1");
+
+    expect(profiles[0]).toMatchObject({
+      iccid: "890",
+      activateTime: "2026-04-10T21:13:01+0000",
+      expiredTime: null,
+      totalVolume: 1000,
+      orderUsage: 0,
+    });
+  });
+
   test("returns an empty list when the supplier has no profiles yet", async () => {
     esimAccessPost.mockResolvedValueOnce({ success: true, obj: {} });
     expect(await queryEsimAccessProfiles("EA-1")).toEqual([]);

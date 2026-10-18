@@ -20,6 +20,7 @@ import {
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
+import { projectEsimSnapshot } from "~/lib/esim-lifecycle";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
 import { captureServerEvent } from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
@@ -1026,16 +1027,28 @@ export async function applyEsimStatus(input: {
     return;
   }
 
-  const esimStatus =
-    input.esimStatus && isEsimLifecycleStatus(input.esimStatus)
-      ? input.esimStatus
-      : undefined;
+  const patch = projectEsimSnapshot(
+    {
+      esimStatus: order.esimStatus,
+      esimSmdpStatus: order.esimSmdpStatus,
+      firstActivatedAt: order.firstActivatedAt,
+      dataTotalBytes: order.dataTotalBytes,
+      dataUsedBytes: order.dataUsedBytes,
+      expiresAt: order.expiresAt,
+      usageSyncedAt: order.usageSyncedAt,
+    },
+    {
+      source: "status",
+      observedAt: new Date(),
+      esimStatus: input.esimStatus,
+      smdpStatus: input.smdpStatus,
+    },
+  );
 
   await db.order.update({
     where: { id: order.id },
     data: {
-      ...(esimStatus ? { esimStatus } : {}),
-      ...(input.smdpStatus ? { esimSmdpStatus: input.smdpStatus } : {}),
+      ...patch,
       ...(input.iccid && !order.esimIccid ? { esimIccid: input.iccid } : {}),
     },
   });

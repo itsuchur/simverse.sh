@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Globe } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
@@ -13,6 +13,11 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { useRouter } from "~/i18n/navigation";
+import {
+  esimLifecycleView,
+  formatByteVolume,
+  type LifecycleFocus,
+} from "~/lib/esim-lifecycle";
 import { hasEsimCredentials, lpaCardData } from "~/lib/esim-provisioning";
 import { esimStatusBadge } from "~/lib/esim-status";
 import { needsDeliveryRefresh } from "~/lib/order-delivery";
@@ -39,6 +44,11 @@ export type MyEsimOrder = {
   esimActivationCode: string | null;
   esimQrUrl: string | null;
   esimSmdpAddress: string | null;
+  firstActivatedAt: string | null;
+  dataTotalBytes: string | null;
+  dataUsedBytes: string | null;
+  expiresAt: string | null;
+  usageSyncedAt: string | null;
   createdAt: string;
 };
 
@@ -49,6 +59,122 @@ function formatData(mb: number | null) {
     return Number.isInteger(gb) ? `${gb} GB` : `${gb.toFixed(1)} GB`;
   }
   return `${mb} MB`;
+}
+
+function formatTimestamp(value: string, locale: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function LifecycleNotice({
+  focus,
+}: {
+  focus: LifecycleFocus;
+}) {
+  const t = useTranslations("MyEsims");
+  const tStatus = useTranslations("EsimStatus");
+  const locale = useLocale();
+  if (focus.kind === "install") return null;
+
+  const updatedAt =
+    focus.kind === "remaining" || focus.kind === "usageUnavailable"
+      ? focus.usageSyncedAt
+        ? formatTimestamp(focus.usageSyncedAt, locale)
+        : null
+      : null;
+  const expiryDate =
+    focus.kind === "expired" && focus.expiresAt
+      ? formatTimestamp(focus.expiresAt, locale)
+      : null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      {focus.kind === "remaining" ? (
+        <p className="text-base font-semibold">
+          {t("remainingData", {
+            amount: formatByteVolume(focus.remainingBytes),
+          })}
+        </p>
+      ) : null}
+      {focus.kind === "usageUnavailable" ? (
+        <p className="text-base font-semibold">{t("usageUnavailable")}</p>
+      ) : null}
+      {focus.kind === "exhausted" ? (
+        <p className="text-base font-semibold">{t("dataExhausted")}</p>
+      ) : null}
+      {focus.kind === "expired" ? (
+        <>
+          <p className="text-base font-semibold">
+            {focus.unused ? t("expiredBeforeActivation") : tStatus("expired")}
+          </p>
+          {expiryDate ? (
+            <p className="text-base">{t("expiredOn", { date: expiryDate })}</p>
+          ) : (
+            <p className="text-muted-foreground text-base">
+              {t("expiryDateUnavailable")}
+            </p>
+          )}
+          {focus.dataExhausted ? (
+            <p className="text-base">{t("dataExhausted")}</p>
+          ) : null}
+        </>
+      ) : null}
+      {focus.kind === "remaining" || focus.kind === "usageUnavailable" ? (
+        <p className="text-muted-foreground text-base">{t("usageDelayed")}</p>
+      ) : null}
+      {updatedAt ? (
+        <p className="text-muted-foreground text-base">
+          {t("usageUpdatedAt", { time: updatedAt })}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function InstallationDetails({
+  order,
+  platform,
+  collapsed,
+}: {
+  order: MyEsimOrder;
+  platform: EsimInstallPlatform | null;
+  collapsed: boolean;
+}) {
+  const t = useTranslations("MyEsims");
+  const details = (
+    <>
+      {order.esimQrUrl ? (
+        // Supplier QR URLs are short-lived HTTPS assets.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={order.esimQrUrl}
+          alt={t("qrAlt")}
+          className="border-border mx-auto size-48 rounded-xl border bg-white p-2"
+        />
+      ) : null}
+      <InstallationGuide
+        platform={platform}
+        cardData={lpaCardData(order.esimSmdpAddress, order.esimActivationCode)}
+      />
+    </>
+  );
+
+  if (!collapsed) {
+    return <div className="flex flex-col gap-4">{details}</div>;
+  }
+
+  return (
+    <details>
+      <summary className="cursor-pointer text-base font-medium">
+        {t("showInstallationDetails")}
+      </summary>
+      <div className="mt-4 flex flex-col gap-4">{details}</div>
+    </details>
+  );
 }
 
 function countryDisplayName(countryCode: string, locale: string) {
@@ -81,6 +207,7 @@ function OrderCard({
       ? countryDisplayName(countryCode, locale)
       : order.packageName;
   const statusBadge = esimStatusBadge(order.esimStatus, order.esimSmdpStatus);
+  const lifecycle = esimLifecycleView(order);
 
   return (
     <Card>
@@ -131,21 +258,11 @@ function OrderCard({
           <p className="text-destructive text-base">{t("failed")}</p>
         ) : hasEsimCredentials(order) ? (
           <>
-            {order.esimQrUrl ? (
-              // Supplier QR URLs are short-lived HTTPS assets.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={order.esimQrUrl}
-                alt={t("qrAlt")}
-                className="border-border mx-auto size-48 rounded-xl border bg-white p-2"
-              />
-            ) : null}
-            <InstallationGuide
+            <LifecycleNotice focus={lifecycle.focus} />
+            <InstallationDetails
+              order={order}
               platform={platform}
-              cardData={lpaCardData(
-                order.esimSmdpAddress,
-                order.esimActivationCode,
-              )}
+              collapsed={lifecycle.collapseInstall}
             />
           </>
         ) : (
@@ -160,10 +277,17 @@ function subscribeNever() {
   return () => undefined;
 }
 
-export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
+export function MyEsimList({
+  orders,
+  refreshLifecycle = false,
+}: {
+  orders: MyEsimOrder[];
+  refreshLifecycle?: boolean;
+}) {
   const t = useTranslations("MyEsims");
   const router = useRouter();
   const preparing = orders.some(needsDeliveryRefresh);
+  const lifecycleRefreshes = useRef(0);
   // Platform never changes during a session; the store only exists to read it
   // client-side (null during SSR/hydration).
   const platform = useSyncExternalStore<EsimInstallPlatform | null>(
@@ -179,6 +303,19 @@ export function MyEsimList({ orders }: { orders: MyEsimOrder[] }) {
     }, 3000);
     return () => window.clearInterval(id);
   }, [preparing, router]);
+
+  useEffect(() => {
+    if (!refreshLifecycle) return;
+    const id = window.setInterval(() => {
+      if (lifecycleRefreshes.current >= 3) {
+        window.clearInterval(id);
+        return;
+      }
+      lifecycleRefreshes.current += 1;
+      router.refresh();
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [refreshLifecycle, router]);
 
   if (orders.length === 0) {
     return (

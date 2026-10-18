@@ -6,9 +6,10 @@ import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
 import { env } from "~/env";
+import type { EsimSnapshotEvent } from "~/lib/esim-lifecycle";
 import { db } from "~/server/db";
+import { recordEsimSnapshot } from "~/server/orders/esim-lifecycle-sync";
 import {
-  applyEsimStatus,
   attachGotResource,
   findOrderForEsimWebhook,
 } from "~/server/orders/fulfill";
@@ -185,6 +186,71 @@ async function notifyBuyerUsageAlert(input: {
   }
 }
 
+function snapshotEvent(
+  notification: EsimAccessNotification,
+  observedAt: Date,
+): EsimSnapshotEvent | null {
+  const content = notification.content;
+  const esimStatus = contentString(content, "esimStatus");
+  const smdpStatus = contentString(content, "smdpStatus");
+  if (notification.notifyType === "DATA_USAGE") {
+    return {
+      source: "data_usage",
+      observedAt,
+      esimStatus,
+      smdpStatus,
+      totalVolume: contentNumber(content, "totalVolume"),
+      orderUsage: contentNumber(content, "orderUsage"),
+      remain: contentNumber(content, "remain"),
+    };
+  }
+  if (notification.notifyType === "VALIDITY_USAGE") {
+    return {
+      source: "validity_usage",
+      observedAt,
+      esimStatus,
+      smdpStatus,
+      expiredTime: contentString(content, "expiredTime"),
+    };
+  }
+  if (
+    notification.notifyType === "ESIM_STATUS" ||
+    notification.notifyType === "SMDP_EVENT"
+  ) {
+    const totalVolume = contentNumber(content, "totalVolume");
+    const orderUsage = contentNumber(content, "orderUsage");
+    if (
+      !esimStatus &&
+      !smdpStatus &&
+      (totalVolume === null || orderUsage === null)
+    ) {
+      return null;
+    }
+    return {
+      source: "status",
+      observedAt,
+      esimStatus,
+      smdpStatus,
+      totalVolume,
+      orderUsage,
+    };
+  }
+  return null;
+}
+
+async function recordNotification(
+  notification: EsimAccessNotification,
+): Promise<void> {
+  const event = snapshotEvent(notification, new Date());
+  if (!event) return;
+  await recordEsimSnapshot({
+    iccid: contentString(notification.content, "iccid"),
+    orderNo: contentString(notification.content, "orderNo"),
+    transactionId: contentString(notification.content, "transactionId"),
+    event,
+  });
+}
+
 export async function handleEsimAccessNotification(
   notification: EsimAccessNotification,
 ): Promise<void> {
@@ -206,23 +272,12 @@ export async function handleEsimAccessNotification(
       return;
     }
     case "ESIM_STATUS":
-    case "SMDP_EVENT": {
-      const esimStatus = contentString(notification.content, "esimStatus");
-      const smdpStatus = contentString(notification.content, "smdpStatus");
-      if (!esimStatus && !smdpStatus) {
-        return;
-      }
-      await applyEsimStatus({
-        iccid: contentString(notification.content, "iccid"),
-        orderNo: contentString(notification.content, "orderNo"),
-        transactionId: contentString(notification.content, "transactionId"),
-        esimStatus,
-        smdpStatus,
-      });
+    case "SMDP_EVENT":
+      await recordNotification(notification);
       return;
-    }
     case "DATA_USAGE":
     case "VALIDITY_USAGE":
+      await recordNotification(notification);
       await notifyBuyerUsageAlert({
         kind: notification.notifyType,
         notifyId: notification.notifyId,

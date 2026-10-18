@@ -151,6 +151,19 @@ model Order {
   esimActivationCode  String? @map("esim_activation_code")
   esimQrUrl           String? @map("esim_qr_url")
   esimSmdpAddress     String? @map("esim_smdp_address")
+  /// Provider `activateTime` from a fallback profile query. Write-once.
+  firstActivatedAt    DateTime? @map("first_activated_at") @db.Timestamptz(6)
+  /// Last successful `totalVolume` / `orderUsage` pair, in bytes.
+  dataTotalBytes      BigInt?   @map("data_total_bytes")
+  dataUsedBytes       BigInt?   @map("data_used_bytes")
+  /// Last parseable provider `expiredTime`. Never cleared on omission.
+  expiresAt           DateTime? @map("expires_at") @db.Timestamptz(6)
+  /// When the current usage or expiry snapshot was observed.
+  usageSyncedAt       DateTime? @map("usage_synced_at") @db.Timestamptz(6)
+  /// Set after stored eSIM Access webhooks have been replayed once.
+  webhookHistoryAppliedAt DateTime? @map("webhook_history_applied_at") @db.Timestamptz(6)
+  /// Set when an activation fallback query completes without throwing.
+  activationCheckedAt DateTime? @map("activation_checked_at") @db.Timestamptz(6)
   resellerRawResponse Json?   @map("reseller_raw_response") @db.JsonB
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -182,7 +195,8 @@ model WebhookLog {
   receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
 
   @@index([source], map: "idx_webhook_logs_source")
-  /// GIN index `idx_webhook_logs_payload` is defined in the migration SQL.
+  /// Partial expression indexes `idx_webhook_logs_esimaccess_iccid` and
+  /// `idx_webhook_logs_esimaccess_order_no` are defined in the migration SQL.
   @@map("webhook_logs")
 }
 

@@ -56,6 +56,13 @@ export type FakeOrder = {
   esimActivationCode: string | null;
   esimQrUrl: string | null;
   esimSmdpAddress: string | null;
+  firstActivatedAt: Date | null;
+  dataTotalBytes: bigint | null;
+  dataUsedBytes: bigint | null;
+  expiresAt: Date | null;
+  usageSyncedAt: Date | null;
+  webhookHistoryAppliedAt: Date | null;
+  activationCheckedAt: Date | null;
   paidAt: Date | null;
   issuedAt: Date | null;
   createdAt: Date;
@@ -164,6 +171,13 @@ function orderDefaults(): Omit<
     esimActivationCode: null,
     esimQrUrl: null,
     esimSmdpAddress: null,
+    firstActivatedAt: null,
+    dataTotalBytes: null,
+    dataUsedBytes: null,
+    expiresAt: null,
+    usageSyncedAt: null,
+    webhookHistoryAppliedAt: null,
+    activationCheckedAt: null,
     paidAt: null,
     issuedAt: null,
   };
@@ -177,9 +191,15 @@ class FakeDb {
   private nextOrderId = 1n;
   private nextExcludedPackageCodeId = 1n;
   private nextExcludedCountryCodeId = 1n;
+  private nextWebhookLogId = 1n;
 
-  webhookLogs: Array<{ source: string; headers: unknown; payload?: unknown }> =
-    [];
+  webhookLogs: Array<{
+    id: bigint;
+    source: string;
+    headers: unknown;
+    payload?: unknown;
+    receivedAt: Date;
+  }> = [];
 
   reset() {
     this.orders = [];
@@ -190,6 +210,7 @@ class FakeDb {
     this.nextOrderId = 1n;
     this.nextExcludedPackageCodeId = 1n;
     this.nextExcludedCountryCodeId = 1n;
+    this.nextWebhookLogId = 1n;
   }
 
   seedUser(user: { id: string; telegramId?: string | null }): FakeUser {
@@ -209,6 +230,22 @@ class FakeDb {
       ...input,
     };
     this.orders.push(record);
+    return record;
+  }
+
+  seedWebhookLog(input: {
+    source?: string;
+    payload: unknown;
+    receivedAt: Date;
+  }) {
+    const record = {
+      id: this.nextWebhookLogId++,
+      source: input.source ?? "esimaccess",
+      headers: {},
+      payload: input.payload,
+      receivedAt: input.receivedAt,
+    };
+    this.webhookLogs.push(record);
     return record;
   }
 
@@ -503,8 +540,39 @@ class FakeDb {
     create: async (args: {
       data: { source: string; headers: unknown; payload?: unknown };
     }) => {
-      this.webhookLogs.push(args.data);
-      return args.data;
+      const record = {
+        id: this.nextWebhookLogId++,
+        source: args.data.source,
+        headers: args.data.headers,
+        payload: args.data.payload,
+        receivedAt: new Date(),
+      };
+      this.webhookLogs.push(record);
+      return record;
+    },
+    findMany: async (args: {
+      where: {
+        source: string;
+        OR: Array<{ payload: { path: string[]; equals: string } }>;
+      };
+      orderBy?: { receivedAt?: "asc" | "desc" };
+    }) => {
+      const matches = this.webhookLogs.filter((log) => {
+        if (log.source !== args.where.source) return false;
+        return args.where.OR.some((clause) => {
+          let value: unknown = log.payload;
+          for (const key of clause.payload.path) {
+            if (!value || typeof value !== "object") return false;
+            value = (value as Record<string, unknown>)[key];
+          }
+          return value === clause.payload.equals;
+        });
+      });
+      const direction = args.orderBy?.receivedAt === "desc" ? -1 : 1;
+      matches.sort(
+        (a, b) => direction * (a.receivedAt.getTime() - b.receivedAt.getTime()),
+      );
+      return matches.map((log) => ({ ...log }));
     },
   };
 }

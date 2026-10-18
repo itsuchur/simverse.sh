@@ -1,8 +1,10 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
+import { needsActivationFallback } from "~/lib/esim-lifecycle";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
+import { syncEsimLifecycleForUser } from "~/server/orders/esim-lifecycle-sync";
 import { syncPendingProfilesForUser } from "~/server/orders/fulfill";
 
 import { MyEsimList, type MyEsimOrder } from "./myesim-list";
@@ -22,9 +24,11 @@ export default async function AppMyESIms() {
   if (!isPrefetch) {
     const userId = session.user.id;
     after(() =>
-      syncPendingProfilesForUser(userId).catch((error: unknown) => {
-        console.error("[myesim] pending profile sync failed", error);
-      }),
+      syncPendingProfilesForUser(userId)
+        .then(() => syncEsimLifecycleForUser(userId))
+        .catch((error: unknown) => {
+          console.error("[myesim] profile sync failed", error);
+        }),
     );
   }
 
@@ -53,12 +57,27 @@ export default async function AppMyESIms() {
     esimActivationCode: row.esimActivationCode,
     esimQrUrl: row.esimQrUrl,
     esimSmdpAddress: row.esimSmdpAddress,
+    firstActivatedAt: row.firstActivatedAt?.toISOString() ?? null,
+    dataTotalBytes: row.dataTotalBytes?.toString() ?? null,
+    dataUsedBytes: row.dataUsedBytes?.toString() ?? null,
+    expiresAt: row.expiresAt?.toISOString() ?? null,
+    usageSyncedAt: row.usageSyncedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   }));
 
+  const now = new Date();
+  const refreshLifecycle = rows.some(
+    (row) =>
+      row.resellerCode === "esimaccess" &&
+      row.paymentStatus === paymentStatus.paid &&
+      (row.esimIccid !== null || row.resellerOrderId !== null) &&
+      (row.webhookHistoryAppliedAt === null ||
+        needsActivationFallback(row, now)),
+  );
+
   return (
     <main className="flex flex-1 flex-col py-4">
-      <MyEsimList orders={orders} />
+      <MyEsimList orders={orders} refreshLifecycle={refreshLifecycle} />
     </main>
   );
 }
