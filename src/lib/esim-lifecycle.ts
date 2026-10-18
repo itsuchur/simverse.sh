@@ -19,11 +19,7 @@ const NO_ACTIVATION_QUERY_STATUSES = new Set([
   "SUSPENDED",
 ]);
 
-const KEEP_INSTALL_VISIBLE_STATUSES = new Set([
-  "CANCEL",
-  "REVOKED",
-  "SUSPENDED",
-]);
+const KEEP_INSTALL_VISIBLE_STATUSES = new Set(["REVOKED", "SUSPENDED"]);
 
 export type EsimSnapshotSource =
   | "status"
@@ -99,6 +95,7 @@ export type LifecycleFocus =
     }
   | { kind: "usageUnavailable"; usageSyncedAt: string | null }
   | { kind: "exhausted" }
+  | { kind: "cancelled" }
   | {
       kind: "expired";
       unused: boolean;
@@ -271,6 +268,10 @@ export function esimLifecycleView(order: LifecycleOrder): LifecycleView {
     KEEP_INSTALL_VISIBLE_STATUSES.has(order.esimStatus)
   ) {
     return { collapseInstall: false, focus: { kind: "install" } };
+  }
+
+  if (order.esimStatus === "CANCEL") {
+    return { collapseInstall: true, focus: { kind: "cancelled" } };
   }
 
   if (order.esimStatus === "USED_UP") {

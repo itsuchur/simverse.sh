@@ -106,6 +106,9 @@ function LifecycleNotice({
       {focus.kind === "exhausted" ? (
         <p className="text-base font-semibold">{t("dataExhausted")}</p>
       ) : null}
+      {focus.kind === "cancelled" ? (
+        <p className="text-base font-semibold">{tStatus("cancelled")}</p>
+      ) : null}
       {focus.kind === "expired" ? (
         <>
           <p className="text-base font-semibold">

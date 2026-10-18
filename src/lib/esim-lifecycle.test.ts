@@ -167,8 +167,24 @@ describe("esimLifecycleView", () => {
     expect(view.focus).toMatchObject({ kind: "expired", unused: true });
   });
 
-  test("keeps installation visible for cancel, revoke, and suspend", () => {
-    for (const esimStatus of ["CANCEL", "REVOKED", "SUSPENDED"]) {
+  test("shows a cancelled eSIM like an expired plan", () => {
+    expect(
+      esimLifecycleView(
+        lifecycle({
+          esimStatus: "CANCEL",
+          firstActivatedAt: observedAt.toISOString(),
+          dataTotalBytes: GIB.toString(),
+          dataUsedBytes: (GIB / 2n).toString(),
+        }),
+      ),
+    ).toEqual({
+      collapseInstall: true,
+      focus: { kind: "cancelled" },
+    });
+  });
+
+  test("keeps installation visible for revoke and suspend", () => {
+    for (const esimStatus of ["REVOKED", "SUSPENDED"]) {
       expect(
         esimLifecycleView(
           lifecycle({
