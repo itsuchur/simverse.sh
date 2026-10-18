@@ -120,7 +120,8 @@
     "expiredOn": "Истекла {date}",
     "expiryDateUnavailable": "Дата окончания недоступна.",
     "dataExhausted": "Трафик израсходован.",
-    "expiredBeforeActivation": "Срок истек до активации."
+    "expiredBeforeActivation": "Срок истек до активации.",
+    "purchasedOn": "Куплено {date} за {price} {currency}."
   },
   "EsimStatus": {
     "notActivated": "НЕ АКТИВИРОВАНА",

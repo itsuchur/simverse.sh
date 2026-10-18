@@ -62,6 +62,10 @@ export default async function AppMyESIms() {
     dataUsedBytes: row.dataUsedBytes?.toString() ?? null,
     expiresAt: row.expiresAt?.toISOString() ?? null,
     usageSyncedAt: row.usageSyncedAt?.toISOString() ?? null,
+    priceAmount: row.priceAmount.toString(),
+    currency: row.currency,
+    paymentProvider: row.paymentProvider,
+    paidAt: row.paidAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   }));
 

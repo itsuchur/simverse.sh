@@ -18,6 +18,10 @@ import {
   formatByteVolume,
   type LifecycleFocus,
 } from "~/lib/esim-lifecycle";
+import {
+  isStarsOrderPrice,
+  orderPriceMajorUnits,
+} from "~/lib/format-order-price";
 import { hasEsimCredentials, lpaCardData } from "~/lib/esim-provisioning";
 import { esimStatusBadge } from "~/lib/esim-status";
 import { needsDeliveryRefresh } from "~/lib/order-delivery";
@@ -49,6 +53,10 @@ export type MyEsimOrder = {
   dataUsedBytes: string | null;
   expiresAt: string | null;
   usageSyncedAt: string | null;
+  priceAmount: string;
+  currency: string;
+  paymentProvider: string;
+  paidAt: string | null;
   createdAt: string;
 };
 
@@ -59,6 +67,30 @@ function formatData(mb: number | null) {
     return Number.isInteger(gb) ? `${gb} GB` : `${gb.toFixed(1)} GB`;
   }
   return `${mb} MB`;
+}
+
+function formatPurchaseDate(value: string, locale: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
+}
+
+function purchaseCaption(order: MyEsimOrder, locale: string) {
+  const date = formatPurchaseDate(order.paidAt ?? order.createdAt, locale);
+  if (!date) return null;
+  const stars = isStarsOrderPrice(order.paymentProvider);
+  const amount = BigInt(order.priceAmount);
+  const price = stars
+    ? amount.toString()
+    : orderPriceMajorUnits(amount).toLocaleString(locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+  return {
+    date,
+    price,
+    currency: stars ? "Stars" : order.currency.trim(),
+  };
 }
 
 function formatTimestamp(value: string, locale: string) {
@@ -288,6 +320,7 @@ export function MyEsimList({
   refreshLifecycle?: boolean;
 }) {
   const t = useTranslations("MyEsims");
+  const locale = useLocale();
   const router = useRouter();
   const preparing = orders.some(needsDeliveryRefresh);
   const lifecycleRefreshes = useRef(0);
@@ -333,10 +366,20 @@ export function MyEsimList({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {orders.map((order) => (
-        <OrderCard key={order.orderUuid} order={order} platform={platform} />
-      ))}
+    <div className="flex flex-col gap-6">
+      {orders.map((order) => {
+        const purchased = purchaseCaption(order, locale);
+        return (
+          <div key={order.orderUuid} className="flex flex-col gap-2">
+            <OrderCard order={order} platform={platform} />
+            {purchased ? (
+              <p className="text-muted-foreground text-sm">
+                {t("purchasedOn", purchased)}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
