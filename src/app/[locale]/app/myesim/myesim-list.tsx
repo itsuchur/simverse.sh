@@ -76,6 +76,7 @@ function formatPurchaseDate(value: string, locale: string) {
 }
 
 function purchaseCaption(order: MyEsimOrder, locale: string) {
+  if (order.paymentStatus !== paymentStatus.paid) return null;
   const date = formatPurchaseDate(order.paidAt ?? order.createdAt, locale);
   if (!date) return null;
   const stars = isStarsOrderPrice(order.paymentProvider);
