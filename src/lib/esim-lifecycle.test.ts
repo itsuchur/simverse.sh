@@ -282,6 +282,9 @@ describe("projectEsimSnapshot", () => {
 
   test("sets first activation once from a query and keeps it when a later query omits it", () => {
     const activated = parseProviderTime("2026-04-10T21:13:01+0000");
+    if (activated === null) {
+      throw new Error("activateTime did not parse");
+    }
     const first = projectEsimSnapshot(snapshot(), {
       source: "query",
       observedAt,
