@@ -243,6 +243,7 @@ function OrderCard({
       : order.packageName;
   const statusBadge = esimStatusBadge(order.esimStatus, order.esimSmdpStatus);
   const lifecycle = esimLifecycleView(order);
+  const purchased = purchaseCaption(order, locale);
 
   return (
     <Card>
@@ -303,6 +304,11 @@ function OrderCard({
         ) : (
           <p className="text-muted-foreground text-base">{t("preparing")}</p>
         )}
+        {purchased ? (
+          <p className="text-muted-foreground text-sm">
+            {t("purchasedOn", purchased)}
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -320,7 +326,6 @@ export function MyEsimList({
   refreshLifecycle?: boolean;
 }) {
   const t = useTranslations("MyEsims");
-  const locale = useLocale();
   const router = useRouter();
   const preparing = orders.some(needsDeliveryRefresh);
   const lifecycleRefreshes = useRef(0);
@@ -366,20 +371,10 @@ export function MyEsimList({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {orders.map((order) => {
-        const purchased = purchaseCaption(order, locale);
-        return (
-          <div key={order.orderUuid} className="flex flex-col gap-2">
-            <OrderCard order={order} platform={platform} />
-            {purchased ? (
-              <p className="text-muted-foreground text-sm">
-                {t("purchasedOn", purchased)}
-              </p>
-            ) : null}
-          </div>
-        );
-      })}
+    <div className="flex flex-col gap-4">
+      {orders.map((order) => (
+        <OrderCard key={order.orderUuid} order={order} platform={platform} />
+      ))}
     </div>
   );
 }
