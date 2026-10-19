@@ -92,6 +92,11 @@ export function cartPlanFromPackage(
     throw new CatalogIncompleteError();
   }
 
+  const priceUsd =
+    typeof pkg.priceUsd === "number" && Number.isFinite(pkg.priceUsd)
+      ? pkg.priceUsd
+      : retailPriceToUsd(pkg.retailPrice);
+
   return cartPlanSchema.parse({
     supplier: "esimaccess",
     packageCode: pkg.packageCode,
@@ -99,7 +104,7 @@ export function cartPlanFromPackage(
     country: pkg.location,
     data_gb: pkg.volume / 1024 ** 3,
     validity_days: pkg.duration,
-    price: retailPriceToUsd(pkg.retailPrice),
+    price: priceUsd,
     price_rub: priceRub,
     price_stars: priceStars,
     cost: pkg.price,

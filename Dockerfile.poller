@@ -20,6 +20,8 @@ RUN bun install --frozen-lockfile
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Default catalog price multiplier; seeded into Redis via SETNX (dashboard can override).
+ENV PRICE_MODIFIER=1
 
 RUN groupadd --system --gid 1001 worker \
   && useradd --system --uid 1001 --gid worker worker

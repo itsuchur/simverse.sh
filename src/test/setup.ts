@@ -38,6 +38,15 @@ process.env.XHUB_WEBHOOK_SECRET = "test-xhub-webhook-secret";
 
 void mock.module("server-only", () => ({}));
 
+void mock.module("next/cache", () => ({
+  unstable_cache:
+    (fn: (...args: never[]) => unknown) =>
+    (...args: never[]) =>
+      fn(...args),
+  revalidatePath: () => undefined,
+  revalidateTag: () => undefined,
+}));
+
 void mock.module("../server/db", () => ({
   db: fakeDb,
   isUniqueConstraintError,

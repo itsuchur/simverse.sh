@@ -187,6 +187,7 @@ services:
       ESIMFLY_ACCESS_CODE: "${ESIMFLY_ACCESS_CODE:-}"
       ESIMFLY_SECRET_KEY: "${ESIMFLY_SECRET_KEY:-}"
       OPENROUTER_KEY: "${OPENROUTER_KEY}"
+      PRICE_MODIFIER: "${PRICE_MODIFIER:-1}"
       NODE_ENV: production
     depends_on:
       postgres:
@@ -289,11 +290,12 @@ services:
         condition: service_healthy
     environment:
       REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      PRICE_MODIFIER: "${PRICE_MODIFIER:-1}"
     command:
       [
         "sh",
         "-c",
-        'redis-cli -h redis -a "$$REDIS_PASSWORD" --no-auth-warning SET SALES_ACTIVE false',
+        'redis-cli -h redis -a "$$REDIS_PASSWORD" --no-auth-warning SET SALES_ACTIVE false && redis-cli -h redis -a "$$REDIS_PASSWORD" --no-auth-warning SETNX PRICE_MODIFIER "$$PRICE_MODIFIER"',
       ]
     networks:
       - internal

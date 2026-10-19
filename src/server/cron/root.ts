@@ -5,6 +5,10 @@ import {
   filterExcludedPackages,
   getPackageExclusions,
 } from "~/server/catalog/package-exclusions";
+import {
+  ensurePriceModifierSeeded,
+  getPriceModifier,
+} from "~/server/price-modifier";
 import { withRussianNames } from "~/server/suppliers/esimaccess/localize";
 import {
   ESIMACCESS_SUPPLIER,
@@ -27,14 +31,17 @@ import {
 } from "~/server/suppliers/esimfly/packages";
 
 async function syncEsimAccessPackages() {
-  const [packages, fx, exclusions] = await Promise.all([
+  const [packages, fx, exclusions, priceModifier] = await Promise.all([
     fetchEsimAccessPackages(),
     fetchUsdRubRate(),
     getPackageExclusions(ESIMACCESS_SUPPLIER),
+    getPriceModifier(),
   ]);
   const included = filterExcludedPackages(packages, exclusions);
   const preferred = preferCatalogPackages(included);
-  const packageList = await withRussianNames(withPriceRub(preferred, fx.rate));
+  const packageList = await withRussianNames(
+    withPriceRub(preferred, fx.rate, priceModifier),
+  );
 
   const generation = await writeEsimAccessCatalog(
     {
@@ -47,7 +54,7 @@ async function syncEsimAccessPackages() {
   );
 
   console.log(
-    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, USD/RUB ${fx.rate})`,
+    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, USD/RUB ${fx.rate}, PRICE_MODIFIER ${priceModifier})`,
   );
 }
 
@@ -103,7 +110,13 @@ new Cron("0 0 * * *", { protect: true }, () => {
   void runSync();
 });
 
-void runSync();
+void ensurePriceModifierSeeded()
+  .catch((error) => {
+    console.error("[cron] PRICE_MODIFIER seed failed", error);
+  })
+  .finally(() => {
+    void runSync();
+  });
 
 console.log(
   "[cron] eSIM Access and eSIMfly package sync scheduled daily at midnight",

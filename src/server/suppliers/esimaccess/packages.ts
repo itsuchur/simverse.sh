@@ -57,6 +57,8 @@ export type EsimAccessPackage = {
   retailPrice: number;
   /** Customer-facing price in whole rubles, from retailPrice × USD/RUB. */
   priceRub?: number;
+  /** Customer-facing price in whole USD, from retailPrice / 10000 ceiled. */
+  priceUsd?: number;
   /** Customer-facing price in whole Telegram Stars, from retailPrice. */
   priceStars?: number;
   currencyCode: string;
@@ -122,9 +124,12 @@ function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
     durationUnit: pkg.durationUnit,
     location: pkg.location,
     priceRub: pkg.priceRub,
-    priceUsd: Number.isFinite(pkg.retailPrice)
-      ? retailPriceToUsd(pkg.retailPrice)
-      : undefined,
+    priceUsd:
+      typeof pkg.priceUsd === "number" && Number.isFinite(pkg.priceUsd)
+        ? pkg.priceUsd
+        : Number.isFinite(pkg.retailPrice)
+          ? retailPriceToUsd(pkg.retailPrice)
+          : undefined,
     priceStars: pkg.priceStars,
     currencyCode: pkg.currencyCode,
     networks: extractNetworks(pkg.locationNetworkList),
@@ -197,12 +202,19 @@ export function retailPriceToStars(retailPrice: number): number {
 export function withPriceRub(
   packages: EsimAccessPackage[],
   usdRubRate: number,
+  priceModifier = 1,
 ): EsimAccessPackage[] {
-  return packages.map((pkg) => ({
-    ...pkg,
-    priceRub: retailPriceToRub(pkg.retailPrice, usdRubRate),
-    priceStars: retailPriceToStars(pkg.retailPrice),
-  }));
+  const modifier =
+    Number.isFinite(priceModifier) && priceModifier > 0 ? priceModifier : 1;
+  return packages.map((pkg) => {
+    const adjustedRetail = pkg.retailPrice * modifier;
+    return {
+      ...pkg,
+      priceRub: retailPriceToRub(adjustedRetail, usdRubRate),
+      priceUsd: retailPriceToUsd(adjustedRetail),
+      priceStars: retailPriceToStars(adjustedRetail),
+    };
+  });
 }
 
 function countryDisplayName(countryCode: string, locale: string) {

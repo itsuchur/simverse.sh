@@ -1,11 +1,13 @@
-import { isSalesActive } from "~/server/sales";
 import { getEsimAccessBalance } from "~/server/dashboard/esimaccess-balance";
 import { getSalesSeries } from "~/server/dashboard/get-sales-series";
 import { parseSalesRange } from "~/server/dashboard/sales-series";
+import { getPriceModifier } from "~/server/price-modifier";
+import { isSalesActive } from "~/server/sales";
 import { getStoreCatalog } from "~/server/suppliers/esimaccess/packages";
 
 import { EsimAccessBalanceCard } from "./_components/esimaccess-balance-card";
 import { PopularCountriesEditor } from "./_components/popular-countries-editor";
+import { PriceModifierInput } from "./_components/price-modifier-input";
 import { SalesGraph } from "./_components/sales-graph";
 import { StartSalesSwitch } from "./_components/start-sales-switch";
 
@@ -21,12 +23,14 @@ export default async function DashboardHome({
   const params = await searchParams;
   const range = parseSalesRange(params.range);
 
-  const [salesActive, catalog, balance, series] = await Promise.all([
-    isSalesActive(),
-    getStoreCatalog("en"),
-    getEsimAccessBalance(),
-    getSalesSeries(range),
-  ]);
+  const [salesActive, priceModifier, catalog, balance, series] =
+    await Promise.all([
+      isSalesActive(),
+      getPriceModifier(),
+      getStoreCatalog("en"),
+      getEsimAccessBalance(),
+      getSalesSeries(range),
+    ]);
 
   const availableCountries = catalog.local.map(
     ({ countryCode, countryName }) => ({
@@ -48,6 +52,7 @@ export default async function DashboardHome({
       <EsimAccessBalanceCard balance={balance} />
       <SalesGraph range={range} series={series} />
       <StartSalesSwitch initialActive={salesActive} />
+      <PriceModifierInput initialValue={priceModifier} />
       <PopularCountriesEditor
         initialCountries={initialCountries}
         availableCountries={availableCountries}

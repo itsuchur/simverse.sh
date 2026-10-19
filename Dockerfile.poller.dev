@@ -12,5 +12,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 ENV NODE_ENV=development
+# Default catalog price multiplier; seeded into Redis via SETNX (dashboard can override).
+ENV PRICE_MODIFIER=1
 
 CMD ["bun", "--conditions=react-server", "--watch", "src/server/cron/root.ts"]
