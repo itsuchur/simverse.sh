@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bitcoin, ChevronLeft, Globe, QrCode } from "lucide-react";
+import Image from "next/image";
+import { ChevronLeft, Globe, QrCode } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -316,7 +317,14 @@ export function CheckoutView({
           disabled={controlsLocked}
           onClick={() => pay("trybit", "/api/checkout/trybit")}
         >
-          <Bitcoin data-icon="inline-start" className="size-6" />
+          <Image
+            src="/USDT.svg"
+            alt=""
+            width={24}
+            height={24}
+            data-icon="inline-start"
+            className="size-6 shrink-0"
+          />
           {t("payCrypto", { price: cryptoPrice })}
         </Button>
       </div>
