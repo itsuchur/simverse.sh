@@ -1,0 +1,47 @@
+import { z } from "zod";
+
+import { auth } from "~/server/better-auth";
+import { listTopupOffers } from "~/server/orders/topup";
+import { forbidden, isUserBanned } from "~/server/users/purchase-access";
+
+const orderUuidSchema = z.string().uuid();
+
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+export async function GET(request: Request) {
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session) return unauthorized();
+  if (await isUserBanned(session.user.id)) return forbidden();
+
+  const url = new URL(request.url);
+  const orderUuid = orderUuidSchema.safeParse(
+    url.searchParams.get("orderUuid"),
+  );
+  if (!orderUuid.success) {
+    return Response.json({ error: "invalid_order" }, { status: 400 });
+  }
+
+  const daysRaw = url.searchParams.get("days");
+  let days: number | undefined;
+  if (daysRaw !== null) {
+    days = Number(daysRaw);
+    if (!Number.isInteger(days)) {
+      return Response.json({ error: "invalid_days" }, { status: 400 });
+    }
+  }
+
+  const offers = await listTopupOffers({
+    userId: session.user.id,
+    orderUuid: orderUuid.data,
+    days,
+  });
+  if (offers === "not_found") {
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }
+  if (offers === "invalid_days") {
+    return Response.json({ error: "invalid_days" }, { status: 400 });
+  }
+  return Response.json(offers);
+}

@@ -470,6 +470,131 @@ describe("markCardlinkRefunded / markCardlinkChargeback", () => {
   });
 });
 
+describe("top-up fulfillment", () => {
+  test("updates the parent profile and does not issue a second eSIM", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      esimIccid: "89000000000000000010",
+      esimStatus: "IN_USE",
+      dataTotalBytes: 1000n,
+      dataUsedBytes: 100n,
+    });
+    const child = fakeDb.seedOrder({
+      status: "paid",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      resellerPlanId: "CN_1_Daily",
+      costAmount: 460000n,
+      topupPeriodDays: 5,
+    });
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        transactionId: child.orderUuid,
+        iccid: parent.esimIccid,
+        expiredTime: "2026-08-24T17:01:37+0000",
+        totalVolume: 5000,
+        orderUsage: 1000,
+      },
+    });
+
+    await placeSupplierOrder(child);
+
+    expect(esimAccessPost.mock.calls[0]?.[0]).toBe("/esim/topup");
+    expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
+      iccid: "89000000000000000010",
+      packageCode: "CN_1_Daily",
+      transactionId: child.orderUuid,
+      amount: 460000,
+      periodNum: 5,
+    });
+    expect(child.status).toBe("issued");
+    expect(child.esimIccid).toBeNull();
+    expect(child.resellerOrderId).toBeNull();
+    expect(parent.dataTotalBytes).toBe(5000n);
+    expect(parent.dataUsedBytes).toBe(1000n);
+    expect(parent.expiresAt?.toISOString()).toBe("2026-08-24T17:01:37.000Z");
+    expect(capturedEvents()).not.toContain("esim_issued");
+  });
+
+  test("marks the top-up failed without touching the parent", async () => {
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      esimIccid: "89000000000000000010",
+      dataTotalBytes: 1000n,
+      dataUsedBytes: 100n,
+    });
+    const child = fakeDb.seedOrder({
+      status: "paid",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      costAmount: 70000n,
+      resellerPlanId: "TOPUP_CKH491",
+    });
+    esimAccessPost.mockImplementation(async () => {
+      throw new Error("supplier down");
+    });
+
+    await placeSupplierOrder(child);
+
+    expect(child.status).toBe("failed");
+    expect(child.failureReason).toBe("supplier down");
+    expect(child.esimIccid).toBeNull();
+    expect(parent.dataTotalBytes).toBe(1000n);
+    expect(parent.dataUsedBytes).toBe(100n);
+  });
+
+  test("an issued top-up is not ordered again", async () => {
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      esimIccid: "89000000000000000010",
+      esimActivationCode: "LPA:1$rsp.example.com$K",
+      esimSmdpAddress: "rsp.example.com",
+    });
+    fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      costAmount: 1n,
+      resellerPlanId: "TOPUP_X",
+    });
+
+    await syncPendingProfilesForUser("user-1");
+
+    expect(esimAccessPost).not.toHaveBeenCalled();
+  });
+
+  test("a top-up webhook updates the parent profile", async () => {
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      esimIccid: "89000000000000000010",
+    });
+    const child = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+    });
+
+    await applyEsimStatus({
+      iccid: null,
+      orderNo: null,
+      transactionId: child.orderUuid,
+      esimStatus: "IN_USE",
+      smdpStatus: "ENABLED",
+    });
+
+    expect(parent.esimStatus).toBe("IN_USE");
+    expect(parent.esimSmdpStatus).toBe("ENABLED");
+    expect(child.esimIccid).toBeNull();
+    expect(child.esimStatus).toBeNull();
+  });
+});
+
 describe("placeSupplierOrder claiming", () => {
   test("reclaims a stale ordering claim", async () => {
     const order = fakeDb.seedOrder({

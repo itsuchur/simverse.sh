@@ -132,3 +132,56 @@ export async function queryEsimAccessProfiles(
 export async function cancelEsimAccessProfile(esimTranNo: string) {
   await esimAccessPost("/esim/cancel", { esimTranNo });
 }
+
+export type EsimAccessTopUpResult = {
+  transactionId?: string;
+  iccid: string;
+  expiredTime?: string;
+  totalVolume?: number;
+  totalDuration?: number;
+  orderUsage?: number;
+};
+
+type TopUpResponse = {
+  transactionId?: string;
+  iccid?: string;
+  expiredTime?: string;
+  totalVolume?: number;
+  totalDuration?: number;
+  orderUsage?: number;
+};
+
+/** Adds a package, or day-pass days, to an existing profile. */
+export async function topUpEsimAccessProfile(input: {
+  iccid: string;
+  packageCode: string;
+  transactionId: string;
+  amount: number;
+  periodNum?: number;
+}): Promise<EsimAccessTopUpResult> {
+  const envelope = await esimAccessPost<TopUpResponse>("/esim/topup", {
+    iccid: input.iccid,
+    packageCode: input.packageCode,
+    transactionId: input.transactionId,
+    amount: input.amount,
+    ...(input.periodNum !== undefined ? { periodNum: input.periodNum } : {}),
+  });
+
+  const iccid = asString(envelope.obj?.iccid);
+  if (!iccid) {
+    throw new Error("eSIM Access topup did not return iccid");
+  }
+
+  const expiredTime = asString(envelope.obj?.expiredTime);
+  const totalVolume = asFiniteNumber(envelope.obj?.totalVolume);
+  const totalDuration = asFiniteNumber(envelope.obj?.totalDuration);
+  const orderUsage = asFiniteNumber(envelope.obj?.orderUsage);
+  return {
+    transactionId: asString(envelope.obj?.transactionId),
+    iccid,
+    ...(expiredTime ? { expiredTime } : {}),
+    ...(totalVolume !== undefined ? { totalVolume } : {}),
+    ...(totalDuration !== undefined ? { totalDuration } : {}),
+    ...(orderUsage !== undefined ? { orderUsage } : {}),
+  };
+}

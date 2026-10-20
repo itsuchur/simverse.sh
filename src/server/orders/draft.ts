@@ -24,6 +24,8 @@ export type PendingOrderDraft = {
   paymentProvider: string;
   buyerIp?: string | null;
   cartRevision?: string | null;
+  topupOfOrderId?: bigint | null;
+  topupPeriodDays?: number | null;
 };
 
 function pendingDraftWhere(data: PendingOrderDraft) {
@@ -35,6 +37,8 @@ function pendingDraftWhere(data: PendingOrderDraft) {
     resellerPlanId: data.resellerPlanId,
     priceAmount: data.priceAmount,
     currency: data.currency,
+    topupOfOrderId: data.topupOfOrderId ?? null,
+    topupPeriodDays: data.topupPeriodDays ?? null,
   };
 }
 
@@ -71,6 +75,8 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
         paymentProvider: data.paymentProvider,
         buyerIp: data.buyerIp ?? null,
         cartRevision: data.cartRevision ?? null,
+        topupOfOrderId: data.topupOfOrderId ?? null,
+        topupPeriodDays: data.topupPeriodDays ?? null,
         paymentStatus: paymentStatus.pending,
         status: orderStatus.created,
       },
@@ -83,7 +89,11 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
       where,
       orderBy: { createdAt: "desc" },
     });
-    if (raced?.cartRevision !== (data.cartRevision ?? null)) {
+    if (
+      raced?.cartRevision !== (data.cartRevision ?? null) ||
+      raced?.topupOfOrderId !== (data.topupOfOrderId ?? null) ||
+      raced?.topupPeriodDays !== (data.topupPeriodDays ?? null)
+    ) {
       throw error;
     }
     return raced;

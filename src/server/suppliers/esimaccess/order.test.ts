@@ -5,6 +5,7 @@ import {
   isUnusedEsimAccessProfile,
   orderEsimAccessPackage,
   queryEsimAccessProfiles,
+  topUpEsimAccessProfile,
 } from "~/server/suppliers/esimaccess/order";
 import { esimAccessPost, resetTestState } from "~/test/mocks";
 
@@ -148,5 +149,72 @@ describe("cancelEsimAccessProfile", () => {
     expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
       esimTranNo: "26041021130002",
     });
+  });
+});
+
+describe("topUpEsimAccessProfile", () => {
+  test("posts a data top-up without a day count", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        transactionId: "topup-1",
+        iccid: "890",
+        expiredTime: "2026-08-24T17:01:37+0000",
+        totalVolume: 5000,
+        orderUsage: 1000,
+      },
+    });
+
+    const result = await topUpEsimAccessProfile({
+      iccid: "890",
+      packageCode: "TOPUP_CKH491",
+      transactionId: "topup-1",
+      amount: 70000,
+    });
+
+    expect(result.iccid).toBe("890");
+    expect(esimAccessPost.mock.calls[0]?.[0]).toBe("/esim/topup");
+    expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
+      iccid: "890",
+      packageCode: "TOPUP_CKH491",
+      transactionId: "topup-1",
+      amount: 70000,
+    });
+  });
+
+  test("includes periodNum for a day-pass extension", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: { iccid: "890", totalVolume: 1000, orderUsage: 0 },
+    });
+
+    await topUpEsimAccessProfile({
+      iccid: "890",
+      packageCode: "CN_1_Daily",
+      transactionId: "topup-2",
+      amount: 460000,
+      periodNum: 5,
+    });
+
+    expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
+      iccid: "890",
+      packageCode: "CN_1_Daily",
+      transactionId: "topup-2",
+      amount: 460000,
+      periodNum: 5,
+    });
+  });
+
+  test("throws when the supplier omits the iccid", async () => {
+    esimAccessPost.mockResolvedValueOnce({ success: true, obj: {} });
+
+    expect(
+      topUpEsimAccessProfile({
+        iccid: "890",
+        packageCode: "TOPUP_CKH491",
+        transactionId: "topup-3",
+        amount: 70000,
+      }),
+    ).rejects.toThrow("eSIM Access topup did not return iccid");
   });
 });

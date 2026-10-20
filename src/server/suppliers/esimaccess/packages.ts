@@ -145,6 +145,29 @@ export async function fetchEsimAccessPackages() {
   return payload.obj?.packageList ?? [];
 }
 
+export type EsimAccessTopupPackage = {
+  packageCode?: string;
+  name?: string;
+  price?: number;
+  retailPrice?: number;
+  volume?: number;
+  duration?: number;
+  durationUnit?: string;
+};
+
+/** Packages that can be added to one existing profile. */
+export async function fetchEsimAccessTopupPackages(iccid: string) {
+  const payload = await esimAccessPost<{
+    packageList?: EsimAccessTopupPackage[];
+  }>("/package/list", {
+    locationCode: "",
+    type: "TOPUP",
+    packageCode: "",
+    iccid,
+  });
+  return payload.obj?.packageList ?? [];
+}
+
 const FRANKFURTER_USD_RUB_URL = "https://api.frankfurter.dev/v2/rate/USD/RUB";
 
 type FrankfurterRateResponse = {

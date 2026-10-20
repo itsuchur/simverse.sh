@@ -63,6 +63,8 @@ export type FakeOrder = {
   usageSyncedAt: Date | null;
   webhookHistoryAppliedAt: Date | null;
   activationCheckedAt: Date | null;
+  topupOfOrderId: bigint | null;
+  topupPeriodDays: number | null;
   paidAt: Date | null;
   issuedAt: Date | null;
   createdAt: Date;
@@ -178,6 +180,8 @@ function orderDefaults(): Omit<
     usageSyncedAt: null,
     webhookHistoryAppliedAt: null,
     activationCheckedAt: null,
+    topupOfOrderId: null,
+    topupPeriodDays: null,
     paidAt: null,
     issuedAt: null,
   };
@@ -281,13 +285,24 @@ class FakeDb {
     }
   }
 
-  private withInclude(record: FakeOrder, args: OrderQueryArgs) {
-    if (!args.include?.user) {
+  private withInclude(
+    record: FakeOrder,
+    args: OrderQueryArgs & { select?: { user?: unknown } },
+  ) {
+    if (!args.include?.user && !args.select?.user) {
       return { ...record };
     }
+    const user = this.users.get(record.userId);
+    // A `select` of the buyer is the delivery notification. Keep its telegram
+    // id empty so order tests do not call Telegram.
     return {
       ...record,
-      user: { telegramId: this.users.get(record.userId)?.telegramId ?? null },
+      user: {
+        telegramId: args.select?.user ? null : (user?.telegramId ?? null),
+        languageCode: null,
+        isBanned: false,
+        isDeleted: false,
+      },
     };
   }
 
@@ -307,7 +322,9 @@ class FakeDb {
         order.paymentProvider === candidate.paymentProvider &&
         order.resellerPlanId === candidate.resellerPlanId &&
         order.priceAmount === candidate.priceAmount &&
-        order.currency === candidate.currency,
+        order.currency === candidate.currency &&
+        order.topupOfOrderId === candidate.topupOfOrderId &&
+        order.topupPeriodDays === candidate.topupPeriodDays,
     );
   }
 

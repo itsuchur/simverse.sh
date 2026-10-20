@@ -38,6 +38,7 @@ export default async function AppMyESIms() {
       paymentStatus: {
         in: [paymentStatus.paid, paymentStatus.pending],
       },
+      topupOfOrderId: null,
     },
     orderBy: { createdAt: "desc" },
   });

@@ -13,11 +13,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { useRouter } from "~/i18n/navigation";
-import {
-  esimLifecycleView,
-  formatByteVolume,
-  type LifecycleFocus,
-} from "~/lib/esim-lifecycle";
+import { esimLifecycleView, type LifecycleFocus } from "~/lib/esim-lifecycle";
 import {
   isStarsOrderPrice,
   orderPriceMajorUnits,
@@ -32,6 +28,7 @@ import {
 } from "~/lib/telegram-webapp";
 
 import { InstallationGuide } from "./installation-guide";
+import { UsagePanel } from "./usage-panel";
 
 export type MyEsimOrder = {
   orderUuid: string;
@@ -104,8 +101,10 @@ function formatTimestamp(value: string, locale: string) {
 }
 
 function LifecycleNotice({
+  order,
   focus,
 }: {
+  order: MyEsimOrder;
   focus: LifecycleFocus;
 }) {
   const t = useTranslations("MyEsims");
@@ -124,21 +123,14 @@ function LifecycleNotice({
       ? formatTimestamp(focus.expiresAt, locale)
       : null;
 
+  const panel =
+    focus.kind === "remaining" ||
+    focus.kind === "usageUnavailable" ||
+    focus.kind === "exhausted";
+
   return (
     <div className="flex flex-col gap-1">
-      {focus.kind === "remaining" ? (
-        <p className="text-base font-semibold">
-          {t("remainingData", {
-            amount: formatByteVolume(focus.remainingBytes),
-          })}
-        </p>
-      ) : null}
-      {focus.kind === "usageUnavailable" ? (
-        <p className="text-base font-semibold">{t("usageUnavailable")}</p>
-      ) : null}
-      {focus.kind === "exhausted" ? (
-        <p className="text-base font-semibold">{t("dataExhausted")}</p>
-      ) : null}
+      {panel ? <UsagePanel order={order} focus={focus} /> : null}
       {focus.kind === "cancelled" ? (
         <p className="text-base font-semibold">{tStatus("cancelled")}</p>
       ) : null}
@@ -295,7 +287,7 @@ function OrderCard({
           <p className="text-destructive text-base">{t("failed")}</p>
         ) : hasEsimCredentials(order) ? (
           <>
-            <LifecycleNotice focus={lifecycle.focus} />
+            <LifecycleNotice order={order} focus={lifecycle.focus} />
             <InstallationDetails
               order={order}
               platform={platform}

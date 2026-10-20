@@ -166,6 +166,13 @@ model Order {
   activationCheckedAt DateTime? @map("activation_checked_at") @db.Timestamptz(6)
   resellerRawResponse Json?   @map("reseller_raw_response") @db.JsonB
 
+  /// Set when this payment tops up an existing eSIM instead of issuing a new profile.
+  topupOfOrderId  BigInt? @map("topup_of_order_id")
+  topupOf        Order?  @relation("OrderTopups", fields: [topupOfOrderId], references: [id], onDelete: Restrict)
+  topups         Order[] @relation("OrderTopups")
+  /// Day-pass extension length. Null for a data top-up package.
+  topupPeriodDays Int?    @map("topup_period_days")
+
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   paidAt    DateTime? @map("paid_at") @db.Timestamptz(6)
   issuedAt  DateTime? @map("issued_at") @db.Timestamptz(6)
@@ -178,11 +185,12 @@ model Order {
   @@index([resellerCode], map: "idx_orders_reseller_code")
   @@index([createdAt(sort: Desc)], map: "idx_orders_created_at")
   @@index([esimIccid], map: "idx_orders_esim_iccid")
+  @@index([topupOfOrderId], map: "idx_orders_topup_of_order_id")
   /// Partial unique index `uq_payment_charge` is defined in the migration SQL
   /// (payment_provider, payment_charge_id) WHERE payment_charge_id IS NOT NULL.
   /// Partial unique index `uq_pending_draft` is defined in the migration SQL
-  /// (user_id, payment_provider, reseller_plan_id, price_amount, currency)
-  /// WHERE payment_status = 'pending' AND status = 'created'.
+  /// for new-plan drafts (topup_of_order_id IS NULL).
+  /// Partial unique index `uq_pending_topup_draft` covers top-up drafts.
   @@map("orders")
 }
 

@@ -63,6 +63,23 @@ describe("findOrCreatePendingOrder", () => {
     expect(stale.failureReason).toBe("expired");
   });
 
+  test("does not reuse a new-plan draft for a top-up of the same package", async () => {
+    const parent = fakeDb.seedOrder({
+      userId: DRAFT.userId,
+      paymentStatus: "paid",
+      status: "issued",
+    });
+    const fresh = await findOrCreatePendingOrder(DRAFT);
+    const topup = await findOrCreatePendingOrder({
+      ...DRAFT,
+      topupOfOrderId: parent.id,
+    });
+
+    expect(topup.id).not.toBe(fresh.id);
+    expect(topup.topupOfOrderId).toBe(parent.id);
+    expect(await fakeDb.order.findMany({ where: {} })).toHaveLength(3);
+  });
+
   test("stores buyer IP on create and keeps it when reusing", async () => {
     const first = await findOrCreatePendingOrder({
       ...DRAFT,

@@ -9,6 +9,7 @@ import { db, isUniqueConstraintError } from "~/server/db";
 import {
   orderEsimAccessPackage,
   queryEsimAccessProfiles,
+  topUpEsimAccessProfile,
   type EsimAccessProfile,
 } from "~/server/suppliers/esimaccess/order";
 import {
@@ -57,6 +58,14 @@ const ISSUABLE_ORDER_STATUSES: string[] = [
   orderStatus.issued,
 ];
 
+/** Top-up is refused once the profile has expired or been cancelled. */
+const TOPUP_BLOCKED_STATUSES = new Set([
+  "USED_EXPIRED",
+  "UNUSED_EXPIRED",
+  "CANCEL",
+  "REVOKED",
+]);
+
 type OrderRow = {
   id: bigint;
   orderUuid: string;
@@ -67,6 +76,7 @@ type OrderRow = {
   esimIccid: string | null;
   esimActivationCode?: string | null;
   esimSmdpAddress?: string | null;
+  topupOfOrderId?: bigint | null;
 };
 
 async function applyProfile(
@@ -221,6 +231,12 @@ async function claimSupplierOrder(orderId: bigint): Promise<boolean> {
 }
 
 export async function placeSupplierOrder(order: OrderRow) {
+  const stored = await db.order.findUnique({ where: { id: order.id } });
+  if (stored?.topupOfOrderId) {
+    await placeSupplierTopup(stored);
+    return;
+  }
+
   if (order.resellerOrderId) {
     await syncEsimProfile(order);
     return;
@@ -308,11 +324,124 @@ export async function placeSupplierOrder(order: OrderRow) {
   }
 }
 
+async function placeSupplierTopup(order: {
+  id: bigint;
+  orderUuid: string;
+  userId: string;
+  resellerPlanId: string;
+  status: string;
+  costAmount: bigint | null;
+  topupOfOrderId: bigint | null;
+  topupPeriodDays: number | null;
+}) {
+  if (order.status === orderStatus.issued || order.topupOfOrderId === null) {
+    return;
+  }
+
+  const claimed = await claimSupplierOrder(order.id);
+  if (!claimed) return;
+
+  try {
+    const parent = await db.order.findUnique({
+      where: { id: order.topupOfOrderId },
+    });
+    const parentStatus = parent?.esimStatus;
+    const expiredAt = parent?.expiresAt?.getTime();
+    if (
+      parent?.userId !== order.userId ||
+      !parent?.esimIccid ||
+      (parentStatus != null && TOPUP_BLOCKED_STATUSES.has(parentStatus)) ||
+      (expiredAt !== undefined && expiredAt <= Date.now())
+    ) {
+      throw new Error("topup_parent_unavailable");
+    }
+    if (order.costAmount === null) {
+      throw new Error("topup_amount_missing");
+    }
+
+    const result = await topUpEsimAccessProfile({
+      iccid: parent.esimIccid,
+      packageCode: order.resellerPlanId,
+      transactionId: order.orderUuid,
+      amount: Number(order.costAmount),
+      ...(order.topupPeriodDays !== null
+        ? { periodNum: order.topupPeriodDays }
+        : {}),
+    });
+
+    const patch = projectEsimSnapshot(
+      {
+        esimStatus: parent.esimStatus,
+        esimSmdpStatus: parent.esimSmdpStatus,
+        firstActivatedAt: parent.firstActivatedAt,
+        dataTotalBytes: parent.dataTotalBytes,
+        dataUsedBytes: parent.dataUsedBytes,
+        expiresAt: parent.expiresAt,
+        usageSyncedAt: parent.usageSyncedAt,
+      },
+      {
+        source: "query",
+        observedAt: new Date(),
+        expiredTime: result.expiredTime ?? null,
+        totalVolume: result.totalVolume ?? null,
+        orderUsage: result.orderUsage ?? null,
+      },
+    );
+    if (Object.keys(patch).length > 0) {
+      await db.order.update({ where: { id: parent.id }, data: patch });
+    }
+
+    await db.order.updateMany({
+      where: {
+        id: order.id,
+        resellerOrderId: null,
+        esimIccid: null,
+        status: orderStatus.ordering,
+      },
+      data: {
+        status: orderStatus.issued,
+        failureReason: null,
+        issuedAt: new Date(),
+        resellerRawResponse: result,
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      level: "fatal",
+      tags: { component: "esimaccess", reason: "topup_failed" },
+      extra: { orderUuid: order.orderUuid, packageCode: order.resellerPlanId },
+    });
+    const user = await db.user.findUnique({
+      where: { id: order.userId },
+      select: { telegramId: true },
+    });
+    captureServerEvent({
+      event: "esim_issue_failed",
+      distinctId: user?.telegramId,
+      orderUuid: order.orderUuid,
+      properties: { packageCode: order.resellerPlanId },
+    });
+    await db.order.updateMany({
+      where: {
+        id: order.id,
+        resellerOrderId: null,
+        esimIccid: null,
+        status: { in: [orderStatus.ordering, orderStatus.paid] },
+      },
+      data: {
+        status: orderStatus.failed,
+        failureReason: error instanceof Error ? error.message : "topup_failed",
+      },
+    });
+  }
+}
+
 async function supersedePendingDrafts(
   order: {
     id: bigint;
     userId: string;
     resellerPlanId: string;
+    topupOfOrderId?: bigint | null;
   },
   provider: string,
 ) {
@@ -324,6 +453,7 @@ async function supersedePendingDrafts(
       paymentStatus: paymentStatus.pending,
       status: orderStatus.created,
       resellerPlanId: order.resellerPlanId,
+      topupOfOrderId: order.topupOfOrderId ?? null,
     },
     data: {
       status: orderStatus.failed,
@@ -901,10 +1031,19 @@ export async function recoverPendingOrders(userId?: string) {
       ...(userId ? { userId } : {}),
       paymentStatus: paymentStatus.paid,
       OR: [
-        { status: { not: orderStatus.issued } },
-        { esimIccid: null },
-        { esimActivationCode: null },
-        { esimSmdpAddress: null },
+        {
+          topupOfOrderId: null,
+          OR: [
+            { status: { not: orderStatus.issued } },
+            { esimIccid: null },
+            { esimActivationCode: null },
+            { esimSmdpAddress: null },
+          ],
+        },
+        {
+          topupOfOrderId: { not: null },
+          status: { not: orderStatus.issued },
+        },
       ],
     },
     orderBy: { updatedAt: "asc" },
@@ -944,7 +1083,10 @@ export async function findOrderForResource(input: {
       const byUuid = await db.order.findUnique({
         where: { orderUuid: input.transactionId },
       });
-      if (byUuid) return byUuid;
+      if (byUuid) {
+        if (!byUuid.topupOfOrderId) return byUuid;
+        return db.order.findUnique({ where: { id: byUuid.topupOfOrderId } });
+      }
     } catch {
       // transactionId is not our UUID; fall through to orderNo.
     }
@@ -1011,7 +1153,8 @@ export async function findOrderForEsimWebhook(input: {
     transactionId: input.transactionId,
   });
 
-  return order;
+  if (!order?.topupOfOrderId) return order;
+  return db.order.findUnique({ where: { id: order.topupOfOrderId } });
 }
 
 export async function applyEsimStatus(input: {
