@@ -133,6 +133,45 @@ export async function cancelEsimAccessProfile(esimTranNo: string) {
   await esimAccessPost("/esim/cancel", { esimTranNo });
 }
 
+export type EsimAccessUsage = {
+  dataUsage: number;
+  totalData: number;
+};
+
+type UsageResponse = {
+  esimUsageList?: unknown[];
+};
+
+/** Latest supplier reading. Usage is delayed by a few hours, not live. */
+export async function queryEsimAccessUsage(
+  esimTranNo: string,
+): Promise<EsimAccessUsage> {
+  const envelope = await esimAccessPost<UsageResponse>("/esim/usage/query", {
+    esimTranNoList: [esimTranNo],
+  });
+
+  for (const raw of envelope.obj?.esimUsageList ?? []) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as Record<string, unknown>;
+    if (asString(row.esimTranNo) !== esimTranNo) continue;
+    const dataUsage = asFiniteNumber(row.dataUsage);
+    const totalData = asFiniteNumber(row.totalData);
+    if (
+      dataUsage === undefined ||
+      totalData === undefined ||
+      !Number.isSafeInteger(dataUsage) ||
+      !Number.isSafeInteger(totalData) ||
+      dataUsage < 0 ||
+      totalData < 0
+    ) {
+      continue;
+    }
+    return { dataUsage, totalData };
+  }
+
+  throw new Error("eSIM Access usage query did not return usage");
+}
+
 export type EsimAccessTopUpResult = {
   transactionId?: string;
   iccid: string;
@@ -173,9 +212,7 @@ export async function topUpEsimAccessProfile(input: {
   }
 
   const envelope = await esimAccessPost<TopUpResponse>("/esim/topup", {
-    ...(esimTranNo
-      ? { esimTranNo, iccid: "" }
-      : { iccid: requestIccid! }),
+    ...(esimTranNo ? { esimTranNo, iccid: "" } : { iccid: requestIccid! }),
     packageCode: input.packageCode,
     transactionId: input.transactionId,
     amount: input.amount,

@@ -123,6 +123,8 @@
     "extendValidity": "Extend validity",
     "extendByDays": "+{count, plural, one {# day} other {# days}}",
     "info": "Info",
+    "checkUsage": "Check usage",
+    "checkUsageFailed": "Couldn't check usage.",
     "planDetails": "Plan details",
     "usageDelayed": "Usage updates may be delayed.",
     "usageUpdatedAt": "Last updated {time}",

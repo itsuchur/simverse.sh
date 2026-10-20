@@ -5,6 +5,7 @@ import {
   isUnusedEsimAccessProfile,
   orderEsimAccessPackage,
   queryEsimAccessProfiles,
+  queryEsimAccessUsage,
   topUpEsimAccessProfile,
 } from "~/server/suppliers/esimaccess/order";
 import { esimAccessPost, resetTestState } from "~/test/mocks";
@@ -149,6 +150,61 @@ describe("cancelEsimAccessProfile", () => {
     expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
       esimTranNo: "26041021130002",
     });
+  });
+});
+
+describe("queryEsimAccessUsage", () => {
+  test("posts the esimTranNo and returns consumed and total bytes", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        esimUsageList: [
+          {
+            esimTranNo: "26041021130002",
+            dataUsage: 1048576,
+            totalData: 1073741824,
+            lastUpdateTime: "2026-04-10T21:13:01+0000",
+          },
+        ],
+      },
+    });
+
+    const usage = await queryEsimAccessUsage("26041021130002");
+
+    expect(usage).toEqual({ dataUsage: 1048576, totalData: 1073741824 });
+    expect(esimAccessPost.mock.calls[0]?.[0]).toBe("/esim/usage/query");
+    expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
+      esimTranNoList: ["26041021130002"],
+    });
+  });
+
+  test("keeps a zero reading", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        esimUsageList: [
+          { esimTranNo: "26041021130002", dataUsage: 0, totalData: 1000 },
+        ],
+      },
+    });
+
+    expect(await queryEsimAccessUsage("26041021130002")).toEqual({
+      dataUsage: 0,
+      totalData: 1000,
+    });
+  });
+
+  test("throws when the matching profile is missing", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        esimUsageList: [{ esimTranNo: "other", dataUsage: 1, totalData: 2 }],
+      },
+    });
+
+    expect(queryEsimAccessUsage("26041021130002")).rejects.toThrow(
+      "eSIM Access usage query did not return usage",
+    );
   });
 });
 

@@ -123,6 +123,8 @@
     "extendValidity": "Продлить срок",
     "extendByDays": "+{count, plural, one {# день} few {# дня} many {# дней} other {# дня}}",
     "info": "Инфо",
+    "checkUsage": "Проверить расход",
+    "checkUsageFailed": "Не удалось проверить расход.",
     "planDetails": "Данные тарифа",
     "usageDelayed": "Данные об использовании могут обновляться с задержкой.",
     "usageUpdatedAt": "Обновлено {time}",

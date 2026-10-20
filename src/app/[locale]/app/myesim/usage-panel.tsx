@@ -13,6 +13,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "~/components/ui/popover";
+import { useRouter } from "~/i18n/navigation";
 import {
   formatByteVolume,
   isActivationConfirmed,
@@ -49,11 +50,11 @@ function countryDisplayName(countryCode: string, locale: string) {
   }
 }
 
-function bytePair(order: MyEsimOrder) {
-  if (!order.dataTotalBytes || order.dataUsedBytes === null) return null;
+function bytePair(totalSource: string | null, usedSource: string | null) {
+  if (!totalSource || usedSource === null) return null;
   try {
-    const total = BigInt(order.dataTotalBytes);
-    const used = BigInt(order.dataUsedBytes);
+    const total = BigInt(totalSource);
+    const used = BigInt(usedSource);
     const remaining = total - used;
     return { total, remaining: remaining < 0n ? 0n : remaining };
   } catch {
@@ -164,15 +165,32 @@ export function UsagePanel({
   const tCheckout = useTranslations("Checkout");
   const locale = useLocale();
   const format = useFormatter();
+  const router = useRouter();
   const unlimited = isFupPackageName(order.packageName);
   const parsed = parseName(order.packageName);
-  const usagePair = bytePair(order);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [checkedUsage, setCheckedUsage] = useState<{
+    total: string;
+    used: string;
+  } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
   const [offers, setOffers] = useState<TopupOffers | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState(false);
+  const usageKey = `${order.dataTotalBytes ?? ""}|${order.dataUsedBytes ?? ""}|${order.usageSyncedAt ?? ""}`;
+  const [trackedUsageKey, setTrackedUsageKey] = useState(usageKey);
+  if (usageKey !== trackedUsageKey) {
+    setTrackedUsageKey(usageKey);
+    setCheckedUsage(null);
+  }
+  const freshUsage = usageKey === trackedUsageKey ? checkedUsage : null;
+  const usagePair = bytePair(
+    freshUsage?.total ?? order.dataTotalBytes,
+    freshUsage?.used ?? order.dataUsedBytes,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -205,9 +223,9 @@ export function UsagePanel({
 
   let speedCaption: string | null = null;
   if (unlimited) {
-    if (focus.kind === "usageUnavailable") {
+    if (!freshUsage && focus.kind === "usageUnavailable") {
       speedCaption = t("usageUnavailable");
-    } else if (focus.kind === "exhausted") {
+    } else if (!freshUsage && focus.kind === "exhausted") {
       speedCaption = t("dataExhausted");
     } else if (usagePair?.remaining === 0n) {
       const speed = parsed?.fup
@@ -216,8 +234,8 @@ export function UsagePanel({
           : tCatalog("unlimitedSpeedKbps", { speed: String(parsed.fup.value) })
         : null;
       speedCaption = speed ? t("nowAtSpeed", { speed }) : t("reducedSpeed");
-    } else if (focus.kind === "remaining") {
-      const amount = formatByteVolume(focus.remainingBytes);
+    } else if (usagePair && (freshUsage || focus.kind === "remaining")) {
+      const amount = formatByteVolume(usagePair.remaining);
       speedCaption = parsed?.perDay
         ? t("fullSpeedLeftToday", { amount })
         : t("fullSpeedLeft", { amount });
@@ -237,14 +255,48 @@ export function UsagePanel({
     !unlimited &&
     usagePair &&
     usagePair.total > 0n &&
-    focus.kind !== "usageUnavailable"
+    (freshUsage !== null || focus.kind !== "usageUnavailable")
       ? Number(usagePair.remaining) / Number(usagePair.total)
       : null;
   const gaugeCenter = !unlimited
-    ? focus.kind === "usageUnavailable" || !usagePair
+    ? !usagePair || (!freshUsage && focus.kind === "usageUnavailable")
       ? "—"
       : formatByteVolume(usagePair.remaining)
     : "";
+
+  async function checkUsage() {
+    setChecking(true);
+    setCheckError(false);
+    try {
+      const response = await fetch("/api/myesim/usage", {
+        method: "POST",
+        credentials: "include",
+        headers: await requestHeaders(),
+        body: JSON.stringify({ orderUuid: order.orderUuid }),
+      });
+      const body = (await response.json()) as {
+        dataTotalBytes?: string;
+        dataUsedBytes?: string;
+      };
+      if (
+        !response.ok ||
+        typeof body.dataTotalBytes !== "string" ||
+        typeof body.dataUsedBytes !== "string"
+      ) {
+        setCheckError(true);
+        return;
+      }
+      setCheckedUsage({
+        total: body.dataTotalBytes,
+        used: body.dataUsedBytes,
+      });
+      router.refresh();
+    } catch {
+      setCheckError(true);
+    } finally {
+      setChecking(false);
+    }
+  }
 
   function rubPrice(amount: number) {
     return format.number(amount, {
@@ -293,9 +345,8 @@ export function UsagePanel({
 
   const selected =
     offers?.mode === "packages"
-      ? (offers.packages.find(
-          (pkg) => topupOfferKey(pkg) === selectedKey,
-        ) ?? null)
+      ? (offers.packages.find((pkg) => topupOfferKey(pkg) === selectedKey) ??
+        null)
       : null;
 
   const popoverClassName = "w-[min(24rem,calc(100vw-2rem))] max-w-none p-4";
@@ -304,7 +355,7 @@ export function UsagePanel({
     <div className="flex flex-col gap-2">
       <p className="text-base font-semibold">{trigger}</p>
       <div className="flex w-full flex-col gap-2">
-        {offers && offers.mode === "packages" ? (
+        {offers?.mode === "packages" ? (
           <Popover
             open={actionOpen}
             onOpenChange={(next) => {
@@ -348,7 +399,13 @@ export function UsagePanel({
             </PopoverContent>
           </Popover>
         ) : null}
-        <Popover open={infoOpen} onOpenChange={setInfoOpen}>
+        <Popover
+          open={infoOpen}
+          onOpenChange={(next) => {
+            setInfoOpen(next);
+            if (!next) setCheckError(false);
+          }}
+        >
           <PopoverTrigger
             render={<Button type="button" size="lg" className="w-full" />}
           >
@@ -359,42 +416,64 @@ export function UsagePanel({
             align="start"
             className={popoverClassName}
           >
-            <div className="flex items-start gap-3">
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  {singleCountry ? (
-                    <ReactCountryFlag
-                      countryCode={countryCode}
-                      svg
-                      style={{ width: "1.5em", height: "1.5em", flexShrink: 0 }}
-                      aria-hidden
-                    />
-                  ) : (
-                    <Globe className="size-6 shrink-0" aria-hidden />
-                  )}
-                  <PopoverTitle className="min-w-0 truncate text-base">
-                    {title}
-                  </PopoverTitle>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start gap-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    {singleCountry ? (
+                      <ReactCountryFlag
+                        countryCode={countryCode}
+                        svg
+                        style={{
+                          width: "1.5em",
+                          height: "1.5em",
+                          flexShrink: 0,
+                        }}
+                        aria-hidden
+                      />
+                    ) : (
+                      <Globe className="size-6 shrink-0" aria-hidden />
+                    )}
+                    <PopoverTitle className="min-w-0 truncate text-base">
+                      {title}
+                    </PopoverTitle>
+                  </div>
+                  <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                    <Calendar className="size-4 shrink-0" aria-hidden />
+                    <span>{daysLabel}</span>
+                  </p>
                 </div>
-                <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <Calendar className="size-4 shrink-0" aria-hidden />
-                  <span>{daysLabel}</span>
-                </p>
+                {unlimited ? (
+                  <div className="flex w-28 shrink-0 flex-col items-center gap-1 text-center">
+                    <InfinityMark label={t("unlimited")} />
+                    {speedCaption ? (
+                      <p className="text-xs leading-snug">{speedCaption}</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <DataGauge
+                    ratio={gaugeRatio}
+                    center={gaugeCenter}
+                    label={trigger}
+                  />
+                )}
               </div>
-              {unlimited ? (
-                <div className="flex w-28 shrink-0 flex-col items-center gap-1 text-center">
-                  <InfinityMark label={t("unlimited")} />
-                  {speedCaption ? (
-                    <p className="text-xs leading-snug">{speedCaption}</p>
-                  ) : null}
-                </div>
-              ) : (
-                <DataGauge
-                  ratio={gaugeRatio}
-                  center={gaugeCenter}
-                  label={trigger}
-                />
-              )}
+              <Button
+                type="button"
+                size="lg"
+                className="w-full"
+                disabled={checking}
+                onClick={() => {
+                  void checkUsage();
+                }}
+              >
+                {t("checkUsage")}
+              </Button>
+              {checkError ? (
+                <p className="text-destructive text-center text-sm">
+                  {t("checkUsageFailed")}
+                </p>
+              ) : null}
             </div>
           </PopoverContent>
         </Popover>
