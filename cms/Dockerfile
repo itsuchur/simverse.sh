@@ -5,9 +5,16 @@
 FROM oven/bun:1.4.0 AS bun
 
 FROM node:22-slim AS build
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends git python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+  sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+  printf 'Acquire::Retries "5";\nAcquire::http::Timeout "120";\nAcquire::https::Timeout "120";\n' > /etc/apt/apt.conf.d/80-retries; \
+  for attempt in 1 2 3 4 5; do \
+    if apt-get update \
+      && apt-get install -y --no-install-recommends git python3 make g++; then break; fi; \
+    if [ "$attempt" = "5" ]; then exit 1; fi; \
+    sleep $((attempt * 5)); \
+  done; \
+  rm -rf /var/lib/apt/lists/*
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /opt/
@@ -21,9 +28,16 @@ ENV NODE_ENV=production
 RUN bun run build
 
 FROM node:22-slim
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends wget libvips42 gosu \
-  && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+  sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+  printf 'Acquire::Retries "5";\nAcquire::http::Timeout "120";\nAcquire::https::Timeout "120";\n' > /etc/apt/apt.conf.d/80-retries; \
+  for attempt in 1 2 3 4 5; do \
+    if apt-get update \
+      && apt-get install -y --no-install-recommends wget libvips42 gosu; then break; fi; \
+    if [ "$attempt" = "5" ]; then exit 1; fi; \
+    sleep $((attempt * 5)); \
+  done; \
+  rm -rf /var/lib/apt/lists/*
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 ENV NODE_ENV=production
 
