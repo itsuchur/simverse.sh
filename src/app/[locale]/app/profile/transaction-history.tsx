@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, History } from "lucide-react";
+import { ChevronRight, Globe, History } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
+import { OverlayBackToAppButton } from "./overlay-back-to-app";
 import { api } from "~/trpc/react";
 
 import { Card, CardDescription, CardTitle } from "~/components/ui/card";
@@ -85,28 +86,35 @@ export function TransactionHistory() {
           <CardTitle className="min-w-0 flex-1">
             {t("transactionHistory")}
           </CardTitle>
+          <ChevronRight
+            className="text-muted-foreground size-4 shrink-0"
+            aria-hidden
+          />
         </div>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[min(88vh,42rem)] flex-col gap-0 overflow-hidden p-0 text-base sm:max-w-md">
-        <DialogHeader className="shrink-0 px-6 pt-7 pr-14 pb-4">
-          <DialogTitle className="text-lg leading-snug">
+      <DialogContent
+        showCloseButton={false}
+        className="data-open:zoom-in-100 data-closed:zoom-out-100 bg-background inset-0 top-0 left-0 flex h-[var(--tg-viewport-stable-height,100dvh)] max-h-[var(--tg-viewport-stable-height,100dvh)] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 text-base ring-0 sm:max-w-none"
+      >
+        <OverlayBackToAppButton />
+        <DialogHeader className="shrink-0 px-4 pt-[max(6rem,calc(var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px))+var(--tg-content-safe-area-inset-top,0px)+3.5rem))] pb-3">
+          <DialogTitle className="text-center text-xl leading-snug">
             {t("transactionHistory")}
           </DialogTitle>
-          {history.isSuccess && orders.length === 0 ? (
-            <DialogDescription className="text-base">
-              {t("transactionHistoryEmpty")}
-            </DialogDescription>
-          ) : null}
         </DialogHeader>
-        {open && history.isPending ? (
-          <div className="px-6 pb-6" aria-hidden>
-            <div className="bg-muted h-16 animate-pulse rounded-xl" />
-            <div className="bg-muted mt-3 h-16 animate-pulse rounded-xl" />
-          </div>
-        ) : orders.length > 0 ? (
-          <div className="[max-height:calc(min(88vh,42rem)-5.75rem)] min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch]">
-            <div className="flex flex-col gap-3">
-              {orders.map((order) => {
+        <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 pb-[max(1.5rem,calc(var(--tg-safe-area-inset-bottom,env(safe-area-inset-bottom,0px))+var(--tg-content-safe-area-inset-bottom,0px)))] [-webkit-overflow-scrolling:touch]">
+          <div className="mx-auto flex max-w-lg flex-col gap-3">
+            {open && history.isPending ? (
+              <div aria-hidden>
+                <div className="bg-muted h-16 animate-pulse rounded-xl" />
+                <div className="bg-muted mt-3 h-16 animate-pulse rounded-xl" />
+              </div>
+            ) : history.isSuccess && orders.length === 0 ? (
+              <DialogDescription className="text-base">
+                {t("transactionHistoryEmpty")}
+              </DialogDescription>
+            ) : (
+              orders.map((order) => {
                 const data = formatData(order.dataAmountMb);
                 const duration = tCatalog("duration.day", {
                   count: order.validityDays,
@@ -160,10 +168,10 @@ export function TransactionHistory() {
                     </div>
                   </Card>
                 );
-              })}
-            </div>
+              })
+            )}
           </div>
-        ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );

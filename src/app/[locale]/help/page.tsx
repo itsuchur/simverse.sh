@@ -17,7 +17,11 @@ export default async function HelpPage() {
   const t = await getTranslations("Help");
 
   return (
-    <FullScreenDocument title={t("title")}>
+    <FullScreenDocument
+      title={t("title")}
+      showCloseButton={false}
+      showBackButton
+    >
       <p className="text-muted-foreground text-sm">{t("intro")}</p>
 
       <section className="mt-6 space-y-6 text-sm leading-6">
