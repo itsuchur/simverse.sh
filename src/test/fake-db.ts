@@ -4,7 +4,13 @@
  * logger. Installed via `mock.module("~/server/db", ...)` in setup.ts.
  */
 
-export type FakeUser = { id: string; telegramId: string | null };
+export type FakeUser = {
+  id: string;
+  telegramId: string | null;
+  languageCode: string | null;
+  preferredLanguage: string | null;
+  dataUsageNotifications: boolean;
+};
 
 export type FakeExcludedPackageCode = {
   id: bigint;
@@ -217,8 +223,16 @@ class FakeDb {
     this.nextWebhookLogId = 1n;
   }
 
-  seedUser(user: { id: string; telegramId?: string | null }): FakeUser {
-    const record: FakeUser = { telegramId: null, ...user };
+  seedUser(
+    user: Partial<FakeUser> & { id: string },
+  ): FakeUser {
+    const record: FakeUser = {
+      telegramId: null,
+      languageCode: null,
+      preferredLanguage: null,
+      dataUsageNotifications: true,
+      ...user,
+    };
     this.users.set(record.id, record);
     return record;
   }
@@ -300,6 +314,8 @@ class FakeDb {
       user: {
         telegramId: args.select?.user ? null : (user?.telegramId ?? null),
         languageCode: null,
+        preferredLanguage: null,
+        dataUsageNotifications: true,
         isBanned: false,
         isDeleted: false,
       },
@@ -547,9 +563,29 @@ class FakeDb {
   };
 
   user = {
-    findUnique: async (args: { where: { id: string } }) => {
-      const user = this.users.get(args.where.id);
-      return user ? { telegramId: user.telegramId } : null;
+    findUnique: async (args: {
+      where: { id?: string; telegramId?: string };
+      select?: Record<string, boolean>;
+    }) => {
+      let user: FakeUser | undefined;
+      if (args.where.id !== undefined) {
+        user = this.users.get(args.where.id);
+      } else if (args.where.telegramId !== undefined) {
+        user = [...this.users.values()].find(
+          (row) => row.telegramId === args.where.telegramId,
+        );
+      }
+      if (!user) return null;
+      if (!args.select) {
+        return { ...user };
+      }
+      const selected: Record<string, unknown> = {};
+      for (const [key, enabled] of Object.entries(args.select)) {
+        if (enabled) {
+          selected[key] = user[key as keyof FakeUser];
+        }
+      }
+      return selected;
     },
   };
 

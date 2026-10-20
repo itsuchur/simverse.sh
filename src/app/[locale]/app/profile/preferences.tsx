@@ -4,6 +4,7 @@ import { ChevronRight, Settings } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { LocaleSwitcher } from "../_components/locale-switcher";
+import { DataUsageNotificationsSwitch } from "./data-usage-notifications-switch";
 import { OverlayBackToAppButton } from "./overlay-back-to-app";
 import { Card, CardTitle } from "~/components/ui/card";
 import {
@@ -15,7 +16,11 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 
-export function Preferences() {
+export function Preferences({
+  dataUsageNotifications,
+}: {
+  dataUsageNotifications: boolean;
+}) {
   const t = useTranslations("Profile");
 
   return (
@@ -53,8 +58,11 @@ export function Preferences() {
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 pb-[max(1.5rem,calc(var(--tg-safe-area-inset-bottom,env(safe-area-inset-bottom,0px))+var(--tg-content-safe-area-inset-bottom,0px)))] [-webkit-overflow-scrolling:touch]">
-          <div className="mx-auto max-w-lg">
+          <div className="mx-auto max-w-lg space-y-8">
             <LocaleSwitcher />
+            <DataUsageNotificationsSwitch
+              initialEnabled={dataUsageNotifications}
+            />
           </div>
         </div>
       </DialogContent>

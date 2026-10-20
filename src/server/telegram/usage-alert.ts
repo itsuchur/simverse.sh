@@ -70,6 +70,7 @@ const COPY: Record<
 
 export function usageAlertMessage(input: {
   kind: UsageAlertKind;
+  preferredLanguage?: string | null;
   languageCode?: string | null;
   packageName: string;
   remainBytes?: number | null;
@@ -77,7 +78,9 @@ export function usageAlertMessage(input: {
   text: string;
   replyMarkup: WelcomeReplyMarkup;
 } {
-  const locale = welcomeLocale(input.languageCode);
+  const locale = welcomeLocale(
+    input.preferredLanguage ?? input.languageCode,
+  );
   const copy = COPY[locale];
   const remainLabel =
     input.kind === "DATA_USAGE" &&

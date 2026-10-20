@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { TelegramMiniAppUser } from "better-auth-telegram";
 
+import { welcomeLocale } from "~/server/telegram/start-welcome";
+
 /** Telegram first_name (64) + space + last_name (64). */
 export const MAX_DISPLAY_NAME_LENGTH = 129;
 export const MAX_PHOTO_URL_LENGTH = 2048;
@@ -100,11 +102,14 @@ export function sanitizeMiniAppMappedUser(user: TelegramMiniAppUser) {
     ? `${user.first_name} ${user.last_name}`
     : user.first_name;
 
+  const languageCode = sanitizeLanguageCode(user.language_code);
+
   return {
     name: sanitizeDisplayName(rawName),
     image: sanitizeHttpsUrl(user.photo_url),
     email: `${telegramId}@telegram.local`,
-    languageCode: sanitizeLanguageCode(user.language_code),
+    languageCode,
+    preferredLanguage: welcomeLocale(languageCode),
     isPremium: user.is_premium === true,
     allowsWriteToPm: user.allows_write_to_pm === true,
   };
@@ -123,12 +128,13 @@ export type PersistableTelegramFields = {
   telegramId?: string | null;
   telegramUsername?: string | null;
   languageCode?: string | null;
+  preferredLanguage?: string | null;
 };
 
 /** Re-clamp plugin-overwritten fields immediately before Prisma persist. */
 export function sanitizeUserForPersist<T extends PersistableTelegramFields>(
   user: T,
-): T {
+): T & { preferredLanguage: string } {
   const telegramId =
     user.telegramId == null || user.telegramId === ""
       ? user.telegramId
@@ -153,6 +159,11 @@ export function sanitizeUserForPersist<T extends PersistableTelegramFields>(
       ? user.image
       : (sanitizeHttpsUrl(user.image) ?? null);
 
+  // Create hook only: map Telegram language_code → supported app locale.
+  const preferredLanguage = welcomeLocale(
+    user.preferredLanguage ?? languageCode,
+  );
+
   return {
     ...user,
     name: sanitizeDisplayName(user.name),
@@ -160,6 +171,7 @@ export function sanitizeUserForPersist<T extends PersistableTelegramFields>(
     telegramId,
     telegramUsername,
     languageCode,
+    preferredLanguage,
   };
 }
 

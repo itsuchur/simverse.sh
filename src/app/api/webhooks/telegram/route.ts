@@ -121,7 +121,22 @@ export const POST = withWebhookLogging(
       });
     } else if (isStartCommand(message?.text) && message?.chat?.id !== undefined) {
       try {
-        const welcome = startWelcome(message.from?.language_code);
+        const telegramId =
+          message.from?.id !== undefined ? String(message.from.id) : null;
+        const user = telegramId
+          ? await db.user.findUnique({
+              where: { telegramId },
+              select: {
+                preferredLanguage: true,
+                languageCode: true,
+              },
+            })
+          : null;
+        const welcome = startWelcome(
+          user?.preferredLanguage ??
+            user?.languageCode ??
+            message.from?.language_code,
+        );
         await sendMessage({
           chatId: message.chat.id,
           text: welcome.text,

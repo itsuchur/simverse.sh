@@ -20,6 +20,7 @@ const answerPreCheckoutQuery = mock(
 
 void mock.module("~/server/telegram/bot-api", () => ({
   sendMessage,
+  sendPhoto: async () => ({ message_id: 1 }),
   answerPreCheckoutQuery,
   verifyTelegramWebhookSecret: (header: string | null) =>
     header === process.env.TELEGRAM_WEBHOOK_SECRET,
@@ -124,6 +125,32 @@ describe("telegram webhook /start", () => {
       replyMarkup: expected.replyMarkup,
     });
     expect(expected.text).toContain("Добро пожаловать");
+  });
+
+  test("prefers preferredLanguage over Telegram language_code", async () => {
+    fakeDb.seedUser({
+      id: "user-pref",
+      telegramId: "42",
+      preferredLanguage: "ru",
+      languageCode: "en",
+    });
+
+    const response = await postUpdate({
+      message: {
+        chat: { id: 102 },
+        from: { id: 42, language_code: "en" },
+        text: "/start",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    const expected = startWelcome("ru");
+    expect(sendMessage.mock.calls[0]?.[0]).toEqual({
+      chatId: 102,
+      text: expected.text,
+      replyMarkup: expected.replyMarkup,
+    });
   });
 
   test("unknown messages are a noop", async () => {

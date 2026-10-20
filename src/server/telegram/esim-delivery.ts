@@ -105,6 +105,7 @@ const COPY: Record<
 };
 
 export function esimDeliveryMessage(input: {
+  preferredLanguage?: string | null;
   languageCode?: string | null;
   packageName: string;
   countryCode: string | null;
@@ -122,7 +123,9 @@ export function esimDeliveryMessage(input: {
   const cardData = lpaCardData(input.smdpAddress, input.activationCode);
   if (!manual || !cardData) return null;
 
-  const locale = welcomeLocale(input.languageCode);
+  const locale = welcomeLocale(
+    input.preferredLanguage ?? input.languageCode,
+  );
   const copy = COPY[locale];
 
   const title =
@@ -187,6 +190,7 @@ export async function notifyBuyerEsimDelivery(orderId: bigint): Promise<void> {
         select: {
           telegramId: true,
           languageCode: true,
+          preferredLanguage: true,
           isBanned: true,
           isDeleted: true,
         },
@@ -213,6 +217,7 @@ export async function notifyBuyerEsimDelivery(orderId: bigint): Promise<void> {
   const hasQr =
     typeof order.esimQrUrl === "string" && order.esimQrUrl.length > 0;
   const message = esimDeliveryMessage({
+    preferredLanguage: user.preferredLanguage,
     languageCode: user.languageCode,
     packageName: order.packageName,
     countryCode: order.countryCode,

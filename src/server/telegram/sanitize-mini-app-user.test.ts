@@ -112,6 +112,7 @@ describe("sanitizeMiniAppMappedUser", () => {
       image: "https://cdn.telegram.org/ada.jpg",
       email: "123456789@telegram.local",
       languageCode: "en",
+      preferredLanguage: "en",
       isPremium: true,
       allowsWriteToPm: true,
     });
@@ -134,14 +135,14 @@ describe("sanitizeUserForPersist", () => {
       image: "http://evil.example/x",
     };
     const persisted = sanitizeUserForPersist(input);
-    const expected: PersistableTelegramFields = {
+    expect(persisted).toEqual({
       name: `Ada ${"B".repeat(MAX_DISPLAY_NAME_LENGTH - 4)}`,
       telegramId: "123456789",
       telegramUsername: null,
       languageCode: null,
+      preferredLanguage: "en",
       image: null,
-    };
-    expect(persisted).toEqual(expected);
+    });
   });
 
   test("throws when a present telegramId is invalid", () => {
@@ -153,7 +154,25 @@ describe("sanitizeUserForPersist", () => {
     ).toThrow(InvalidTelegramIdError);
   });
 
-  test("leaves Google users without telegram fields unchanged except name", () => {
+  test("sets preferredLanguage from languageCode on create", () => {
+    expect(
+      sanitizeUserForPersist({
+        name: "Ada",
+        telegramId: "123456789",
+        languageCode: "ru-RU",
+      }),
+    ).toMatchObject({ preferredLanguage: "ru" });
+
+    expect(
+      sanitizeUserForPersist({
+        name: "Ada",
+        telegramId: "123456789",
+        languageCode: "de",
+      }),
+    ).toMatchObject({ preferredLanguage: "en" });
+  });
+
+  test("leaves Google users without telegram fields unchanged except name and preferredLanguage", () => {
     expect(
       sanitizeUserForPersist({
         name: "Staff",
@@ -164,6 +183,7 @@ describe("sanitizeUserForPersist", () => {
       name: "Staff",
       telegramId: null,
       telegramUsername: null,
+      preferredLanguage: "en",
     });
   });
 });

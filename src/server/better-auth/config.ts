@@ -118,6 +118,17 @@ export const auth = betterAuth({
         required: false,
         input: false,
       },
+      preferredLanguage: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+      dataUsageNotifications: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+        input: false,
+      },
       isPremium: {
         type: "boolean",
         required: false,

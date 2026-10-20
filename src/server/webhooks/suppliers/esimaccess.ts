@@ -133,6 +133,8 @@ async function notifyBuyerUsageAlert(input: {
     select: {
       telegramId: true,
       languageCode: true,
+      preferredLanguage: true,
+      dataUsageNotifications: true,
       isBanned: true,
       isDeleted: true,
     },
@@ -141,6 +143,7 @@ async function notifyBuyerUsageAlert(input: {
     !user ||
     user.isBanned ||
     user.isDeleted ||
+    !user.dataUsageNotifications ||
     typeof user.telegramId !== "string" ||
     user.telegramId.length === 0
   ) {
@@ -154,6 +157,7 @@ async function notifyBuyerUsageAlert(input: {
 
   const message = usageAlertMessage({
     kind: input.kind,
+    preferredLanguage: user.preferredLanguage,
     languageCode: user.languageCode,
     packageName: order.packageName,
     remainBytes:

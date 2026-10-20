@@ -35,6 +35,10 @@ model User {
   telegramPhoneNumber String?
   /// initData user.language_code
   languageCode        String?
+  /// App UI / Telegram copy locale (`en` | `ru`); set on registration
+  preferredLanguage   String?
+  /// When false, skip DATA_USAGE / VALIDITY_USAGE Telegram alerts
+  dataUsageNotifications Boolean @default(true)
   /// initData user.is_premium
   isPremium           Boolean   @default(false)
   /// initData user.allows_write_to_pm

@@ -104,7 +104,9 @@ export default async function AppProfile() {
         </CardHeader>
       </Card>
 
-      <Preferences />
+      <Preferences
+        dataUsageNotifications={user.dataUsageNotifications ?? true}
+      />
       <TransactionHistory />
       <ProfileOptionCard option={helpOption} />
       {legalOptions.map((option) => (

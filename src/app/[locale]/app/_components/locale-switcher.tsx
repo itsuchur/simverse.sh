@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { updatePreferredLanguageAction } from "../profile/actions";
 import { Button } from "~/components/ui/button";
 import { usePathname, useRouter } from "~/i18n/navigation";
 import { routing } from "~/i18n/routing";
@@ -13,6 +15,7 @@ export function LocaleSwitcher() {
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
+  const [pending, setPending] = useState(false);
 
   return (
     <section className="space-y-3">
@@ -32,9 +35,17 @@ export function LocaleSwitcher() {
               size="sm"
               variant={active ? "default" : "outline"}
               aria-pressed={active}
+              disabled={pending}
               className={cn("flex-1", active && "pointer-events-none")}
               onClick={() => {
-                router.replace(pathname, { locale: nextLocale });
+                setPending(true);
+                void updatePreferredLanguageAction(nextLocale)
+                  .then(() => {
+                    router.replace(pathname, { locale: nextLocale });
+                  })
+                  .finally(() => {
+                    setPending(false);
+                  });
               }}
             >
               {t(nextLocale)}
