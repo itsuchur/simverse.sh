@@ -435,40 +435,40 @@ function PackageChoices({
   const t = useTranslations("MyEsims");
   const tCatalog = useTranslations("Catalog");
   return (
-    <div className="flex max-h-52 flex-col gap-2 overflow-y-auto">
-      {packages.map((pkg) => {
-        const key = topupOfferKey(pkg);
-        const price =
-          locale === "ru" ? rubPrice(pkg.priceRub) : usdPrice(pkg.priceUsd);
-        const active = selected ? topupOfferKey(selected) === key : false;
-        const title =
-          action === "extend" && pkg.days !== undefined
-            ? t("extendByDays", { count: pkg.days })
-            : pkg.name;
-        return (
-          <button
-            key={key}
-            type="button"
-            className={`rounded-lg border px-3 py-2 text-left text-sm ${active ? "border-foreground" : "border-border"}`}
-            onClick={() => onSelect(key)}
-          >
-            <span className="font-medium">{title}</span>
-            <span className="text-muted-foreground block">
-              {action === "extend" ? (
-                price
-              ) : (
+    <div className="flex flex-col gap-3">
+      <div className="flex max-h-52 flex-col gap-2 overflow-y-auto">
+        {packages.map((pkg) => {
+          const key = topupOfferKey(pkg);
+          const price =
+            locale === "ru" ? rubPrice(pkg.priceRub) : usdPrice(pkg.priceUsd);
+          const active = selected ? topupOfferKey(selected) === key : false;
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`rounded-lg border px-3 py-2 text-left text-sm ${active ? "border-foreground" : "border-border"}`}
+              onClick={() => onSelect(key)}
+            >
+              {action === "extend" && pkg.days !== undefined ? (
                 <>
+                  <span className="font-medium">
+                    {t("extendByDays", { count: pkg.days })}
+                  </span>
+                  <span className="text-muted-foreground block">{price}</span>
+                </>
+              ) : (
+                <span className="font-medium">
                   {formatByteVolume(BigInt(Math.trunc(pkg.volumeBytes)))}
                   {" · "}
                   {tCatalog("duration.day", { count: pkg.validityDays })}
                   {" · "}
                   {price}
-                </>
+                </span>
               )}
-            </span>
-          </button>
-        );
-      })}
+            </button>
+          );
+        })}
+      </div>
       {selected ? (
         <PayButtons
           locale={locale}
