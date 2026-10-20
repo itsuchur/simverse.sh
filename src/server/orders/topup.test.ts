@@ -232,14 +232,14 @@ describe("prepareTopupPurchase", () => {
       },
     });
 
-    await expect(
-      prepareTopupPurchase({
+    expect(
+      await prepareTopupPurchase({
         userId: "user-1",
         orderUuid: parent.orderUuid,
         packageCode: "TR_1_Daily_1Mbps",
         days: 5,
       }),
-    ).resolves.toBe("invalid");
+    ).toBe("invalid");
   });
 
   test("rejects a day-pass packageCode that is not on the TOPUP list", async () => {
@@ -260,13 +260,13 @@ describe("prepareTopupPurchase", () => {
       },
     });
 
-    await expect(
-      prepareTopupPurchase({
+    expect(
+      await prepareTopupPurchase({
         userId: "user-1",
         orderUuid: parent.orderUuid,
         packageCode: "TR_1_Daily_1Mbps_Premium",
         days: 7,
       }),
-    ).resolves.toBe("invalid");
+    ).toBe("invalid");
   });
 });

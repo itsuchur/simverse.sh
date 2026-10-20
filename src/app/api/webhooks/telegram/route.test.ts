@@ -32,7 +32,7 @@ const { POST, isStartCommand } = await import(
 );
 const { startWelcome } = await import("~/server/telegram/start-welcome");
 
-const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET!;
+const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 function postUpdate(payload: unknown): Promise<Response> {
   return POST(
