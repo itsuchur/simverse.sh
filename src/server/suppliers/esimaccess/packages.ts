@@ -147,12 +147,14 @@ export async function fetchEsimAccessPackages() {
 
 export type EsimAccessTopupPackage = {
   packageCode?: string;
+  slug?: string;
   name?: string;
   price?: number;
   retailPrice?: number;
   volume?: number;
   duration?: number;
   durationUnit?: string;
+  supportTopUpType?: number;
 };
 
 /** Packages that can be added to one existing profile. */

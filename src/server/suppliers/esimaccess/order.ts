@@ -153,14 +153,29 @@ type TopUpResponse = {
 
 /** Adds a package, or day-pass days, to an existing profile. */
 export async function topUpEsimAccessProfile(input: {
-  iccid: string;
+  iccid?: string;
+  esimTranNo?: string;
   packageCode: string;
   transactionId: string;
   amount: number;
   periodNum?: number;
 }): Promise<EsimAccessTopUpResult> {
+  const esimTranNo =
+    typeof input.esimTranNo === "string" && input.esimTranNo.length > 0
+      ? input.esimTranNo
+      : undefined;
+  const requestIccid =
+    typeof input.iccid === "string" && input.iccid.length > 0
+      ? input.iccid
+      : undefined;
+  if (!esimTranNo && !requestIccid) {
+    throw new Error("eSIM Access topup requires esimTranNo or iccid");
+  }
+
   const envelope = await esimAccessPost<TopUpResponse>("/esim/topup", {
-    iccid: input.iccid,
+    ...(esimTranNo
+      ? { esimTranNo, iccid: "" }
+      : { iccid: requestIccid! }),
     packageCode: input.packageCode,
     transactionId: input.transactionId,
     amount: input.amount,

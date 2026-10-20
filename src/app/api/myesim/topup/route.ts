@@ -23,25 +23,12 @@ export async function GET(request: Request) {
     return Response.json({ error: "invalid_order" }, { status: 400 });
   }
 
-  const daysRaw = url.searchParams.get("days");
-  let days: number | undefined;
-  if (daysRaw !== null) {
-    days = Number(daysRaw);
-    if (!Number.isInteger(days)) {
-      return Response.json({ error: "invalid_days" }, { status: 400 });
-    }
-  }
-
   const offers = await listTopupOffers({
     userId: session.user.id,
     orderUuid: orderUuid.data,
-    days,
   });
   if (offers === "not_found") {
     return Response.json({ error: "not_found" }, { status: 404 });
-  }
-  if (offers === "invalid_days") {
-    return Response.json({ error: "invalid_days" }, { status: 400 });
   }
   return Response.json(offers);
 }

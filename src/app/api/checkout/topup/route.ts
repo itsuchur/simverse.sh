@@ -12,6 +12,7 @@ import {
   createPendingInvoice,
   findOrCreatePendingOrder,
 } from "~/server/orders/draft";
+import { DAY_PASS_PRESETS } from "~/lib/topup-offer";
 import { prepareTopupPurchase } from "~/server/orders/topup";
 import {
   createTrybitInvoice,
@@ -23,15 +24,19 @@ import { isSalesActive } from "~/server/sales";
 import { miniappOrigin } from "~/server/urls";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
-const bodySchema = z
-  .object({
-    orderUuid: z.string().uuid(),
-    provider: z.enum(["trybit", "xhub"]),
-    locale: z.enum(["en", "ru"]).optional(),
-    packageCode: z.string().min(1).optional(),
-    days: z.number().int().min(1).max(365).optional(),
-  })
-  .refine((body) => body.packageCode !== undefined || body.days !== undefined);
+const bodySchema = z.object({
+  orderUuid: z.string().uuid(),
+  provider: z.enum(["trybit", "xhub"]),
+  locale: z.enum(["en", "ru"]).optional(),
+  packageCode: z.string().min(1),
+  days: z
+    .number()
+    .int()
+    .refine((value): value is (typeof DAY_PASS_PRESETS)[number] =>
+      (DAY_PASS_PRESETS as readonly number[]).includes(value),
+    )
+    .optional(),
+});
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });

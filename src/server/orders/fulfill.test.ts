@@ -519,6 +519,68 @@ describe("top-up fulfillment", () => {
     expect(capturedEvents()).not.toContain("esim_issued");
   });
 
+  test("prefers esimTranNo from the parent supplier order", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      resellerOrderId: "EA-PARENT",
+      esimIccid: "89000000000000000010",
+      esimStatus: "IN_USE",
+    });
+    const child = fakeDb.seedOrder({
+      status: "paid",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      resellerPlanId: "CN_1_Daily",
+      costAmount: 460000n,
+      topupPeriodDays: 7,
+    });
+    esimAccessPost.mockImplementation(async (path: string) => {
+      if (path === "/esim/query") {
+        return {
+          success: true,
+          obj: {
+            esimList: [
+              {
+                iccid: parent.esimIccid,
+                esimTranNo: "26032612340001",
+              },
+            ],
+          },
+        };
+      }
+      if (path === "/esim/topup") {
+        return {
+          success: true,
+          obj: {
+            transactionId: child.orderUuid,
+            iccid: parent.esimIccid,
+            totalVolume: 1000,
+            orderUsage: 0,
+          },
+        };
+      }
+      throw new Error(`unexpected path ${path}`);
+    });
+
+    await placeSupplierOrder(child);
+
+    expect(esimAccessPost.mock.calls.map((call) => call[0])).toEqual([
+      "/esim/query",
+      "/esim/topup",
+    ]);
+    expect(esimAccessPost.mock.calls[1]?.[1]).toEqual({
+      esimTranNo: "26032612340001",
+      iccid: "",
+      packageCode: "CN_1_Daily",
+      transactionId: child.orderUuid,
+      amount: 460000,
+      periodNum: 7,
+    });
+    expect(child.status).toBe("issued");
+  });
+
   test("marks the top-up failed without touching the parent", async () => {
     const parent = fakeDb.seedOrder({
       status: "issued",

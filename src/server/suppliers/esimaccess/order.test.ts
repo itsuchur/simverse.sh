@@ -205,6 +205,31 @@ describe("topUpEsimAccessProfile", () => {
     });
   });
 
+  test("prefers esimTranNo over iccid", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: { iccid: "890", totalVolume: 1000, orderUsage: 0 },
+    });
+
+    await topUpEsimAccessProfile({
+      esimTranNo: "23072017992029",
+      iccid: "890",
+      packageCode: "CN_1_Daily",
+      transactionId: "topup-esimtran",
+      amount: 460000,
+      periodNum: 7,
+    });
+
+    expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
+      esimTranNo: "23072017992029",
+      iccid: "",
+      packageCode: "CN_1_Daily",
+      transactionId: "topup-esimtran",
+      amount: 460000,
+      periodNum: 7,
+    });
+  });
+
   test("throws when the supplier omits the iccid", async () => {
     esimAccessPost.mockResolvedValueOnce({ success: true, obj: {} });
 

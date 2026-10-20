@@ -121,7 +121,7 @@
     "nowAtSpeed": "Now up to {speed}",
     "topUp": "Top up",
     "extendValidity": "Extend validity",
-    "extendDays": "Days",
+    "extendByDays": "+{count} days",
     "info": "Info",
     "planDetails": "Plan details",
     "usageDelayed": "Usage updates may be delayed.",

@@ -121,7 +121,7 @@
     "nowAtSpeed": "Сейчас до {speed}",
     "topUp": "Пополнить",
     "extendValidity": "Продлить срок",
-    "extendDays": "Дней",
+    "extendByDays": "+{count} дн.",
     "info": "Инфо",
     "planDetails": "Данные тарифа",
     "usageDelayed": "Данные об использовании могут обновляться с задержкой.",

@@ -18,7 +18,11 @@ import {
   isActivationConfirmed,
   type LifecycleFocus,
 } from "~/lib/esim-lifecycle";
-import type { TopupOffers, TopupPackageOffer } from "~/lib/topup-offer";
+import {
+  topupOfferKey,
+  type TopupOffers,
+  type TopupPackageOffer,
+} from "~/lib/topup-offer";
 import { openExternalLink } from "~/lib/telegram-webapp";
 import {
   isFupPackageName,
@@ -28,13 +32,6 @@ import {
 import type { MyEsimOrder } from "./myesim-list";
 
 const DAY_MS = 86_400_000;
-
-function extensionDays(value: string) {
-  if (!/^\d{1,3}$/.test(value)) return null;
-  const next = Number(value);
-  if (next < 1 || next > 365) return null;
-  return next;
-}
 
 type PanelFocus = Extract<
   LifecycleFocus,
@@ -172,46 +169,32 @@ export function UsagePanel({
   const usagePair = bytePair(order);
   const [infoOpen, setInfoOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
-  const [daysText, setDaysText] = useState("7");
-  const days = extensionDays(daysText);
   const [offers, setOffers] = useState<TopupOffers | null>(null);
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState(false);
-  const [quoting, setQuoting] = useState(false);
 
   useEffect(() => {
-    if (days === null) return;
     const controller = new AbortController();
-    const handle = window.setTimeout(() => {
-      setQuoting(true);
-      const params = new URLSearchParams({
-        orderUuid: order.orderUuid,
-        days: String(days),
-      });
-      void fetch(`/api/myesim/topup?${params.toString()}`, {
-        credentials: "include",
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json" },
+    const params = new URLSearchParams({ orderUuid: order.orderUuid });
+    void fetch(`/api/myesim/topup?${params.toString()}`, {
+      credentials: "include",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json" },
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        setOffers((await response.json()) as TopupOffers);
       })
-        .then(async (response) => {
-          if (!response.ok) return;
-          setOffers((await response.json()) as TopupOffers);
-        })
-        .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            return;
-          }
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setQuoting(false);
-        });
-    }, 300);
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      });
     return () => {
       controller.abort();
-      window.clearTimeout(handle);
     };
-  }, [days, order.orderUuid]);
+  }, [order.orderUuid]);
 
   const countryCode = order.countryCode;
   const singleCountry = countryCode !== null && !countryCode.includes(",");
@@ -279,7 +262,7 @@ export function UsagePanel({
 
   async function pay(
     provider: "trybit" | "xhub",
-    selection: { packageCode?: string; days?: number },
+    selection: { packageCode: string; days?: number },
   ) {
     setPaying(true);
     setPayError(false);
@@ -310,8 +293,9 @@ export function UsagePanel({
 
   const selected =
     offers?.mode === "packages"
-      ? (offers.packages.find((pkg) => pkg.packageCode === selectedCode) ??
-        null)
+      ? (offers.packages.find(
+          (pkg) => topupOfferKey(pkg) === selectedKey,
+        ) ?? null)
       : null;
 
   const popoverClassName = "w-[min(24rem,calc(100vw-2rem))] max-w-none p-4";
@@ -320,7 +304,7 @@ export function UsagePanel({
     <div className="flex flex-col gap-2">
       <p className="text-base font-semibold">{trigger}</p>
       <div className="flex w-full flex-col gap-2">
-        {offers && offers.mode !== "none" ? (
+        {offers && offers.mode === "packages" ? (
           <Popover
             open={actionOpen}
             onOpenChange={(next) => {
@@ -331,70 +315,36 @@ export function UsagePanel({
             <PopoverTrigger
               render={<Button type="button" size="lg" className="w-full" />}
             >
-              {offers.mode === "validity" ? t("extendValidity") : t("topUp")}
+              {offers.action === "extend" ? t("extendValidity") : t("topUp")}
             </PopoverTrigger>
             <PopoverContent
               side="bottom"
               align="start"
               className={popoverClassName}
             >
-              {offers.mode === "packages" ? (
-                <PackageChoices
-                  packages={offers.packages}
-                  selected={selected}
-                  locale={locale}
-                  paying={paying}
-                  payError={payError}
-                  onSelect={setSelectedCode}
-                  onPay={(provider) => {
-                    if (!selected) return;
-                    void pay(provider, { packageCode: selected.packageCode });
-                  }}
-                  rubPrice={rubPrice}
-                  usdPrice={usdPrice}
-                  payErrorText={tCheckout("payFailed")}
-                  paySbp={(price) => tCheckout("paySbp", { price })}
-                  payCrypto={(price) => tCheckout("payCrypto", { price })}
-                />
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <label className="flex items-center justify-between gap-3 text-sm">
-                    <span>{t("extendDays")}</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={3}
-                      value={daysText}
-                      className="border-border bg-background h-8 w-20 rounded-lg border px-2"
-                      onChange={(event) => {
-                        const next = event.target.value;
-                        if (next === "" || /^\d{1,3}$/.test(next)) {
-                          setDaysText(next);
-                        }
-                      }}
-                    />
-                  </label>
-                  <PayButtons
-                    locale={locale}
-                    paying={
-                      paying || quoting || days === null || offers.days !== days
-                    }
-                    rub={rubPrice(offers.priceRub)}
-                    usd={usdPrice(offers.priceUsd)}
-                    paySbp={(price) => tCheckout("paySbp", { price })}
-                    payCrypto={(price) => tCheckout("payCrypto", { price })}
-                    onPay={(provider) => {
-                      if (days === null) return;
-                      void pay(provider, { days });
-                    }}
-                  />
-                  {payError ? (
-                    <p className="text-destructive text-center text-sm">
-                      {tCheckout("payFailed")}
-                    </p>
-                  ) : null}
-                </div>
-              )}
+              <PackageChoices
+                action={offers.action}
+                packages={offers.packages}
+                selected={selected}
+                locale={locale}
+                paying={paying}
+                payError={payError}
+                onSelect={setSelectedKey}
+                onPay={(provider) => {
+                  if (!selected) return;
+                  void pay(provider, {
+                    packageCode: selected.packageCode,
+                    ...(selected.days !== undefined
+                      ? { days: selected.days }
+                      : {}),
+                  });
+                }}
+                rubPrice={rubPrice}
+                usdPrice={usdPrice}
+                payErrorText={tCheckout("payFailed")}
+                paySbp={(price) => tCheckout("paySbp", { price })}
+                payCrypto={(price) => tCheckout("payCrypto", { price })}
+              />
             </PopoverContent>
           </Popover>
         ) : null}
@@ -454,6 +404,7 @@ export function UsagePanel({
 }
 
 function PackageChoices({
+  action,
   packages,
   selected,
   locale,
@@ -467,12 +418,13 @@ function PackageChoices({
   paySbp,
   payCrypto,
 }: {
+  action: "extend" | "topup";
   packages: TopupPackageOffer[];
   selected: TopupPackageOffer | null;
   locale: string;
   paying: boolean;
   payError: boolean;
-  onSelect: (packageCode: string) => void;
+  onSelect: (key: string) => void;
   onPay: (provider: "trybit" | "xhub") => void;
   rubPrice: (amount: number) => string;
   usdPrice: (amount: number) => string;
@@ -480,28 +432,39 @@ function PackageChoices({
   paySbp: (price: string) => string;
   payCrypto: (price: string) => string;
 }) {
+  const t = useTranslations("MyEsims");
   const tCatalog = useTranslations("Catalog");
   return (
     <div className="flex max-h-52 flex-col gap-2 overflow-y-auto">
       {packages.map((pkg) => {
-        const data = formatByteVolume(BigInt(Math.trunc(pkg.volumeBytes)));
+        const key = topupOfferKey(pkg);
         const price =
           locale === "ru" ? rubPrice(pkg.priceRub) : usdPrice(pkg.priceUsd);
-        const active = selected?.packageCode === pkg.packageCode;
+        const active = selected ? topupOfferKey(selected) === key : false;
+        const title =
+          action === "extend" && pkg.days !== undefined
+            ? t("extendByDays", { count: pkg.days })
+            : pkg.name;
         return (
           <button
-            key={pkg.packageCode}
+            key={key}
             type="button"
             className={`rounded-lg border px-3 py-2 text-left text-sm ${active ? "border-foreground" : "border-border"}`}
-            onClick={() => onSelect(pkg.packageCode)}
+            onClick={() => onSelect(key)}
           >
-            <span className="font-medium">{pkg.name}</span>
+            <span className="font-medium">{title}</span>
             <span className="text-muted-foreground block">
-              {data}
-              {" · "}
-              {tCatalog("duration.day", { count: pkg.validityDays })}
-              {" · "}
-              {price}
+              {action === "extend" ? (
+                price
+              ) : (
+                <>
+                  {formatByteVolume(BigInt(Math.trunc(pkg.volumeBytes)))}
+                  {" · "}
+                  {tCatalog("duration.day", { count: pkg.validityDays })}
+                  {" · "}
+                  {price}
+                </>
+              )}
             </span>
           </button>
         );

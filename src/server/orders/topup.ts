@@ -2,7 +2,12 @@ import "server-only";
 
 import { quoteDayPassAmount } from "~/lib/day-pass-quote";
 import { paymentStatus } from "~/lib/order-status";
-import type { TopupOffers, TopupPackageOffer } from "~/lib/topup-offer";
+import {
+  DAY_PASS_PRESETS,
+  isDayPassPreset,
+  type TopupOffers,
+  type TopupPackageOffer,
+} from "~/lib/topup-offer";
 import { db } from "~/server/db";
 import {
   ESIMACCESS_SUPPLIER,
@@ -11,6 +16,7 @@ import {
   retailPriceToRub,
   retailPriceToStars,
   retailPriceToUsd,
+  type EsimAccessPackage,
   type EsimAccessTopupPackage,
 } from "~/server/suppliers/esimaccess/packages";
 
@@ -20,8 +26,6 @@ const TOPUP_BLOCKED_STATUSES = new Set([
   "CANCEL",
   "REVOKED",
 ]);
-
-const DEFAULT_EXTENSION_DAYS = 7;
 
 export type TopupPurchase = {
   supplierCost: number;
@@ -103,6 +107,64 @@ function packageOffer(
   };
 }
 
+/** Identifier eSIM Access expects on /esim/topup (slug preferred). */
+function topupPackageCode(raw: EsimAccessTopupPackage): string | null {
+  if (typeof raw.slug === "string" && raw.slug.length > 0) return raw.slug;
+  if (typeof raw.packageCode === "string" && raw.packageCode.length > 0) {
+    return raw.packageCode;
+  }
+  return null;
+}
+
+function matchesParentPlan(
+  raw: EsimAccessTopupPackage,
+  pkg: EsimAccessPackage,
+): boolean {
+  const candidates = [raw.packageCode, raw.slug].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  const parents = [pkg.packageCode, pkg.slug].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  return candidates.some((code) => parents.includes(code));
+}
+
+function resolveDayPassTopupCode(
+  listed: EsimAccessTopupPackage[],
+  pkg: EsimAccessPackage,
+): string | null {
+  const match = listed.find((raw) => matchesParentPlan(raw, pkg));
+  if (!match) return null;
+  return topupPackageCode(match);
+}
+
+function dayPassOffers(
+  pkg: EsimAccessPackage,
+  topupCode: string,
+  usdRubRate: number,
+): TopupPackageOffer[] {
+  const offers: TopupPackageOffer[] = [];
+  for (const days of DAY_PASS_PRESETS) {
+    const amount = quoteDayPassAmount({
+      retailPrice: pkg.retailPrice,
+      durationDays: pkg.duration,
+      extendDays: days,
+    });
+    if (amount === null) continue;
+    offers.push({
+      packageCode: topupCode,
+      name: pkg.name,
+      volumeBytes: pkg.volume,
+      validityDays: days,
+      days,
+      priceUsd: retailPriceToUsd(amount),
+      priceRub: retailPriceToRub(amount, usdRubRate),
+      priceStars: retailPriceToStars(amount),
+    });
+  }
+  return offers;
+}
+
 async function ownedOrder(userId: string, orderUuid: string) {
   const order = await db.order.findUnique({ where: { orderUuid } });
   if (order?.userId !== userId) return null;
@@ -112,8 +174,7 @@ async function ownedOrder(userId: string, orderUuid: string) {
 export async function listTopupOffers(input: {
   userId: string;
   orderUuid: string;
-  days?: number;
-}): Promise<TopupOffers | "not_found" | "invalid_days"> {
+}): Promise<TopupOffers | "not_found"> {
   const order = await ownedOrder(input.userId, input.orderUuid);
   if (!order) return "not_found";
   if (!topupAllowed(order, new Date()) || !order.esimIccid) {
@@ -124,27 +185,18 @@ export async function listTopupOffers(input: {
   if (!catalog) return { mode: "none" };
   const { meta, pkg } = catalog;
 
+  const listed = await fetchEsimAccessTopupPackages(order.esimIccid);
+
   if (pkg.supportTopUpType === 3) {
-    const days = input.days ?? DEFAULT_EXTENSION_DAYS;
-    const amount = quoteDayPassAmount({
-      retailPrice: pkg.retailPrice,
-      durationDays: pkg.duration,
-      extendDays: days,
-    });
-    if (amount === null) return "invalid_days";
-    if (!pkg.slug) return { mode: "none" };
-    return {
-      mode: "validity",
-      days,
-      priceUsd: retailPriceToUsd(amount),
-      priceRub: retailPriceToRub(amount, meta.usdRubRate),
-      priceStars: retailPriceToStars(amount),
-    };
+    const topupCode = resolveDayPassTopupCode(listed, pkg);
+    if (!topupCode) return { mode: "none" };
+    const packages = dayPassOffers(pkg, topupCode, meta.usdRubRate);
+    if (packages.length === 0) return { mode: "none" };
+    return { mode: "packages", action: "extend", packages };
   }
 
   if (pkg.supportTopUpType !== 2) return { mode: "none" };
 
-  const listed = await fetchEsimAccessTopupPackages(order.esimIccid);
   const packages = listed
     .flatMap((raw) => {
       const offer = packageOffer(raw, meta.usdRubRate);
@@ -153,7 +205,7 @@ export async function listTopupOffers(input: {
     .sort((a, b) => a.priceUsd - b.priceUsd || a.volumeBytes - b.volumeBytes);
 
   if (packages.length === 0) return { mode: "none" };
-  return { mode: "packages", packages };
+  return { mode: "packages", action: "topup", packages };
 }
 
 export async function prepareTopupPurchase(input: {
@@ -172,14 +224,27 @@ export async function prepareTopupPurchase(input: {
   if (!catalog) return "unavailable";
   const { meta, pkg } = catalog;
 
+  const listed = await fetchEsimAccessTopupPackages(order.esimIccid);
+
   if (pkg.supportTopUpType === 3) {
-    if (input.days === undefined) return "invalid";
+    if (input.days === undefined || !isDayPassPreset(input.days)) {
+      return "invalid";
+    }
+    if (
+      typeof input.packageCode !== "string" ||
+      input.packageCode.length === 0
+    ) {
+      return "invalid";
+    }
+    const topupCode = resolveDayPassTopupCode(listed, pkg);
+    if (!topupCode || topupCode !== input.packageCode) return "invalid";
+
     const amount = quoteDayPassAmount({
       retailPrice: pkg.retailPrice,
       durationDays: pkg.duration,
       extendDays: input.days,
     });
-    if (amount === null || !pkg.slug) return "invalid";
+    if (amount === null) return "invalid";
     const dataAmountMb = Math.max(0, Math.round(pkg.volume / 1024 ** 2));
     return {
       supplierCost: amount,
@@ -188,7 +253,7 @@ export async function prepareTopupPurchase(input: {
       priceUsd: retailPriceToUsd(amount),
       priceRub: retailPriceToRub(amount, meta.usdRubRate),
       draft: {
-        resellerPlanId: pkg.slug,
+        resellerPlanId: topupCode,
         packageName: pkg.name,
         countryCode: order.countryCode,
         dataAmountMb,
@@ -201,7 +266,6 @@ export async function prepareTopupPurchase(input: {
 
   if (pkg.supportTopUpType !== 2 || !input.packageCode) return "invalid";
 
-  const listed = await fetchEsimAccessTopupPackages(order.esimIccid);
   const match = listed.find((raw) => raw.packageCode === input.packageCode);
   const offer = match ? packageOffer(match, meta.usdRubRate) : null;
   if (!match || !offer || typeof match.price !== "number") return "invalid";

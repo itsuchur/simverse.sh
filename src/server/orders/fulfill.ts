@@ -359,8 +359,18 @@ async function placeSupplierTopup(order: {
       throw new Error("topup_amount_missing");
     }
 
+    let esimTranNo: string | undefined;
+    if (parent.resellerOrderId) {
+      const profiles = await queryEsimAccessProfiles(parent.resellerOrderId);
+      const profile =
+        profiles.find((row) => row.iccid === parent.esimIccid) ?? profiles[0];
+      esimTranNo = profile?.esimTranNo;
+    }
+
     const result = await topUpEsimAccessProfile({
-      iccid: parent.esimIccid,
+      ...(esimTranNo
+        ? { esimTranNo }
+        : { iccid: parent.esimIccid }),
       packageCode: order.resellerPlanId,
       transactionId: order.orderUuid,
       amount: Number(order.costAmount),
