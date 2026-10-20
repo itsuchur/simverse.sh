@@ -6,7 +6,7 @@ import { Calendar, Globe, QrCode } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -163,8 +163,8 @@ export function UsagePanel({
   const unlimited = isFupPackageName(order.packageName);
   const parsed = parseName(order.packageName);
   const usagePair = bytePair(order);
-  const [open, setOpen] = useState(false);
-  const [choosing, setChoosing] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
   const [days, setDays] = useState(7);
   const [offers, setOffers] = useState<TopupOffers | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -173,7 +173,6 @@ export function UsagePanel({
   const [quoting, setQuoting] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
     const controller = new AbortController();
     const handle = window.setTimeout(() => {
       setQuoting(true);
@@ -203,7 +202,7 @@ export function UsagePanel({
       controller.abort();
       window.clearTimeout(handle);
     };
-  }, [open, days, order.orderUuid]);
+  }, [days, order.orderUuid]);
 
   const countryCode = order.countryCode;
   const singleCountry = countryCode !== null && !countryCode.includes(",");
@@ -306,128 +305,139 @@ export function UsagePanel({
         null)
       : null;
 
+  const popoverClassName = "w-[min(24rem,calc(100vw-2rem))] max-w-none p-4";
+
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) {
-          setChoosing(false);
-          setPayError(false);
-        }
-      }}
-    >
-      <PopoverTrigger className="w-fit text-left text-base font-semibold">
-        {trigger}
-      </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        className="w-[min(24rem,calc(100vw-2rem))] max-w-none p-4"
-      >
-        <div className="flex items-start gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <div className="flex items-center gap-2">
-              {singleCountry ? (
-                <ReactCountryFlag
-                  countryCode={countryCode}
-                  svg
-                  style={{ width: "1.5em", height: "1.5em", flexShrink: 0 }}
-                  aria-hidden
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        {offers && offers.mode !== "none" ? (
+          <Popover
+            open={actionOpen}
+            onOpenChange={(next) => {
+              setActionOpen(next);
+              if (!next) setPayError(false);
+            }}
+          >
+            <PopoverTrigger className={buttonVariants({ variant: "outline" })}>
+              {offers.mode === "validity" ? t("extendValidity") : t("topUp")}
+            </PopoverTrigger>
+            <PopoverContent
+              side="bottom"
+              align="start"
+              className={popoverClassName}
+            >
+              {offers.mode === "packages" ? (
+                <PackageChoices
+                  packages={offers.packages}
+                  selected={selected}
+                  locale={locale}
+                  paying={paying}
+                  payError={payError}
+                  onSelect={setSelectedCode}
+                  onPay={(provider) => {
+                    if (!selected) return;
+                    void pay(provider, { packageCode: selected.packageCode });
+                  }}
+                  rubPrice={rubPrice}
+                  usdPrice={usdPrice}
+                  payErrorText={tCheckout("payFailed")}
+                  paySbp={(price) => tCheckout("paySbp", { price })}
+                  payCrypto={(price) => tCheckout("payCrypto", { price })}
                 />
               ) : (
-                <Globe className="size-6 shrink-0" aria-hidden />
+                <div className="flex flex-col gap-3">
+                  <label className="flex items-center justify-between gap-3 text-sm">
+                    <span>{t("extendDays")}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={days}
+                      className="border-border bg-background h-8 w-20 rounded-lg border px-2"
+                      onChange={(event) => {
+                        const next = Number(event.target.value);
+                        if (
+                          Number.isInteger(next) &&
+                          next >= 1 &&
+                          next <= 365
+                        ) {
+                          setDays(next);
+                        }
+                      }}
+                    />
+                  </label>
+                  <PayButtons
+                    locale={locale}
+                    paying={paying || quoting || offers.days !== days}
+                    rub={rubPrice(offers.priceRub)}
+                    usd={usdPrice(offers.priceUsd)}
+                    paySbp={(price) => tCheckout("paySbp", { price })}
+                    payCrypto={(price) => tCheckout("payCrypto", { price })}
+                    onPay={(provider) => {
+                      void pay(provider, { days });
+                    }}
+                  />
+                  {payError ? (
+                    <p className="text-destructive text-center text-sm">
+                      {tCheckout("payFailed")}
+                    </p>
+                  ) : null}
+                </div>
               )}
-              <PopoverTitle className="min-w-0 truncate text-base">
-                {title}
-              </PopoverTitle>
-            </div>
-            <p className="text-muted-foreground flex items-center gap-2 text-sm">
-              <Calendar className="size-4 shrink-0" aria-hidden />
-              <span>{daysLabel}</span>
-            </p>
-            {offers && offers.mode !== "none" && !choosing ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setChoosing(true)}
-              >
-                {offers.mode === "validity" ? t("extendValidity") : t("topUp")}
-              </Button>
-            ) : null}
-          </div>
-          {unlimited ? (
-            <div className="flex w-28 shrink-0 flex-col items-center gap-1 text-center">
-              <InfinityMark label={t("unlimited")} />
-              {speedCaption ? (
-                <p className="text-xs leading-snug">{speedCaption}</p>
-              ) : null}
-            </div>
-          ) : (
-            <DataGauge
-              ratio={gaugeRatio}
-              center={gaugeCenter}
-              label={trigger}
-            />
-          )}
-        </div>
-        {choosing && offers?.mode === "packages" ? (
-          <PackageChoices
-            packages={offers.packages}
-            selected={selected}
-            locale={locale}
-            paying={paying}
-            payError={payError}
-            onSelect={setSelectedCode}
-            onPay={(provider) => {
-              if (!selected) return;
-              void pay(provider, { packageCode: selected.packageCode });
-            }}
-            rubPrice={rubPrice}
-            usdPrice={usdPrice}
-            payErrorText={tCheckout("payFailed")}
-            paySbp={(price) => tCheckout("paySbp", { price })}
-            payCrypto={(price) => tCheckout("payCrypto", { price })}
-          />
+            </PopoverContent>
+          </Popover>
         ) : null}
-        {choosing && offers?.mode === "validity" ? (
-          <div className="mt-3 flex flex-col gap-3">
-            <label className="flex items-center justify-between gap-3 text-sm">
-              <span>{t("extendDays")}</span>
-              <input
-                type="number"
-                min={1}
-                max={365}
-                value={days}
-                className="border-border bg-background h-8 w-20 rounded-lg border px-2"
-                onChange={(event) => {
-                  const next = Number(event.target.value);
-                  if (Number.isInteger(next) && next >= 1 && next <= 365) {
-                    setDays(next);
-                  }
-                }}
-              />
-            </label>
-            <PayButtons
-              locale={locale}
-              paying={paying || quoting || offers.days !== days}
-              rub={rubPrice(offers.priceRub)}
-              usd={usdPrice(offers.priceUsd)}
-              paySbp={(price) => tCheckout("paySbp", { price })}
-              payCrypto={(price) => tCheckout("payCrypto", { price })}
-              onPay={(provider) => {
-                void pay(provider, { days });
-              }}
-            />
-            {payError ? (
-              <p className="text-destructive text-center text-sm">
-                {tCheckout("payFailed")}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </PopoverContent>
-    </Popover>
+        <Popover open={infoOpen} onOpenChange={setInfoOpen}>
+          <PopoverTrigger className={buttonVariants({ variant: "outline" })}>
+            {t("info")}
+          </PopoverTrigger>
+          <PopoverContent
+            side="bottom"
+            align="start"
+            className={popoverClassName}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  {singleCountry ? (
+                    <ReactCountryFlag
+                      countryCode={countryCode}
+                      svg
+                      style={{ width: "1.5em", height: "1.5em", flexShrink: 0 }}
+                      aria-hidden
+                    />
+                  ) : (
+                    <Globe className="size-6 shrink-0" aria-hidden />
+                  )}
+                  <PopoverTitle className="min-w-0 truncate text-base">
+                    {title}
+                  </PopoverTitle>
+                </div>
+                <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <Calendar className="size-4 shrink-0" aria-hidden />
+                  <span>{daysLabel}</span>
+                </p>
+              </div>
+              {unlimited ? (
+                <div className="flex w-28 shrink-0 flex-col items-center gap-1 text-center">
+                  <InfinityMark label={t("unlimited")} />
+                  {speedCaption ? (
+                    <p className="text-xs leading-snug">{speedCaption}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <DataGauge
+                  ratio={gaugeRatio}
+                  center={gaugeCenter}
+                  label={trigger}
+                />
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+      <p className="text-base font-semibold">{trigger}</p>
+    </div>
   );
 }
 
@@ -460,7 +470,7 @@ function PackageChoices({
 }) {
   const tCatalog = useTranslations("Catalog");
   return (
-    <div className="mt-3 flex max-h-52 flex-col gap-2 overflow-y-auto">
+    <div className="flex max-h-52 flex-col gap-2 overflow-y-auto">
       {packages.map((pkg) => {
         const data = formatByteVolume(BigInt(Math.trunc(pkg.volumeBytes)));
         const price =

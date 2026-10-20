@@ -122,6 +122,7 @@
     "topUp": "Top up",
     "extendValidity": "Extend validity",
     "extendDays": "Days",
+    "info": "Info",
     "planDetails": "Plan details",
     "usageDelayed": "Usage updates may be delayed.",
     "usageUpdatedAt": "Last updated {time}",

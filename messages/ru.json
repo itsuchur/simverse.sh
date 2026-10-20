@@ -122,6 +122,7 @@
     "topUp": "Пополнить",
     "extendValidity": "Продлить срок",
     "extendDays": "Дней",
+    "info": "Инфо",
     "planDetails": "Данные тарифа",
     "usageDelayed": "Данные об использовании могут обновляться с задержкой.",
     "usageUpdatedAt": "Обновлено {time}",
