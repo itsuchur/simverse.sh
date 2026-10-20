@@ -32,10 +32,13 @@ export function HomeLocalePicker() {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           aria-label={t("label")}
-          className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
+          className={cn(
+            buttonVariants({ size: "default", variant: "outline" }),
+            "h-9 gap-1 px-2.5 [&_svg:not([class*='size-'])]:size-5",
+          )}
         >
-          <Globe aria-hidden />
-          <ChevronDown aria-hidden className="opacity-70" />
+          <Globe aria-hidden className="size-5" />
+          <ChevronDown aria-hidden className="size-4 opacity-70" />
         </PopoverTrigger>
         <PopoverContent
           side="bottom"

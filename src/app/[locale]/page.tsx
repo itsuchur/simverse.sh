@@ -78,13 +78,10 @@ export default async function Home() {
           <h2 className="mb-8 text-center text-3xl font-extrabold tracking-tight sm:text-4xl">
             {t("faqHeading")}
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {FAQ_KEYS.map((key) => (
-              <details
-                key={key}
-                className="border-border bg-card rounded-xl border px-5 py-4 shadow-sm"
-              >
-                <summary className="cursor-pointer text-lg font-bold tracking-tight">
+              <details key={key}>
+                <summary className="cursor-pointer list-none text-lg font-bold tracking-tight [&::-webkit-details-marker]:hidden">
                   {help(`${key}Title`)}
                 </summary>
                 <p className="text-muted-foreground mt-3 text-sm leading-6">
