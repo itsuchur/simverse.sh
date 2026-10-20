@@ -34,7 +34,6 @@ import {
  */
 
 const NOTIFY_ID_TTL_SECONDS = 7 * 24 * 60 * 60;
-const ORDER_ALERT_TTL_SECONDS = 120 * 24 * 60 * 60;
 
 export const esimAccessNotificationSchema = z.object({
   notifyType: z.enum([
@@ -129,14 +128,6 @@ async function notifyBuyerUsageAlert(input: {
     return;
   }
 
-  const claimedOrder = await claimOnce(
-    `esim:usage-alert:order:${order.id.toString()}:${input.kind}`,
-    ORDER_ALERT_TTL_SECONDS,
-  );
-  if (!claimedOrder) {
-    return;
-  }
-
   const user = await db.user.findUnique({
     where: { id: order.userId },
     select: {
@@ -178,7 +169,7 @@ async function notifyBuyerUsageAlert(input: {
       replyMarkup: message.replyMarkup,
     });
   } catch (error) {
-    // Prefer a missed alert over spam: order claim is not released.
+    // notifyId is already claimed; same-id retries will not re-send.
     Sentry.captureException(error, {
       tags: { component: "telegram", reason: "usage_alert_failed" },
       extra: { orderId: order.id.toString(), kind: input.kind },
