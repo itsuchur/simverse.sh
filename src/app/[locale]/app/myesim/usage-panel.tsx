@@ -29,6 +29,18 @@ import type { MyEsimOrder } from "./myesim-list";
 
 const DAY_MS = 86_400_000;
 
+const cardActionButtonClassName = buttonVariants({
+  variant: "outline",
+  className: "shadow-md",
+});
+
+function extensionDays(value: string) {
+  if (!/^\d{1,3}$/.test(value)) return null;
+  const next = Number(value);
+  if (next < 1 || next > 365) return null;
+  return next;
+}
+
 type PanelFocus = Extract<
   LifecycleFocus,
   { kind: "remaining" | "usageUnavailable" | "exhausted" }
@@ -165,7 +177,8 @@ export function UsagePanel({
   const usagePair = bytePair(order);
   const [infoOpen, setInfoOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
-  const [days, setDays] = useState(7);
+  const [daysText, setDaysText] = useState("7");
+  const days = extensionDays(daysText);
   const [offers, setOffers] = useState<TopupOffers | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
@@ -173,6 +186,7 @@ export function UsagePanel({
   const [quoting, setQuoting] = useState(false);
 
   useEffect(() => {
+    if (days === null) return;
     const controller = new AbortController();
     const handle = window.setTimeout(() => {
       setQuoting(true);
@@ -318,7 +332,7 @@ export function UsagePanel({
               if (!next) setPayError(false);
             }}
           >
-            <PopoverTrigger className={buttonVariants({ variant: "outline" })}>
+            <PopoverTrigger className={cardActionButtonClassName}>
               {offers.mode === "validity" ? t("extendValidity") : t("topUp")}
             </PopoverTrigger>
             <PopoverContent
@@ -349,31 +363,30 @@ export function UsagePanel({
                   <label className="flex items-center justify-between gap-3 text-sm">
                     <span>{t("extendDays")}</span>
                     <input
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={days}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={3}
+                      value={daysText}
                       className="border-border bg-background h-8 w-20 rounded-lg border px-2"
                       onChange={(event) => {
-                        const next = Number(event.target.value);
-                        if (
-                          Number.isInteger(next) &&
-                          next >= 1 &&
-                          next <= 365
-                        ) {
-                          setDays(next);
+                        const next = event.target.value;
+                        if (next === "" || /^\d{1,3}$/.test(next)) {
+                          setDaysText(next);
                         }
                       }}
                     />
                   </label>
                   <PayButtons
                     locale={locale}
-                    paying={paying || quoting || offers.days !== days}
+                    paying={
+                      paying || quoting || days === null || offers.days !== days
+                    }
                     rub={rubPrice(offers.priceRub)}
                     usd={usdPrice(offers.priceUsd)}
                     paySbp={(price) => tCheckout("paySbp", { price })}
                     payCrypto={(price) => tCheckout("payCrypto", { price })}
                     onPay={(provider) => {
+                      if (days === null) return;
                       void pay(provider, { days });
                     }}
                   />
@@ -388,7 +401,7 @@ export function UsagePanel({
           </Popover>
         ) : null}
         <Popover open={infoOpen} onOpenChange={setInfoOpen}>
-          <PopoverTrigger className={buttonVariants({ variant: "outline" })}>
+          <PopoverTrigger className={cardActionButtonClassName}>
             {t("info")}
           </PopoverTrigger>
           <PopoverContent
