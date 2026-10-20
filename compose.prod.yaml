@@ -220,7 +220,7 @@ services:
       - egress
 
   postgres:
-    image: postgres:18.4
+    image: postgres:18.6
     container_name: postgres
     restart: unless-stopped
     environment:
@@ -244,7 +244,7 @@ services:
       - docker-volume-backup.exec-pre=sh -c 'pg_dump -U ${POSTGRES_USER} -d ${POSTGRES_DB} -F c -f /dumps/${POSTGRES_DB}-$$(date +%Y%m%d-%H%M%S).dump && pg_dump -U ${POSTGRES_USER} -d strapi -F c -f /dumps/strapi-$$(date +%Y%m%d-%H%M%S).dump && find /dumps -name "*.dump" -mtime +7 -delete'
 
   backup:
-    image: offen/docker-volume-backup:v2
+    image: offen/docker-volume-backup:v2.49.2
     container_name: backup
     restart: unless-stopped
     environment:
@@ -265,7 +265,7 @@ services:
       - egress
 
   redis:
-    image: redis:8.8.1
+    image: redis:8.8.3
     container_name: redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
@@ -282,7 +282,7 @@ services:
       - internal
 
   redis-init:
-    image: redis:8.8.1
+    image: redis:8.8.3
     container_name: redis-init
     restart: "no"
     depends_on:
