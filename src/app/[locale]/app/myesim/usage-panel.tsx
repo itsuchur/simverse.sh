@@ -323,6 +323,7 @@ export function UsagePanel({
 
   return (
     <div className="flex flex-col gap-2">
+      <p className="text-base font-semibold">{trigger}</p>
       <div className="flex flex-wrap gap-2">
         {offers && offers.mode !== "none" ? (
           <Popover
@@ -449,7 +450,6 @@ export function UsagePanel({
           </PopoverContent>
         </Popover>
       </div>
-      <p className="text-base font-semibold">{trigger}</p>
     </div>
   );
 }
