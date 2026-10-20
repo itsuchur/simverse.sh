@@ -3,9 +3,71 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { env } from "~/env";
+import { z } from "zod";
 
 const XHUB_API_BASE = "https://api.x-hub.online/api/v1";
 const WEBHOOK_MAX_AGE_MS = 5 * 60_000;
+
+const refundSchema = z.object({
+  id: z.string().min(1),
+  payment_id: z.string().min(1),
+  amount_rub: z.string().regex(/^\d+\.\d{2}$/),
+  status: z.enum([
+    "requested",
+    "executing",
+    "completed",
+    "rejected",
+    "cancelled",
+    "failed",
+    "reversed",
+  ]),
+});
+
+export type XhubRefund = z.infer<typeof refundSchema>;
+
+async function xhubRefundRequest(
+  path: string,
+  init?: RequestInit,
+): Promise<XhubRefund> {
+  if (!xhubConfigured()) throw new Error("xhub_not_configured");
+  const response = await fetch(`${XHUB_API_BASE}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Api-Key": env.XHUB_API_KEY!,
+      "X-Api-Secret": env.XHUB_API_SECRET!,
+      ...init?.headers,
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) {
+    // Do not log response bodies: the status and operation identify the failure.
+    throw new Error(`X-Hub refund request failed: HTTP ${response.status}`);
+  }
+  return refundSchema.parse(await response.json());
+}
+
+/** Full remaining refund. Reuse the persisted refund UUID on every retry. */
+export function createXhubRefund(input: {
+  paymentId: string;
+  orderUuid: string;
+  idempotencyKey: string;
+}): Promise<XhubRefund> {
+  return xhubRefundRequest("/refunds", {
+    method: "POST",
+    headers: { "Idempotency-Key": input.idempotencyKey },
+    body: JSON.stringify({
+      payment_id: input.paymentId,
+      external_id: input.orderUuid,
+      reason:
+        "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
+    }),
+  });
+}
+
+export function getXhubRefund(refundId: string): Promise<XhubRefund> {
+  return xhubRefundRequest(`/refunds/${encodeURIComponent(refundId)}`);
+}
 
 export type XhubPaymentMethod = "sbp" | "card";
 
@@ -121,9 +183,7 @@ export async function createXhubPayment(input: {
     .catch(() => null)) as XhubCreateResponse | null;
   if (!response.ok || !payload?.id || !payload.payment_url) {
     const detail =
-      payload?.error?.message ??
-      payload?.error?.code ??
-      response.statusText;
+      payload?.error?.message ?? payload?.error?.code ?? response.statusText;
     throw new Error(`X-Hub payment failed: ${detail}`);
   }
 

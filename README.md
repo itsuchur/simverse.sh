@@ -177,3 +177,29 @@ docker compose -f compose.prod.yaml exec postgres \
 - The backup service runs daily at 03:00, uploads `pg-backup-*.tar.gz` to S3, and retains archives for 14 days.
 
 Rollback: check out the previous git SHA, run `docker compose -f compose.prod.yaml up -d --build`. Reverse a Prisma migration only if you explicitly choose to; do not treat that as the default rollback.
+
+
+## Unfulfillable top-up refunds
+
+Active checkout providers are Trybit and X-Hub. Top-up checkout is unavailable
+within 16 minutes of the stored expiry time (the invoice reuse window plus a
+supplier-request margin). Payments arriving after the parent profile becomes
+unavailable are taken out of supplier recovery and sent to refund handling.
+
+X-Hub uses its [refund API](https://docs.x-hub.online/payments/refunds/) with a
+persisted, separate `payment_refund_key`. Apply migration
+`20261021120000_add_payment_refund_key` before running the new app or poller.
+The merchant account must have the refund endpoint enabled by X-Hub; a 404 is
+reported to Sentry for manual handling. Orders stay `refund_pending` and payments
+stay `paid` until the refund is confirmed. The existing X-Hub webhook endpoint
+handles `refund.completed`, `refund.rejected`, `refund.failed`, and
+`refund.reversed`; the recovery worker also polls pending refunds.
+
+An unavailable/failed refund becomes `refund_required` and produces a Sentry
+error tagged `reason: topup_refund_failed`, with the order UUID, payment ID,
+refund ID/key, amount in minor units, and currency. This includes Trybit: its
+documented cancellation method only cancels unpaid invoices, while a payout
+needs a separate API key and a verified recipient wallet that this app does
+not store. Resolve these cases manually; `refund_required` does not mean money
+was returned. An uncertain earlier supplier top-up also requires manual
+reconciliation to avoid refunding a successfully delivered top-up.

@@ -143,6 +143,8 @@ model Order {
   paymentChargeId     String? @map("payment_charge_id")
   paymentStatus       String  @default("pending") @map("payment_status")
   paymentRefundId     String? @map("payment_refund_id")
+  /// Separate, durable idempotency key for refund creation (never the payment key).
+  paymentRefundKey    String  @default(dbgenerated("gen_random_uuid()")) @map("payment_refund_key") @db.Uuid
   paymentChargebackId String? @map("payment_chargeback_id")
   refundedAmount      BigInt? @map("refunded_amount")
 

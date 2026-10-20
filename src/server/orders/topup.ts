@@ -9,6 +9,7 @@ import {
   type TopupPackageOffer,
 } from "~/lib/topup-offer";
 import { db } from "~/server/db";
+import { DRAFT_TTL_MS } from "~/server/orders/draft";
 import {
   ESIMACCESS_SUPPLIER,
   fetchEsimAccessTopupPackages,
@@ -19,6 +20,9 @@ import {
   type EsimAccessPackage,
   type EsimAccessTopupPackage,
 } from "~/server/suppliers/esimaccess/packages";
+
+// Keep a full invoice window plus a supplier-request margin before expiry.
+export const TOPUP_CHECKOUT_MIN_VALIDITY_MS = DRAFT_TTL_MS + 60_000;
 
 const TOPUP_BLOCKED_STATUSES = new Set([
   "USED_EXPIRED",
@@ -62,7 +66,10 @@ function topupAllowed(
   if (order.esimStatus && TOPUP_BLOCKED_STATUSES.has(order.esimStatus)) {
     return false;
   }
-  if (order.expiresAt && order.expiresAt.getTime() <= now.getTime())
+  if (
+    order.expiresAt &&
+    order.expiresAt.getTime() <= now.getTime() + TOPUP_CHECKOUT_MIN_VALIDITY_MS
+  )
     return false;
   return true;
 }

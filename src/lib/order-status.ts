@@ -4,6 +4,9 @@ export const orderStatus = {
   ordering: "ordering",
   issued: "issued",
   failed: "failed",
+  refundPending: "refund_pending",
+  refundRequired: "refund_required",
+  refunded: "refunded",
 } as const;
 
 export const paymentStatus = {

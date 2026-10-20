@@ -52,6 +52,7 @@ export type FakeOrder = {
   paymentStatus: string;
   paymentChargeId: string | null;
   paymentRefundId: string | null;
+  paymentRefundKey: string;
   paymentChargebackId: string | null;
   refundedAmount: bigint | null;
   status: string;
@@ -169,6 +170,7 @@ function orderDefaults(): Omit<
     paymentStatus: "pending",
     paymentChargeId: null,
     paymentRefundId: null,
+    paymentRefundKey: crypto.randomUUID(),
     paymentChargebackId: null,
     refundedAmount: null,
     status: "created",
@@ -223,9 +225,7 @@ class FakeDb {
     this.nextWebhookLogId = 1n;
   }
 
-  seedUser(
-    user: Partial<FakeUser> & { id: string },
-  ): FakeUser {
+  seedUser(user: Partial<FakeUser> & { id: string }): FakeUser {
     const record: FakeUser = {
       telegramId: null,
       languageCode: null,

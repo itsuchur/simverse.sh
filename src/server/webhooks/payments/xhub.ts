@@ -9,6 +9,18 @@ import {
   markXhubRefunded,
 } from "~/server/orders/fulfill";
 import { verifyXhubWebhookSignature } from "~/server/payments/xhub";
+import { syncXhubTopupRefund } from "~/server/orders/topup-refund";
+
+const refundEventSchema = z.object({
+  event: z.enum([
+    "refund.completed",
+    "refund.rejected",
+    "refund.failed",
+    "refund.reversed",
+  ]),
+  payment_id: z.string().min(1),
+  refund_id: z.string().min(1),
+});
 
 const paymentStatusChangedSchema = z.object({
   event: z.literal("payment.status_changed"),
@@ -55,6 +67,23 @@ export const handleXhubWebhook = withWebhookLogging(
 
     const unavailable = await persist();
     if (unavailable) return unavailable;
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "event" in payload &&
+      typeof payload.event === "string" &&
+      payload.event.startsWith("refund.")
+    ) {
+      const parsed = refundEventSchema.safeParse(payload);
+      if (!parsed.success)
+        return Response.json({ error: "Invalid body" }, { status: 400 });
+      await syncXhubTopupRefund({
+        paymentId: parsed.data.payment_id,
+        refundId: parsed.data.refund_id,
+      });
+      return Response.json({ ok: true });
+    }
 
     if (
       !payload ||

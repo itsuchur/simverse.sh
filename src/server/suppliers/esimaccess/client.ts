@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac, randomUUID } from "node:crypto";
+import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
 
 export const ESIMACCESS_API_BASE = "https://api.esimaccess.com/api/v1/open";
 
@@ -67,7 +68,8 @@ export async function esimAccessPost<T>(
   const envelope = (await response.json()) as EsimAccessEnvelope<T>;
 
   if (!envelope.success) {
-    throw new Error(
+    throw new EsimAccessApiError(
+      envelope.errorCode ?? "unknown",
       `eSIM Access ${endpoint} error: ${envelope.errorCode ?? "unknown"} ${envelope.errorMsg ?? ""}`.trim(),
     );
   }

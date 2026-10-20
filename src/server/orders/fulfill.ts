@@ -25,6 +25,11 @@ import { projectEsimSnapshot } from "~/lib/esim-lifecycle";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
 import { captureServerEvent } from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
+import {
+  processTopupRefund,
+  requestTopupRefund,
+} from "~/server/orders/topup-refund";
+import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
@@ -334,6 +339,10 @@ async function placeSupplierTopup(order: {
   topupOfOrderId: bigint | null;
   topupPeriodDays: number | null;
 }) {
+  if (order.status === orderStatus.refundPending) {
+    await processTopupRefund(order.id);
+    return;
+  }
   if (order.status === orderStatus.issued || order.topupOfOrderId === null) {
     return;
   }
@@ -342,9 +351,38 @@ async function placeSupplierTopup(order: {
   if (!claimed) return;
 
   try {
-    const parent = await db.order.findUnique({
+    let parent = await db.order.findUnique({
       where: { id: order.topupOfOrderId },
     });
+    if (parent?.userId !== order.userId || !parent.esimIccid) {
+      await requestTopupRefund(order.id, order.status !== orderStatus.paid);
+      return;
+    }
+
+    let esimTranNo: string | undefined;
+    if (parent.resellerOrderId) {
+      const parentIccid = parent.esimIccid;
+      const profiles = await queryEsimAccessProfiles(parent.resellerOrderId);
+      const profile = profiles.find((row) => row.iccid === parentIccid);
+      if (!profile) throw new Error("topup_parent_profile_missing");
+      esimTranNo = profile.esimTranNo;
+      // Refresh before deciding expiry: a prior timed-out top-up may already
+      // have extended this profile at the supplier.
+      const snapshot = projectEsimSnapshot(parent, {
+        source: "query",
+        observedAt: new Date(),
+        esimStatus: profile.esimStatus,
+        smdpStatus: profile.smdpStatus,
+        activateTime: profile.activateTime,
+        expiredTime: profile.expiredTime,
+        totalVolume: profile.totalVolume,
+        orderUsage: profile.orderUsage,
+      });
+      parent = await db.order.update({
+        where: { id: parent.id },
+        data: snapshot,
+      });
+    }
     const parentStatus = parent?.esimStatus;
     const expiredAt = parent?.expiresAt?.getTime();
     if (
@@ -353,24 +391,15 @@ async function placeSupplierTopup(order: {
       (parentStatus != null && TOPUP_BLOCKED_STATUSES.has(parentStatus)) ||
       (expiredAt !== undefined && expiredAt <= Date.now())
     ) {
-      throw new Error("topup_parent_unavailable");
+      await requestTopupRefund(order.id, order.status !== orderStatus.paid);
+      return;
     }
     if (order.costAmount === null) {
       throw new Error("topup_amount_missing");
     }
 
-    let esimTranNo: string | undefined;
-    if (parent.resellerOrderId) {
-      const profiles = await queryEsimAccessProfiles(parent.resellerOrderId);
-      const profile =
-        profiles.find((row) => row.iccid === parent.esimIccid) ?? profiles[0];
-      esimTranNo = profile?.esimTranNo;
-    }
-
     const result = await topUpEsimAccessProfile({
-      ...(esimTranNo
-        ? { esimTranNo }
-        : { iccid: parent.esimIccid }),
+      ...(esimTranNo ? { esimTranNo } : { iccid: parent.esimIccid }),
       packageCode: order.resellerPlanId,
       transactionId: order.orderUuid,
       amount: Number(order.costAmount),
@@ -416,6 +445,12 @@ async function placeSupplierTopup(order: {
       },
     });
   } catch (error) {
+    if (error instanceof EsimAccessApiError && error.code === "200002") {
+      // The profile can expire after our query, while the top-up is in flight.
+      // On a retry, an earlier unknown outcome still needs reconciliation.
+      await requestTopupRefund(order.id, order.status !== orderStatus.paid);
+      return;
+    }
     Sentry.captureException(error, {
       level: "fatal",
       tags: { component: "esimaccess", reason: "topup_failed" },
@@ -1052,7 +1087,14 @@ export async function recoverPendingOrders(userId?: string) {
         },
         {
           topupOfOrderId: { not: null },
-          status: { not: orderStatus.issued },
+          status: {
+            in: [
+              orderStatus.paid,
+              orderStatus.ordering,
+              orderStatus.failed,
+              orderStatus.refundPending,
+            ],
+          },
         },
       ],
     },

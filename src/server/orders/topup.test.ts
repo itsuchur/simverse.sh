@@ -27,8 +27,7 @@ void mock.module("~/server/suppliers/esimaccess/packages", () => ({
       iccid,
     });
     const obj = payload.obj as
-      | { packageList?: Array<Record<string, unknown>> }
-      | undefined;
+      { packageList?: Array<Record<string, unknown>> } | undefined;
     return obj?.packageList ?? [];
   },
   getEsimAccessPackageByCode,
@@ -37,9 +36,11 @@ void mock.module("~/server/suppliers/esimaccess/packages", () => ({
   retailPriceToUsd,
 }));
 
-const { listTopupOffers, prepareTopupPurchase } = await import(
-  "~/server/orders/topup"
-);
+const {
+  listTopupOffers,
+  prepareTopupPurchase,
+  TOPUP_CHECKOUT_MIN_VALIDITY_MS,
+} = await import("~/server/orders/topup");
 
 const DAY_PASS_PKG = {
   packageCode: "PXP1A9DQ8",
@@ -269,4 +270,29 @@ describe("prepareTopupPurchase", () => {
       }),
     ).toBe("invalid");
   });
+});
+
+describe("top-up checkout expiry window", () => {
+  for (const remainingMs of [-1, 0, TOPUP_CHECKOUT_MIN_VALIDITY_MS - 1]) {
+    test(`does not offer or invoice a top-up with ${remainingMs}ms remaining`, async () => {
+      const parent = seedParent({
+        expiresAt: new Date(Date.now() + remainingMs),
+      });
+      expect(
+        await listTopupOffers({
+          userId: "user-1",
+          orderUuid: parent.orderUuid,
+        }),
+      ).toEqual({ mode: "none" });
+      expect(
+        await prepareTopupPurchase({
+          userId: "user-1",
+          orderUuid: parent.orderUuid,
+          packageCode: "TR_1_Daily_1Mbps",
+          days: 7,
+        }),
+      ).toBe("unavailable");
+      expect(esimAccessPost).not.toHaveBeenCalled();
+    });
+  }
 });
