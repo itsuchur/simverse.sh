@@ -10,6 +10,7 @@ import { PostHogPageView } from "./_components/posthog-page-view";
 import { PostHogProvider } from "./_components/posthog-provider";
 import { StartParamRouter } from "./_components/start-param-router";
 import { getSession } from "~/server/better-auth/server";
+import { redirectToPreferredLocale } from "~/server/preferred-locale";
 
 // The consent screen picks its language from Telegram initData on the
 // client (before any session or locale preference exists), so it needs the
@@ -30,6 +31,9 @@ export default async function MiniAppLayout({
   // refreshed and renders the actual content. Reading the session also makes
   // every /app route dynamic, which the catalog requires anyway.
   const session = await getSession();
+  if (session) {
+    await redirectToPreferredLocale(session.user.id);
+  }
 
   return (
     <PostHogProvider>

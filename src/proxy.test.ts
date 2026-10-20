@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { NextRequest } from "next/server";
 
+import {
+  PUBLIC_PATHNAME_HEADER,
+  PUBLIC_SEARCH_HEADER,
+} from "./i18n/preferred-locale";
 import proxy from "./proxy";
 
 function request(url: string, acceptLanguage = "en") {
@@ -21,19 +25,32 @@ function pathnameOf(header: string | null): string | null {
 
 describe("miniapp host locale routing", () => {
   test("rewrites the default locale root to the mini app", () => {
-    const response = proxy(request("https://miniapp.simverse.sh/"));
+    const response = proxy(
+      request("https://miniapp.simverse.sh/?tgWebAppStartParam=ok"),
+    );
     expect(response.headers.get("location")).toBeNull();
     expect(pathnameOf(response.headers.get("x-middleware-rewrite"))).toBe(
       "/en/app",
     );
+    expect(
+      response.headers.get(`x-middleware-request-${PUBLIC_PATHNAME_HEADER}`),
+    ).toBe("/");
+    expect(
+      response.headers.get(`x-middleware-request-${PUBLIC_SEARCH_HEADER}`),
+    ).toBe("?tgWebAppStartParam=ok");
   });
 
   test("redirects a Russian root to the public locale path", () => {
-    const response = proxy(
-      request("https://miniapp.simverse.sh/", "ru"),
-    );
+    const response = proxy(request("https://miniapp.simverse.sh/", "ru"));
     expect(response.status).toBe(307);
     expect(pathnameOf(response.headers.get("location"))).toBe("/ru");
+  });
+
+  test("remembers a non-default locale in a persistent cookie", () => {
+    const response = proxy(request("https://miniapp.simverse.sh/ru", "en"));
+    const setCookie = response.headers.get("set-cookie") ?? "";
+    expect(setCookie).toContain("NEXT_LOCALE=ru");
+    expect(setCookie.toLowerCase()).toContain("max-age=31536000");
   });
 
   test("rewrites the Russian locale root to the mini app", () => {
@@ -54,9 +71,7 @@ describe("miniapp host locale routing", () => {
   });
 
   test("strips a leaked internal prefix back to the public path", () => {
-    const response = proxy(
-      request("https://miniapp.simverse.sh/ru/app", "ru"),
-    );
+    const response = proxy(request("https://miniapp.simverse.sh/ru/app", "ru"));
     expect(response.status).toBe(308);
     expect(pathnameOf(response.headers.get("location"))).toBe("/ru");
   });
@@ -74,9 +89,7 @@ describe("miniapp host locale routing", () => {
 
 describe("other hosts", () => {
   test("rewrites the Russian dashboard root under /dashboard", () => {
-    const response = proxy(
-      request("https://dashboard.simverse.sh/ru", "ru"),
-    );
+    const response = proxy(request("https://dashboard.simverse.sh/ru", "ru"));
     expect(pathnameOf(response.headers.get("x-middleware-rewrite"))).toBe(
       "/ru/dashboard",
     );

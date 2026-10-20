@@ -1,6 +1,10 @@
 import createMiddleware from "next-intl/middleware";
 import { type NextRequest, NextResponse } from "next/server";
 
+import {
+  PUBLIC_PATHNAME_HEADER,
+  PUBLIC_SEARCH_HEADER,
+} from "./i18n/preferred-locale";
 import { routing } from "./i18n/routing";
 
 const handleI18n = createMiddleware(routing);
@@ -141,6 +145,11 @@ function prefixInternalRewrite(
 }
 
 export default function proxy(request: NextRequest) {
+  // The public URL, before the host rewrite. The mini app layout uses it to
+  // send the user back to their saved language without dropping the page.
+  request.headers.set(PUBLIC_PATHNAME_HEADER, request.nextUrl.pathname);
+  request.headers.set(PUBLIC_SEARCH_HEADER, request.nextUrl.search);
+
   const prefix = hostAppPrefix(requestHost(request));
   if (!prefix) {
     return handleI18n(request);

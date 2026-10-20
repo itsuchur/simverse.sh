@@ -1,7 +1,9 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { z } from "zod";
 
+import { localeCookie } from "~/i18n/routing";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
 
@@ -18,6 +20,13 @@ export async function updatePreferredLanguageAction(locale: string) {
   await db.user.update({
     where: { id: session.user.id },
     data: { preferredLanguage },
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(localeCookie.name, preferredLanguage, {
+    path: "/",
+    sameSite: localeCookie.sameSite,
+    maxAge: localeCookie.maxAge,
   });
 }
 
