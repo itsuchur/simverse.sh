@@ -112,12 +112,6 @@ function LifecycleNotice({
   const locale = useLocale();
   if (focus.kind === "install") return null;
 
-  const updatedAt =
-    focus.kind === "remaining" || focus.kind === "usageUnavailable"
-      ? focus.usageSyncedAt
-        ? formatTimestamp(focus.usageSyncedAt, locale)
-        : null
-      : null;
   const expiryDate =
     focus.kind === "expired" && focus.expiresAt
       ? formatTimestamp(focus.expiresAt, locale)
@@ -153,11 +147,6 @@ function LifecycleNotice({
       ) : null}
       {focus.kind === "remaining" || focus.kind === "usageUnavailable" ? (
         <p className="text-muted-foreground text-base">{t("usageDelayed")}</p>
-      ) : null}
-      {updatedAt ? (
-        <p className="text-muted-foreground text-base">
-          {t("usageUpdatedAt", { time: updatedAt })}
-        </p>
       ) : null}
     </div>
   );
@@ -237,6 +226,13 @@ function OrderCard({
   const statusBadge = esimStatusBadge(order.esimStatus, order.esimSmdpStatus);
   const lifecycle = esimLifecycleView(order);
   const purchased = purchaseCaption(order, locale);
+  const usageUpdatedAt =
+    lifecycle.focus.kind === "remaining" ||
+    lifecycle.focus.kind === "usageUnavailable"
+      ? lifecycle.focus.usageSyncedAt
+        ? formatTimestamp(lifecycle.focus.usageSyncedAt, locale)
+        : null
+      : null;
 
   return (
     <Card>
@@ -297,10 +293,19 @@ function OrderCard({
         ) : (
           <p className="text-muted-foreground text-base">{t("preparing")}</p>
         )}
-        {purchased ? (
-          <p className="text-muted-foreground text-sm">
-            {t("purchasedOn", purchased)}
-          </p>
+        {usageUpdatedAt || purchased ? (
+          <div className="flex flex-col gap-1">
+            {usageUpdatedAt ? (
+              <p className="text-muted-foreground text-sm">
+                {t("usageUpdatedAt", { time: usageUpdatedAt })}
+              </p>
+            ) : null}
+            {purchased ? (
+              <p className="text-muted-foreground text-sm">
+                {t("purchasedOn", purchased)}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </CardContent>
     </Card>

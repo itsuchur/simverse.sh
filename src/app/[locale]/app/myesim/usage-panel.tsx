@@ -6,7 +6,7 @@ import { Calendar, Globe, QrCode } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
-import { Button, buttonVariants } from "~/components/ui/button";
+import { Button } from "~/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -28,11 +28,6 @@ import {
 import type { MyEsimOrder } from "./myesim-list";
 
 const DAY_MS = 86_400_000;
-
-const cardActionButtonClassName = buttonVariants({
-  variant: "outline",
-  className: "shadow-md",
-});
 
 function extensionDays(value: string) {
   if (!/^\d{1,3}$/.test(value)) return null;
@@ -324,7 +319,7 @@ export function UsagePanel({
   return (
     <div className="flex flex-col gap-2">
       <p className="text-base font-semibold">{trigger}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex w-full flex-col gap-2">
         {offers && offers.mode !== "none" ? (
           <Popover
             open={actionOpen}
@@ -333,7 +328,9 @@ export function UsagePanel({
               if (!next) setPayError(false);
             }}
           >
-            <PopoverTrigger className={cardActionButtonClassName}>
+            <PopoverTrigger
+              render={<Button type="button" size="lg" className="w-full" />}
+            >
               {offers.mode === "validity" ? t("extendValidity") : t("topUp")}
             </PopoverTrigger>
             <PopoverContent
@@ -402,7 +399,9 @@ export function UsagePanel({
           </Popover>
         ) : null}
         <Popover open={infoOpen} onOpenChange={setInfoOpen}>
-          <PopoverTrigger className={cardActionButtonClassName}>
+          <PopoverTrigger
+            render={<Button type="button" size="lg" className="w-full" />}
+          >
             {t("info")}
           </PopoverTrigger>
           <PopoverContent
