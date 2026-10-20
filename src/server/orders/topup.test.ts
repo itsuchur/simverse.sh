@@ -20,15 +20,16 @@ const getEsimAccessPackageByCode = mock(
 void mock.module("~/server/suppliers/esimaccess/packages", () => ({
   ESIMACCESS_SUPPLIER: "esimaccess",
   fetchEsimAccessTopupPackages: async (iccid: string) => {
-    const payload = await esimAccessPost<{
-      packageList?: Array<Record<string, unknown>>;
-    }>("/package/list", {
+    const payload = await esimAccessPost("/package/list", {
       locationCode: "",
       type: "TOPUP",
       packageCode: "",
       iccid,
     });
-    return payload.obj?.packageList ?? [];
+    const obj = payload.obj as
+      | { packageList?: Array<Record<string, unknown>> }
+      | undefined;
+    return obj?.packageList ?? [];
   },
   getEsimAccessPackageByCode,
   retailPriceToRub,
