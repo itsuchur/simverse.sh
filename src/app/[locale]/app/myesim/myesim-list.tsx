@@ -69,7 +69,10 @@ function formatData(mb: number | null) {
 function formatPurchaseDate(value: string, locale: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 function purchaseCaption(order: MyEsimOrder, locale: string) {

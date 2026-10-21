@@ -159,6 +159,7 @@ export function TransactionHistory() {
                         <CardDescription>
                           {format.dateTime(purchasedAt, {
                             dateStyle: "medium",
+                            timeStyle: "short",
                           })}
                         </CardDescription>
                       </div>
