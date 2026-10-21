@@ -125,6 +125,7 @@
     "info": "Info",
     "checkUsage": "Check usage",
     "checkUsageFailed": "Couldn't check usage.",
+    "checkUsageRateLimited": "Too many checks — try again in a few minutes.",
     "planDetails": "Plan details",
     "usageDelayed": "Usage updates may be delayed.",
     "usageUpdatedAt": "Last updated {time}",

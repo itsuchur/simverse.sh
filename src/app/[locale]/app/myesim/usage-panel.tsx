@@ -162,7 +162,9 @@ export function UsagePanel({
     used: string;
   } | null>(null);
   const [checking, setChecking] = useState(false);
-  const [checkError, setCheckError] = useState(false);
+  const [checkError, setCheckError] = useState<
+    null | "failed" | "rate_limited"
+  >(null);
   const [actionOpen, setActionOpen] = useState(false);
   const [offers, setOffers] = useState<TopupOffers | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -256,7 +258,7 @@ export function UsagePanel({
 
   async function checkUsage() {
     setChecking(true);
-    setCheckError(false);
+    setCheckError(null);
     try {
       const response = await fetch("/api/myesim/usage", {
         method: "POST",
@@ -265,15 +267,20 @@ export function UsagePanel({
         body: JSON.stringify({ orderUuid: order.orderUuid }),
       });
       const body = (await response.json()) as {
+        error?: string;
         dataTotalBytes?: string;
         dataUsedBytes?: string;
       };
+      if (response.status === 429 || body.error === "rate_limited") {
+        setCheckError("rate_limited");
+        return;
+      }
       if (
         !response.ok ||
         typeof body.dataTotalBytes !== "string" ||
         typeof body.dataUsedBytes !== "string"
       ) {
-        setCheckError(true);
+        setCheckError("failed");
         return;
       }
       setCheckedUsage({
@@ -282,7 +289,7 @@ export function UsagePanel({
       });
       router.refresh();
     } catch {
-      setCheckError(true);
+      setCheckError("failed");
     } finally {
       setChecking(false);
     }
@@ -393,7 +400,7 @@ export function UsagePanel({
           open={infoOpen}
           onOpenChange={(next) => {
             setInfoOpen(next);
-            if (!next) setCheckError(false);
+            if (!next) setCheckError(null);
           }}
         >
           <PopoverTrigger
@@ -461,7 +468,9 @@ export function UsagePanel({
               </Button>
               {checkError ? (
                 <p className="text-destructive text-center text-sm">
-                  {t("checkUsageFailed")}
+                  {checkError === "rate_limited"
+                    ? t("checkUsageRateLimited")
+                    : t("checkUsageFailed")}
                 </p>
               ) : null}
             </div>
