@@ -6,7 +6,7 @@
 
 FROM oven/bun:1.4.3 AS bun
 
-FROM node:22.23.3-bookworm-slim AS build
+FROM node:22.23.4-bookworm-slim AS build
 RUN set -eux; \
   printf 'Acquire::Retries "5";\nAcquire::http::Timeout "120";\nAcquire::https::Timeout "120";\n' > /etc/apt/apt.conf.d/80-retries; \
   for attempt in 1 2 3 4 5; do \
@@ -28,7 +28,7 @@ COPY . .
 ENV NODE_ENV=production
 RUN bun run build
 
-FROM node:22.23.3-bookworm-slim
+FROM node:22.23.4-bookworm-slim
 RUN set -eux; \
   printf 'Acquire::Retries "5";\nAcquire::http::Timeout "120";\nAcquire::https::Timeout "120";\n' > /etc/apt/apt.conf.d/80-retries; \
   for attempt in 1 2 3 4 5; do \

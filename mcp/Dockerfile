@@ -1,5 +1,11 @@
 FROM python:3.14.8-slim-bookworm
 
+# Refresh system CA bundle (eMudhra / emSign distrust in bookworm-security).
+RUN set -eux; \
+  apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /usr/local/bin/uv
 
 WORKDIR /app

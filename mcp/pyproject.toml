@@ -3,6 +3,7 @@ name = "mcp-simverse-sh"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "certifi>=2026.10.19",
     "fastmcp>=3.4.7",
     "httpx>=0.28.1",
     "pydantic>=2.13.4",
