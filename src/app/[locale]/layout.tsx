@@ -4,8 +4,12 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 
+import {
+  MARKETING_CLIENT_NAMESPACES,
+  pickMessages,
+} from "~/i18n/client-messages";
 import { routing } from "~/i18n/routing";
 import { TRPCReactProvider } from "~/trpc/react";
 
@@ -32,6 +36,10 @@ export default async function LocaleLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
+  const messages = pickMessages(
+    await getMessages(),
+    MARKETING_CLIENT_NAMESPACES,
+  );
 
   return (
     <html lang={locale} className={`${geist.variable} font-sans antialiased`}>
@@ -42,7 +50,7 @@ export default async function LocaleLayout({
         />
       </head>
       <body>
-        <NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}>
           <TRPCReactProvider>{children}</TRPCReactProvider>
         </NextIntlClientProvider>
       </body>

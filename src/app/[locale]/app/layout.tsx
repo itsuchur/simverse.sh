@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
 
 import enMessages from "../../../../messages/en.json";
 import ruMessages from "../../../../messages/ru.json";
@@ -35,22 +37,28 @@ export default async function MiniAppLayout({
     await redirectToPreferredLocale(session.user.id);
   }
 
+  const messages = await getMessages();
+
   return (
-    <PostHogProvider>
-      <PostHogPageView />
-      <MiniAppChrome showNav={Boolean(session)}>
-        {session ? children : <AuthGate consentMessages={consentMessages} />}
-        {session ? <StartParamRouter /> : null}
-        {session ? (
-          <PostHogIdentify
-            telegramId={session.user.telegramId ?? null}
-            languageCode={session.user.languageCode ?? null}
-            isPremium={Boolean(session.user.isPremium)}
-            fingerprint={session.user.fingerprint ?? null}
-          />
-        ) : null}
-        {session && !session.user.fingerprint ? <FingerprintCollector /> : null}
-      </MiniAppChrome>
-    </PostHogProvider>
+    <NextIntlClientProvider messages={messages}>
+      <PostHogProvider>
+        <PostHogPageView />
+        <MiniAppChrome showNav={Boolean(session)}>
+          {session ? children : <AuthGate consentMessages={consentMessages} />}
+          {session ? <StartParamRouter /> : null}
+          {session ? (
+            <PostHogIdentify
+              telegramId={session.user.telegramId ?? null}
+              languageCode={session.user.languageCode ?? null}
+              isPremium={Boolean(session.user.isPremium)}
+              fingerprint={session.user.fingerprint ?? null}
+            />
+          ) : null}
+          {session && !session.user.fingerprint ? (
+            <FingerprintCollector />
+          ) : null}
+        </MiniAppChrome>
+      </PostHogProvider>
+    </NextIntlClientProvider>
   );
 }
