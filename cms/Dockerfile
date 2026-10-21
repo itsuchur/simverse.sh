@@ -3,18 +3,33 @@
 # Bun binary is glibc; use Debian Node so `COPY --from=oven/bun` actually runs.
 # Keep Debian mirrors on HTTP. node:*-slim has no CA bundle, so apt over HTTPS
 # fails the handshake. Archive signatures still authenticate the indexes.
+#
+# Docker Hub node:22.23.4-* tags were empty stubs (no linux/amd64) on 2026-10-21.
+# Use the last good bookworm-slim base and overlay Node 22.23.4 from nodejs.org.
 
 FROM oven/bun:1.4.3 AS bun
 
-FROM node:22.23.4-bookworm-slim AS build
+FROM node:22.23.3-bookworm-slim AS build
+ARG NODE_VERSION=22.23.4
 RUN set -eux; \
   printf 'Acquire::Retries "5";\nAcquire::http::Timeout "120";\nAcquire::https::Timeout "120";\n' > /etc/apt/apt.conf.d/80-retries; \
   for attempt in 1 2 3 4 5; do \
     if apt-get update \
-      && apt-get install -y --no-install-recommends ca-certificates git python3 make g++; then break; fi; \
+      && apt-get install -y --no-install-recommends ca-certificates curl xz-utils git python3 make g++; then break; fi; \
     if [ "$attempt" = "5" ]; then exit 1; fi; \
     sleep $((attempt * 5)); \
   done; \
+  arch="$(dpkg --print-architecture)"; \
+  case "$arch" in \
+    amd64) node_arch=x64 ;; \
+    arm64) node_arch=arm64 ;; \
+    *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+  esac; \
+  curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
+    | tar -xJ -C /usr/local --strip-components=1; \
+  node --version; \
+  npm --version; \
+  apt-get purge -y --auto-remove curl xz-utils; \
   rm -rf /var/lib/apt/lists/*
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
@@ -28,15 +43,27 @@ COPY . .
 ENV NODE_ENV=production
 RUN bun run build
 
-FROM node:22.23.4-bookworm-slim
+FROM node:22.23.3-bookworm-slim
+ARG NODE_VERSION=22.23.4
 RUN set -eux; \
   printf 'Acquire::Retries "5";\nAcquire::http::Timeout "120";\nAcquire::https::Timeout "120";\n' > /etc/apt/apt.conf.d/80-retries; \
   for attempt in 1 2 3 4 5; do \
     if apt-get update \
-      && apt-get install -y --no-install-recommends ca-certificates wget libvips42 gosu; then break; fi; \
+      && apt-get install -y --no-install-recommends ca-certificates curl xz-utils wget libvips42 gosu; then break; fi; \
     if [ "$attempt" = "5" ]; then exit 1; fi; \
     sleep $((attempt * 5)); \
   done; \
+  arch="$(dpkg --print-architecture)"; \
+  case "$arch" in \
+    amd64) node_arch=x64 ;; \
+    arm64) node_arch=arm64 ;; \
+    *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+  esac; \
+  curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
+    | tar -xJ -C /usr/local --strip-components=1; \
+  node --version; \
+  npm --version; \
+  apt-get purge -y --auto-remove curl xz-utils; \
   rm -rf /var/lib/apt/lists/*
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 ENV NODE_ENV=production
