@@ -16,7 +16,7 @@ import {
 import { useRouter } from "~/i18n/navigation";
 import {
   formatByteVolume,
-  isActivationConfirmed,
+  remainingValidityDays,
   type LifecycleFocus,
 } from "~/lib/esim-lifecycle";
 import {
@@ -31,8 +31,6 @@ import {
 } from "~/server/suppliers/esimaccess/parse-package-name";
 
 import type { MyEsimOrder } from "./myesim-list";
-
-const DAY_MS = 86_400_000;
 
 type PanelFocus = Extract<
   LifecycleFocus,
@@ -60,16 +58,6 @@ function bytePair(totalSource: string | null, usedSource: string | null) {
   } catch {
     return null;
   }
-}
-
-function dayCount(order: MyEsimOrder) {
-  if (isActivationConfirmed(order) && order.expiresAt) {
-    const end = new Date(order.expiresAt).getTime();
-    if (Number.isFinite(end)) {
-      return Math.max(0, Math.ceil((end - Date.now()) / DAY_MS));
-    }
-  }
-  return order.validityDays;
 }
 
 function DataGauge({
@@ -219,7 +207,9 @@ export function UsagePanel({
   const title = singleCountry
     ? countryDisplayName(countryCode, locale)
     : order.packageName;
-  const daysLabel = tCatalog("duration.day", { count: dayCount(order) });
+  const daysLabel = tCatalog("duration.day", {
+    count: remainingValidityDays(order),
+  });
 
   let speedCaption: string | null = null;
   if (unlimited) {

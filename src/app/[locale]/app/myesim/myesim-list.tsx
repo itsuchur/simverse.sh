@@ -13,7 +13,12 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { useRouter } from "~/i18n/navigation";
-import { esimLifecycleView, type LifecycleFocus } from "~/lib/esim-lifecycle";
+import {
+  esimLifecycleView,
+  formatByteVolume,
+  remainingValidityDays,
+  type LifecycleFocus,
+} from "~/lib/esim-lifecycle";
 import {
   isStarsOrderPrice,
   orderPriceMajorUnits,
@@ -26,6 +31,7 @@ import {
   detectEsimInstallPlatform,
   type EsimInstallPlatform,
 } from "~/lib/telegram-webapp";
+import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
 
 import { InstallationGuide } from "./installation-guide";
 import { UsagePanel } from "./usage-panel";
@@ -64,6 +70,29 @@ function formatData(mb: number | null) {
     return Number.isInteger(gb) ? `${gb} GB` : `${gb.toFixed(1)} GB`;
   }
   return `${mb} MB`;
+}
+
+function remainingByteVolume(
+  totalSource: string | null,
+  usedSource: string | null,
+) {
+  if (!totalSource || usedSource === null) return null;
+  try {
+    const total = BigInt(totalSource);
+    const used = BigInt(usedSource);
+    const remaining = total - used;
+    return formatByteVolume(remaining < 0n ? 0n : remaining);
+  } catch {
+    return null;
+  }
+}
+
+function orderSummaryData(order: MyEsimOrder, unlimitedLabel: string) {
+  if (isFupPackageName(order.packageName)) return unlimitedLabel;
+  return (
+    remainingByteVolume(order.dataTotalBytes, order.dataUsedBytes) ??
+    formatData(order.dataAmountMb)
+  );
 }
 
 function formatPurchaseDate(value: string, locale: string) {
@@ -219,8 +248,10 @@ function OrderCard({
   const tStatus = useTranslations("EsimStatus");
   const tCatalog = useTranslations("Catalog");
   const locale = useLocale();
-  const data = formatData(order.dataAmountMb);
-  const duration = tCatalog("duration.day", { count: order.validityDays });
+  const data = orderSummaryData(order, t("unlimited"));
+  const duration = tCatalog("duration.day", {
+    count: remainingValidityDays(order),
+  });
   const countryCode = order.countryCode;
   const title =
     countryCode && !countryCode.includes(",")

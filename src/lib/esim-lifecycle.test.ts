@@ -7,6 +7,7 @@ import {
   needsActivationFallback,
   parseProviderTime,
   projectEsimSnapshot,
+  remainingValidityDays,
   type ActivationFallbackOrder,
   type EsimSnapshotState,
   type LifecycleOrder,
@@ -390,5 +391,32 @@ describe("needsActivationFallback", () => {
         new Date(observedAt.getTime() + ACTIVATION_CHECK_INTERVAL_MS),
       ),
     ).toBe(true);
+  });
+});
+
+describe("remainingValidityDays", () => {
+  test("returns package validity before activation", () => {
+    expect(
+      remainingValidityDays({
+        esimStatus: null,
+        firstActivatedAt: null,
+        dataUsedBytes: null,
+        expiresAt: null,
+        validityDays: 7,
+      }),
+    ).toBe(7);
+  });
+
+  test("counts remaining days from expiresAt once activated", () => {
+    const expiresAt = new Date(Date.now() + 2.5 * 86_400_000).toISOString();
+    expect(
+      remainingValidityDays({
+        esimStatus: "IN_USE",
+        firstActivatedAt: observedAt.toISOString(),
+        dataUsedBytes: null,
+        expiresAt,
+        validityDays: 7,
+      }),
+    ).toBe(3);
   });
 });

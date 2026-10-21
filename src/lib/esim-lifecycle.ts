@@ -152,6 +152,27 @@ export function isActivationConfirmed(order: ActivationEvidence): boolean {
   return order.esimStatus === "USED_UP" || order.esimStatus === "USED_EXPIRED";
 }
 
+const DAY_MS = 86_400_000;
+
+/** Remaining calendar days until expiry when activated; otherwise package validity. */
+export function remainingValidityDays(
+  order: ActivationEvidence & {
+    expiresAt: Date | string | null;
+    validityDays: number;
+  },
+): number {
+  if (isActivationConfirmed(order) && order.expiresAt) {
+    const end =
+      order.expiresAt instanceof Date
+        ? order.expiresAt.getTime()
+        : new Date(order.expiresAt).getTime();
+    if (Number.isFinite(end)) {
+      return Math.max(0, Math.ceil((end - Date.now()) / DAY_MS));
+    }
+  }
+  return order.validityDays;
+}
+
 export function hasAmbiguousInstallSignal(order: {
   esimStatus: string | null;
   esimSmdpStatus: string | null;
