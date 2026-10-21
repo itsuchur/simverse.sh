@@ -66,11 +66,11 @@ export default async function Home() {
           {t("cta")}
         </a>
         <Image
-          src="/miniapp.png"
+          src={locale === "ru" ? "/miniappRU.png" : "/miniappEN.png"}
           alt={t("screenshotAlt")}
           width={390}
           height={800}
-          priority
+          preload
           unoptimized
           className="mt-12 h-auto w-full max-w-sm drop-shadow-lg"
         />
