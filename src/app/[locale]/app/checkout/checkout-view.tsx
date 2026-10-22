@@ -128,9 +128,11 @@ function DestinationHeader({
 export function CheckoutView({
   plan,
   cartRevision,
+  supportTopUpType,
 }: {
   plan: CartPlan;
   cartRevision: string;
+  supportTopUpType: number | undefined;
 }) {
   const t = useTranslations("Checkout");
   const tCatalog = useTranslations("Catalog");
@@ -288,6 +290,18 @@ export function CheckoutView({
         <div className="flex items-baseline justify-between gap-6">
           <dt className="text-muted-foreground shrink-0">{t("validity")}</dt>
           <dd className="font-medium">{duration}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-6">
+          <dt className="text-muted-foreground">{t("dataTopUps")}</dt>
+          <dd className="text-right font-medium">
+            {t(supportTopUpType === 2 ? "supported" : "notSupported")}
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-6">
+          <dt className="text-muted-foreground">{t("validityExtension")}</dt>
+          <dd className="text-right font-medium">
+            {t(supportTopUpType === 3 ? "supported" : "notSupported")}
+          </dd>
         </div>
       </dl>
 
