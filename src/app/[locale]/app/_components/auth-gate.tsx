@@ -235,17 +235,23 @@ function ConsentScreen({
         </h1>
         <p className="mt-2 text-lg leading-relaxed">{t("subtitle")}</p>
         <ul className="mt-[clamp(0.75rem,2.5dvh,1.5rem)] w-fit max-w-full list-disc space-y-[clamp(0.25rem,1dvh,0.75rem)] pl-5 text-left text-lg leading-relaxed [overflow-wrap:anywhere]">
-          {(["feature1", "feature2", "feature3", "feature4"] as const).map(
-            (key) => (
-              <li key={key}>
-                {t.rich(key, {
-                  bold: (chunks) => (
-                    <strong className="font-bold">{chunks}</strong>
-                  ),
-                })}
-              </li>
-            ),
-          )}
+          {(
+            [
+              "feature1",
+              "feature2",
+              "feature3",
+              "feature4",
+              "feature5",
+            ] as const
+          ).map((key) => (
+            <li key={key}>
+              {t.rich(key, {
+                bold: (chunks) => (
+                  <strong className="font-bold">{chunks}</strong>
+                ),
+              })}
+            </li>
+          ))}
         </ul>
       </div>
       <div className="mt-auto pt-[clamp(1.5rem,5dvh,3.5rem)]">
