@@ -27,7 +27,7 @@ export async function MarketingFooter() {
           {refund("title")}
         </Link>
       </nav>
-      <div className="mx-auto mt-6 max-w-2xl space-y-3 text-sm leading-6">
+      <div className="mx-auto mt-6 max-w-2xl space-y-3 text-left text-sm leading-6">
         <p>{footer("trademarks")}</p>
         <p>{footer("coverage")}</p>
       </div>
