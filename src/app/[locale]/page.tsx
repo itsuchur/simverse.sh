@@ -39,6 +39,16 @@ const PAYMENT_METHODS = [
   },
 ] as const;
 
+const SOCIAL_LINKS = [
+  { name: "Telegram", src: "/telegram.svg", href: "https://t.me/simverseteam" },
+  {
+    name: "Instagram",
+    src: "/instagram.svg",
+    href: "https://instagram.com/simverseteam",
+  },
+  { name: "X", src: "/x.svg", href: "https://x.com/simverseteam" },
+] as const;
+
 export default async function Home() {
   const t = await getTranslations("HomePage");
   const help = await getTranslations("Help");
@@ -46,7 +56,32 @@ export default async function Home() {
 
   return (
     <div className="bg-background relative flex min-h-dvh flex-col">
-      <HomeLocalePicker />
+      <header className="flex items-center justify-between">
+        <nav aria-label="Social media" className="flex gap-2 pt-4 pl-6">
+          {SOCIAL_LINKS.map((social) => (
+            <a
+              key={social.name}
+              href={social.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={social.name}
+              className={cn(
+                buttonVariants({ size: "icon", variant: "ghost" }),
+                "size-9",
+              )}
+            >
+              <Image
+                src={social.src}
+                alt=""
+                width={20}
+                height={20}
+                className="size-5 dark:invert"
+              />
+            </a>
+          ))}
+        </nav>
+        <HomeLocalePicker />
+      </header>
       <main className="flex flex-1 flex-col items-center px-6 py-16 text-center sm:py-24">
         <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-balance sm:text-6xl md:text-7xl">
           {t("headline")}
