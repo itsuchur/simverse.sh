@@ -28,12 +28,12 @@ export function HomeLocalePicker() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav aria-label={t("label")} className="flex justify-end px-6 pt-4">
+    <nav aria-label={t("label")} className="flex justify-end">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           aria-label={t("label")}
           className={cn(
-            buttonVariants({ size: "default", variant: "outline" }),
+            buttonVariants({ size: "default", variant: "ghost" }),
             "h-9 gap-1 px-2.5 [&_svg:not([class*='size-'])]:size-5",
           )}
         >

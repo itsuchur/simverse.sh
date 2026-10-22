@@ -1,7 +1,9 @@
 import Image from "next/image";
+import { getTranslations } from "next-intl/server";
 
 import { HomeLocalePicker } from "./home-locale-picker";
 import { buttonVariants } from "~/components/ui/button";
+import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/utils";
 
 const SOCIAL_LINKS = [
@@ -14,7 +16,9 @@ const SOCIAL_LINKS = [
   { name: "X", src: "/x.svg", href: "https://x.com/simverseteam" },
 ] as const;
 
-export function MarketingHeader() {
+export async function MarketingHeader() {
+  const t = await getTranslations("Blog");
+
   return (
     <header className="flex items-center justify-between">
       <nav aria-label="Social media" className="flex gap-2 pt-4 pl-6">
@@ -40,7 +44,15 @@ export function MarketingHeader() {
           </a>
         ))}
       </nav>
-      <HomeLocalePicker />
+      <div className="flex items-center gap-2 pt-4 pr-6">
+        <Link
+          href="https://blog.simverse.sh"
+          className={cn(buttonVariants({ variant: "ghost" }), "h-9")}
+        >
+          {t("title")}
+        </Link>
+        <HomeLocalePicker />
+      </div>
     </header>
   );
 }
