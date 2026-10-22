@@ -45,8 +45,8 @@ export default async function BlogArticlePage({
   }
 
   return (
-    <BlogShell title={t("title")}>
-      <p className="mb-8">
+    <BlogShell>
+      <p className="mb-10 text-center">
         <Link
           href="/blog"
           className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline"
@@ -54,14 +54,14 @@ export default async function BlogArticlePage({
           {t("back")}
         </Link>
       </p>
-      <article>
-        <h1 className="text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
+      <article className="mx-auto max-w-2xl">
+        <h1 className="text-center text-4xl font-extrabold tracking-tight text-balance sm:text-5xl md:text-6xl">
           {article.title}
         </h1>
         {article.publishedAt ? (
           <time
             dateTime={article.publishedAt}
-            className="text-muted-foreground mt-3 block text-sm"
+            className="text-muted-foreground mt-6 block text-center text-sm"
           >
             {format.dateTime(new Date(article.publishedAt), {
               dateStyle: "medium",
@@ -69,7 +69,7 @@ export default async function BlogArticlePage({
           </time>
         ) : null}
         <div className="mt-8">
-          <ArticleCover cover={article.cover} title={article.title} priority />
+          <ArticleCover cover={article.cover} title={article.title} preload />
         </div>
         {article.excerpt ? (
           <p className="text-muted-foreground mt-8 text-lg leading-7">

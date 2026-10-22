@@ -13,7 +13,7 @@ export function ArticleBody({ content }: { content: unknown }) {
   }
 
   return (
-    <div className="space-y-4 text-base leading-7 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:text-xl [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_ol_li]:list-decimal">
+    <div className="[&_blockquote]:text-muted-foreground space-y-6 text-base leading-7 [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_h2]:pt-4 [&_h2]:text-3xl [&_h2]:font-extrabold [&_h2]:tracking-tight [&_h3]:pt-2 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:tracking-tight [&_li]:ml-5 [&_li]:list-disc [&_ol_li]:list-decimal">
       <BlocksRenderer
         content={content as BlocksContent}
         blocks={{

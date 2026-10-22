@@ -6,11 +6,11 @@ import { type StrapiMedia } from "~/server/strapi";
 export function ArticleCover({
   cover,
   title,
-  priority = false,
+  preload = false,
 }: {
   cover: StrapiMedia | null;
   title: string;
-  priority?: boolean;
+  preload?: boolean;
 }) {
   const src = strapiMediaSrc(cover?.url);
   if (!src) {
@@ -26,7 +26,7 @@ export function ArticleCover({
       alt={cover?.alternativeText ?? title}
       width={width}
       height={height}
-      priority={priority}
+      preload={preload}
       className="h-auto w-full rounded-2xl object-cover"
     />
   );

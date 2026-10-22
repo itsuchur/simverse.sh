@@ -2,31 +2,25 @@ import type { ReactNode } from "react";
 
 import { Link } from "~/i18n/navigation";
 
-export function BlogShell({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+import { HomeLocalePicker } from "../../_components/home-locale-picker";
+import { MarketingFooter } from "../../_components/marketing-footer";
+
+export function BlogShell({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-background flex min-h-dvh flex-col">
-      <header className="border-border border-b px-6 py-4">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4">
-          <Link href="/" className="text-sm font-semibold tracking-tight">
-            Simverse
-          </Link>
-          <Link
-            href="/blog"
-            className="text-muted-foreground hover:text-foreground text-sm"
-          >
-            {title}
-          </Link>
-        </div>
+    <div className="bg-background relative flex min-h-dvh flex-col">
+      <header className="flex items-center justify-between">
+        <Link
+          href="/"
+          className="mt-4 ml-6 text-sm font-semibold tracking-tight underline-offset-4 hover:underline"
+        >
+          Simverse
+        </Link>
+        <HomeLocalePicker />
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10 sm:py-14">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-16 sm:py-24">
         {children}
       </main>
+      <MarketingFooter />
     </div>
   );
 }
