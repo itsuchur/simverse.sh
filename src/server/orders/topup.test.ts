@@ -272,6 +272,81 @@ describe("prepareTopupPurchase", () => {
   });
 });
 
+describe("Premium data top-up preference", () => {
+  const standard = {
+    packageCode: "TOPUP_STANDARD",
+    name: "Turkey 1GB 7Days",
+    price: 4600,
+    retailPrice: 16100,
+    volume: 1024 ** 3,
+    duration: 7,
+  };
+  const premium = {
+    ...standard,
+    packageCode: "TOPUP_PREMIUM",
+    name: "Turkey 1GB 7Days premium",
+    price: 5600,
+  };
+
+  for (const scenario of [
+    { name: "mixed options", listed: [standard, premium], expected: [premium] },
+    { name: "standard only", listed: [standard], expected: [standard] },
+    { name: "Premium only", listed: [premium], expected: [premium] },
+    {
+      name: "invalid Premium option",
+      listed: [standard, { ...premium, price: 0 }],
+      expected: [standard],
+    },
+    { name: "empty list", listed: [], expected: [] },
+  ]) {
+    test(`${scenario.name}: listing and checkout use the same preference`, async () => {
+      const parent = seedParent({ resellerPlanId: DATA_PKG.packageCode });
+      getEsimAccessPackageByCode.mockResolvedValue({
+        meta: { usdRubRate: 90 },
+        pkg: DATA_PKG,
+      });
+      esimAccessPost.mockResolvedValue({
+        success: true,
+        obj: { packageList: scenario.listed },
+      });
+      const input = { userId: "user-1", orderUuid: parent.orderUuid };
+      const offers = await listTopupOffers(input);
+      if (scenario.expected.length === 0) {
+        expect(offers).toEqual({ mode: "none" });
+      } else {
+        expect(offers).toMatchObject({
+          mode: "packages",
+          packages: scenario.expected.map(({ packageCode }) => ({
+            packageCode,
+          })),
+        });
+        if (offers === "not_found" || offers.mode !== "packages") {
+          throw new Error("expected packages");
+        }
+        expect(offers.packages).toHaveLength(scenario.expected.length);
+      }
+      for (const candidate of [standard, premium]) {
+        const purchase = await prepareTopupPurchase({
+          ...input,
+          packageCode: candidate.packageCode,
+        });
+        if (
+          scenario.expected.some(
+            (pkg) => pkg.packageCode === candidate.packageCode,
+          )
+        ) {
+          expect(purchase).toMatchObject({
+            supplierCost: candidate.price,
+            draft: { resellerPlanId: candidate.packageCode },
+          });
+        } else {
+          expect(purchase).toBe("invalid");
+        }
+      }
+    });
+  }
+});
+
 describe("top-up checkout expiry window", () => {
   for (const remainingMs of [-1, 0, TOPUP_CHECKOUT_MIN_VALIDITY_MS - 1]) {
     test(`does not offer or invoice a top-up with ${remainingMs}ms remaining`, async () => {

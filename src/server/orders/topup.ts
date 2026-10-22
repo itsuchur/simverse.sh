@@ -114,6 +114,19 @@ function packageOffer(
   };
 }
 
+/** Prefer valid Premium data top-ups, retaining standard plans when none exist. */
+function preferredDataTopups(
+  listed: EsimAccessTopupPackage[],
+  usdRubRate: number,
+) {
+  const valid = listed.flatMap((raw) => {
+    const offer = packageOffer(raw, usdRubRate);
+    return offer ? [{ raw, offer }] : [];
+  });
+  const premium = valid.filter(({ offer }) => /\bPremium\b/i.test(offer.name));
+  return premium.length > 0 ? premium : valid;
+}
+
 /** Identifier eSIM Access expects on /esim/topup (slug preferred). */
 function topupPackageCode(raw: EsimAccessTopupPackage): string | null {
   if (typeof raw.slug === "string" && raw.slug.length > 0) return raw.slug;
@@ -204,11 +217,8 @@ export async function listTopupOffers(input: {
 
   if (pkg.supportTopUpType !== 2) return { mode: "none" };
 
-  const packages = listed
-    .flatMap((raw) => {
-      const offer = packageOffer(raw, meta.usdRubRate);
-      return offer ? [offer] : [];
-    })
+  const packages = preferredDataTopups(listed, meta.usdRubRate)
+    .map(({ offer }) => offer)
     .sort((a, b) => a.priceUsd - b.priceUsd || a.volumeBytes - b.volumeBytes);
 
   if (packages.length === 0) return { mode: "none" };
@@ -273,9 +283,12 @@ export async function prepareTopupPurchase(input: {
 
   if (pkg.supportTopUpType !== 2 || !input.packageCode) return "invalid";
 
-  const match = listed.find((raw) => raw.packageCode === input.packageCode);
-  const offer = match ? packageOffer(match, meta.usdRubRate) : null;
-  if (!match || !offer || typeof match.price !== "number") return "invalid";
+  const selected = preferredDataTopups(listed, meta.usdRubRate).find(
+    ({ offer }) => offer.packageCode === input.packageCode,
+  );
+  if (!selected) return "invalid";
+  const { raw: match, offer } = selected;
+  if (typeof match.price !== "number") return "invalid";
 
   return {
     supplierCost: match.price,
