@@ -10,6 +10,7 @@ type TelegramWebApp = {
   expand?: () => void;
   requestFullscreen?: () => void;
   setHeaderColor?: (color: string) => void;
+  setBackgroundColor?: (color: string) => void;
   isVersionAtLeast?: (version: string) => boolean;
   isFullscreen?: boolean;
   platform?: string;

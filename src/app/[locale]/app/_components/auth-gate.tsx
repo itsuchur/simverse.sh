@@ -216,6 +216,16 @@ function ConsentScreen({
   const featureContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const webApp = window.Telegram?.WebApp;
+    webApp?.setHeaderColor?.("#FFF5EA");
+    webApp?.setBackgroundColor?.("#FFF5EA");
+    return () => {
+      webApp?.setHeaderColor?.("#ffffff");
+      webApp?.setBackgroundColor?.("#ffffff");
+    };
+  }, []);
+
+  useEffect(() => {
     const area = featureAreaRef.current;
     const content = featureContentRef.current;
     if (!area || !content) return;
@@ -248,7 +258,7 @@ function ConsentScreen({
         >
           <div
             aria-hidden
-            className="flex aspect-square w-[min(12rem,23dvh,100%)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8]"
+            className="flex aspect-square w-[min(12rem,23dvh,100%)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFEBDD]"
           >
             <DotLottieReact
               src="/welcomeScreenESIM.json"

@@ -4,13 +4,13 @@
   height: var(--tg-viewport-height, 100dvh);
   min-height: 0;
   overflow: hidden;
-  background: #ee7c38;
+  background: #fff5ea;
 }
 
 .chrome:has([data-welcome-screen]) > div {
   height: 100%;
   min-height: 0;
-  background: #ee7c38;
+  background: #fff5ea;
   padding-top: max(
     0.75rem,
     calc(
