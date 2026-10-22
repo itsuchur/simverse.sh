@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, Globe, QrCode } from "lucide-react";
+import { ChevronLeft, Globe } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -305,7 +305,14 @@ export function CheckoutView({
             disabled={controlsLocked}
             onClick={() => pay("xhub_sbp", "/api/checkout/xhub", "sbp")}
           >
-            <QrCode data-icon="inline-start" className="size-6" />
+            <Image
+              src="/SBP.svg"
+              alt=""
+              width={48}
+              height={24}
+              data-icon="inline-start"
+              className="h-6 w-12 shrink-0 object-contain"
+            />
             {t("paySbp", { price: sbpPrice })}
           </Button>
         ) : null}

@@ -147,7 +147,7 @@
     "disabled": "DISABLED",
     "enabled": "ENABLED",
     "installation": "INSTALLATION",
-    "download": "DOWNLOAD"
+    "download": "DOWNLOADING PROFILE"
   },
   "Profile": {
     "signedInWithTelegram": "Signed in with Telegram",

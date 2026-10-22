@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Calendar, Globe, QrCode } from "lucide-react";
+import { Calendar, Globe } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -591,7 +591,14 @@ function PayButtons({
           disabled={paying}
           onClick={() => onPay("xhub")}
         >
-          <QrCode data-icon="inline-start" className="size-4" />
+          <Image
+            src="/SBP.svg"
+            alt=""
+            width={32}
+            height={16}
+            data-icon="inline-start"
+            className="h-4 w-8 shrink-0 object-contain"
+          />
           {paySbp(rub)}
         </Button>
       ) : null}
