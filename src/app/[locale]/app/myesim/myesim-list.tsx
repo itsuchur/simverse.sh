@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Globe } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
@@ -392,13 +393,19 @@ export function MyEsimList({
 
   if (orders.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardDescription className="text-base">
-            {t("description")}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+        <div aria-hidden="true">
+          <DotLottieReact
+            src="https://fonts.gstatic.com/s/e/notoemoji/latest/1fae3/lottie.json"
+            loop
+            autoplay
+            className="size-64"
+          />
+        </div>
+        <p className="text-muted-foreground max-w-sm text-base">
+          {t("description")}
+        </p>
+      </div>
     );
   }
 
