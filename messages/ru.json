@@ -156,7 +156,7 @@
     "backToApp": "НАЗАД",
     "transactionHistory": "История покупок",
     "transactionEsimPurchase": "Покупка eSIM",
-    "transactionTopup": "Пополнение",
+    "transactionTopup": "Пополнение / продление действия eSIM",
     "transactionHistoryEmpty": "Покупок пока нет.",
     "starsAmount": "{amount} Stars",
     "refundPolicy": "Политика возвратов",

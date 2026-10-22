@@ -156,7 +156,7 @@
     "backToApp": "BACK TO APP",
     "transactionHistory": "Transaction History",
     "transactionEsimPurchase": "eSIM purchase",
-    "transactionTopup": "Top-up",
+    "transactionTopup": "Top-up / eSIM extension",
     "transactionHistoryEmpty": "No purchases yet.",
     "starsAmount": "{amount} Stars",
     "refundPolicy": "Refund Policy",

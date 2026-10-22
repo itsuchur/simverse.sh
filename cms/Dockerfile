@@ -7,7 +7,7 @@
 # Docker Hub node:22.23.4-* tags were empty stubs (no linux/amd64) on 2026-10-21.
 # Use the last good bookworm-slim base and overlay Node 22.23.4 from nodejs.org.
 
-FROM oven/bun:1.4.3 AS bun
+FROM oven/bun:1.4.4 AS bun
 
 FROM node:22.23.3-bookworm-slim AS build
 ARG NODE_VERSION=22.23.4
