@@ -1,4 +1,4 @@
-/** Same-origin media path proxied to Strapi (`next.config.js` rewrite `/cms-media`). */
+/** Same-origin media path served by the runtime Strapi media route. */
 export function strapiMediaSrc(url: string | null | undefined): string | null {
   if (!url) {
     return null;

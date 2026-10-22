@@ -62,9 +62,6 @@ const config = {
     },
   },
   async rewrites() {
-    const strapiOrigin = (
-      process.env.STRAPI_URL ?? "http://localhost:1337"
-    ).replace(/\/$/, "");
     return [
       {
         source: "/ingest/static/:path*",
@@ -73,10 +70,6 @@ const config = {
       {
         source: "/ingest/:path*",
         destination: `${posthogIngestHost}/:path*`,
-      },
-      {
-        source: "/cms-media/:path*",
-        destination: `${strapiOrigin}/:path*`,
       },
     ];
   },
