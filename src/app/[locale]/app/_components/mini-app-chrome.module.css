@@ -43,11 +43,5 @@
 
 .chrome [data-welcome-screen] {
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-}
-
-/* Preserve natural content height so everything remains reachable by scrolling. */
-.chrome [data-welcome-screen] > div {
-  flex-shrink: 0;
+  overflow: hidden;
 }

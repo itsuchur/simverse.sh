@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { LoaderCircle } from "lucide-react";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
@@ -212,49 +212,77 @@ function ConsentScreen({
 }) {
   const t = useTranslations("Consent");
   const [agreed, setAgreed] = useState(false);
+  const featureAreaRef = useRef<HTMLDivElement>(null);
+  const featureContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const area = featureAreaRef.current;
+    const content = featureContentRef.current;
+    if (!area || !content) return;
+
+    // Measure untransformed content, including translated text wrapping.
+    // Consent and Continue keep their full size outside this fitted area.
+    const fit = () => {
+      const scale = Math.min(
+        1,
+        area.clientHeight / Math.max(1, content.offsetHeight),
+      );
+      content.style.transform = `scale(${scale})`;
+    };
+    const observer = new ResizeObserver(fit);
+    observer.observe(area);
+    observer.observe(content);
+    fit();
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <main
       data-welcome-screen
       className="mx-auto flex w-full max-w-sm min-w-0 flex-1 flex-col px-2 pt-[clamp(0.75rem,3dvh,2rem)] pb-2 text-[#271B14] sm:px-4"
     >
-      <div className="flex flex-col items-center text-center">
+      <div ref={featureAreaRef} className="relative min-h-0 flex-1">
         <div
-          aria-hidden
-          className="flex aspect-square w-[min(12rem,23dvh,100%)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8]"
+          ref={featureContentRef}
+          className="absolute inset-x-0 top-0 flex origin-top flex-col items-center text-center"
         >
-          <DotLottieReact
-            src="/welcomeScreenESIM.json"
-            loop
-            autoplay
-            className="aspect-square w-full"
-          />
+          <div
+            aria-hidden
+            className="flex aspect-square w-[min(12rem,23dvh,100%)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8]"
+          >
+            <DotLottieReact
+              src="/welcomeScreenESIM.json"
+              loop
+              autoplay
+              className="aspect-square w-full"
+            />
+          </div>
+          <h1 className="mt-[clamp(1rem,3dvh,1.75rem)] text-[clamp(1.5rem,4dvh,1.875rem)] leading-tight font-semibold tracking-tight text-balance">
+            {t("title")}
+          </h1>
+          <p className="mt-2 text-lg leading-relaxed">{t("subtitle")}</p>
+          <ul className="mt-3 w-fit max-w-full list-disc space-y-1 pl-5 text-left text-base leading-snug [overflow-wrap:anywhere]">
+            {(
+              [
+                "feature1",
+                "feature2",
+                "feature3",
+                "feature4",
+                "feature5",
+              ] as const
+            ).map((key) => (
+              <li key={key}>
+                {t.rich(key, {
+                  bold: (chunks) => (
+                    <strong className="font-bold">{chunks}</strong>
+                  ),
+                })}
+              </li>
+            ))}
+          </ul>
         </div>
-        <h1 className="mt-[clamp(1rem,3dvh,1.75rem)] text-[clamp(1.5rem,4dvh,1.875rem)] leading-tight font-semibold tracking-tight text-balance">
-          {t("title")}
-        </h1>
-        <p className="mt-2 text-lg leading-relaxed">{t("subtitle")}</p>
-        <ul className="mt-[clamp(0.75rem,2.5dvh,1.5rem)] w-fit max-w-full list-disc space-y-[clamp(0.25rem,0.75dvh,0.5rem)] pl-5 text-left text-lg leading-relaxed [overflow-wrap:anywhere]">
-          {(
-            [
-              "feature1",
-              "feature2",
-              "feature3",
-              "feature4",
-              "feature5",
-            ] as const
-          ).map((key) => (
-            <li key={key}>
-              {t.rich(key, {
-                bold: (chunks) => (
-                  <strong className="font-bold">{chunks}</strong>
-                ),
-              })}
-            </li>
-          ))}
-        </ul>
       </div>
-      <div className="mt-auto pt-[clamp(1.5rem,5dvh,3.5rem)]">
+      <div className="shrink-0 pt-4">
         <div className="flex items-start gap-3">
           <Checkbox
             id="consent-agreement"
