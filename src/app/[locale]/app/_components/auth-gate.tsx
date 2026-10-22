@@ -221,7 +221,7 @@ function ConsentScreen({
       <div className="flex flex-col items-center text-center">
         <div
           aria-hidden
-          className="flex aspect-square w-[min(14rem,27dvh,100%)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8]"
+          className="flex aspect-square w-[min(12rem,23dvh,100%)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8]"
         >
           <DotLottieReact
             src="/welcomeScreenESIM.json"
