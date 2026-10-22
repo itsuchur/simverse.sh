@@ -216,12 +216,12 @@ function ConsentScreen({
   return (
     <main
       data-welcome-screen
-      className="mx-auto flex w-full max-w-sm flex-1 flex-col px-2 pt-8 pb-6 text-[#271B14] sm:px-4 sm:pt-12"
+      className="mx-auto flex w-full max-w-sm min-w-0 flex-1 flex-col px-2 pt-[clamp(0.75rem,3dvh,2rem)] pb-2 text-[#271B14] sm:px-4"
     >
       <div className="flex flex-col items-center text-center">
         <div
           aria-hidden
-          className="flex size-56 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8] sm:size-64"
+          className="flex aspect-square w-[min(14rem,27dvh,100%)] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8]"
         >
           <DotLottieReact
             src="/welcomeScreenESIM.json"
@@ -230,11 +230,11 @@ function ConsentScreen({
             className="aspect-square w-full"
           />
         </div>
-        <h1 className="mt-7 text-3xl leading-tight font-semibold tracking-tight text-balance">
+        <h1 className="mt-[clamp(1rem,3dvh,1.75rem)] text-[clamp(1.5rem,4dvh,1.875rem)] leading-tight font-semibold tracking-tight text-balance">
           {t("title")}
         </h1>
-        <p className="mt-3 text-lg leading-relaxed">{t("subtitle")}</p>
-        <ul className="mt-6 w-fit list-disc space-y-3 pl-5 text-left text-lg leading-relaxed">
+        <p className="mt-2 text-lg leading-relaxed">{t("subtitle")}</p>
+        <ul className="mt-[clamp(0.75rem,2.5dvh,1.5rem)] w-fit max-w-full list-disc space-y-[clamp(0.25rem,1dvh,0.75rem)] pl-5 text-left text-lg leading-relaxed [overflow-wrap:anywhere]">
           {(["feature1", "feature2", "feature3", "feature4"] as const).map(
             (key) => (
               <li key={key}>
@@ -248,7 +248,7 @@ function ConsentScreen({
           )}
         </ul>
       </div>
-      <div className="mt-auto pt-14 sm:pt-20">
+      <div className="mt-auto pt-[clamp(1.5rem,5dvh,3.5rem)]">
         <div className="flex items-start gap-3">
           <Checkbox
             id="consent-agreement"
@@ -258,7 +258,7 @@ function ConsentScreen({
           />
           <label
             htmlFor="consent-agreement"
-            className="cursor-pointer text-sm leading-relaxed"
+            className="min-w-0 cursor-pointer text-sm leading-relaxed [overflow-wrap:anywhere]"
           >
             {t.rich("agreement", {
               tos: (chunks) => (
@@ -283,7 +283,7 @@ function ConsentScreen({
           </label>
         </div>
         <Button
-          className="mt-6 h-14 w-full rounded-2xl bg-[#271B14] text-lg font-semibold text-white hover:bg-[#402C20] focus-visible:border-[#271B14] focus-visible:ring-[#271B14]/30 disabled:opacity-50"
+          className="mt-4 h-14 w-full rounded-2xl bg-[#271B14] text-lg font-semibold text-white hover:bg-[#402C20] focus-visible:border-[#271B14] focus-visible:ring-[#271B14]/30 disabled:opacity-50"
           disabled={!agreed}
           onClick={onContinue}
         >
