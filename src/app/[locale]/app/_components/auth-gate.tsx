@@ -234,7 +234,7 @@ function ConsentScreen({
           {t("title")}
         </h1>
         <p className="mt-2 text-lg leading-relaxed">{t("subtitle")}</p>
-        <ul className="mt-[clamp(0.75rem,2.5dvh,1.5rem)] w-fit max-w-full list-disc space-y-[clamp(0.25rem,1dvh,0.75rem)] pl-5 text-left text-lg leading-relaxed [overflow-wrap:anywhere]">
+        <ul className="mt-[clamp(0.75rem,2.5dvh,1.5rem)] w-fit max-w-full list-disc space-y-[clamp(0.25rem,0.75dvh,0.5rem)] pl-5 text-left text-lg leading-relaxed [overflow-wrap:anywhere]">
           {(
             [
               "feature1",
