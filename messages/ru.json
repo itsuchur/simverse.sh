@@ -28,6 +28,12 @@
     "tryAgain": "Попробовать снова"
   },
   "Consent": {
+    "title": "Оставайтесь на связи с simverse",
+    "subtitle": "eSIM для путешествий",
+    "feature1": "<bold>150+</bold>",
+    "feature2": "text",
+    "feature3": "text",
+    "feature4": "text",
     "agreement": "Продолжая, я соглашаюсь с <tos>Условиями использования</tos> и <privacy>Политикой конфиденциальности</privacy>",
     "continue": "Продолжить"
   },

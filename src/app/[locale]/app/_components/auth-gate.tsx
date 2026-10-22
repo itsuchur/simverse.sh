@@ -214,22 +214,52 @@ function ConsentScreen({
   const [agreed, setAgreed] = useState(false);
 
   return (
-    <main className="flex flex-1 flex-col justify-center px-6 py-24">
-      <div className="space-y-4">
-        <DotLottieReact
-          src="/welcomeScreenESIM.json"
-          loop
-          autoplay
-          className="mx-auto aspect-[4/3] w-full max-w-xs"
-        />
+    <main
+      data-welcome-screen
+      className="mx-auto flex w-full max-w-sm flex-1 flex-col px-2 pt-8 pb-6 text-[#271B14] sm:px-4 sm:pt-12"
+    >
+      <div className="flex flex-col items-center text-center">
+        <div
+          aria-hidden
+          className="flex size-56 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#FFF4E8] sm:size-64"
+        >
+          <DotLottieReact
+            src="/welcomeScreenESIM.json"
+            loop
+            autoplay
+            className="aspect-square w-full"
+          />
+        </div>
+        <h1 className="mt-7 text-3xl leading-tight font-semibold tracking-tight text-balance">
+          {t("title")}
+        </h1>
+        <p className="mt-3 text-lg leading-relaxed">{t("subtitle")}</p>
+        <ul className="mt-6 w-fit list-disc space-y-3 pl-5 text-left text-lg leading-relaxed">
+          {(["feature1", "feature2", "feature3", "feature4"] as const).map(
+            (key) => (
+              <li key={key}>
+                {t.rich(key, {
+                  bold: (chunks) => (
+                    <strong className="font-bold">{chunks}</strong>
+                  ),
+                })}
+              </li>
+            ),
+          )}
+        </ul>
+      </div>
+      <div className="mt-auto pt-14 sm:pt-20">
         <div className="flex items-start gap-3">
           <Checkbox
             id="consent-agreement"
             checked={agreed}
             onCheckedChange={(checked) => setAgreed(checked)}
-            className="mt-0.5"
+            className="mt-0.5 size-7 rounded-lg border-[#271B14]/60 bg-transparent focus-visible:border-[#271B14] focus-visible:ring-[#271B14]/30 data-checked:border-[#271B14] data-checked:bg-[#271B14] data-checked:text-white dark:bg-transparent dark:data-checked:bg-[#271B14] [&_svg]:size-5"
           />
-          <label htmlFor="consent-agreement" className="text-sm">
+          <label
+            htmlFor="consent-agreement"
+            className="cursor-pointer text-sm leading-relaxed"
+          >
             {t.rich("agreement", {
               tos: (chunks) => (
                 <LegalLink
@@ -252,7 +282,11 @@ function ConsentScreen({
             })}
           </label>
         </div>
-        <Button className="w-full" disabled={!agreed} onClick={onContinue}>
+        <Button
+          className="mt-6 h-14 w-full rounded-2xl bg-[#271B14] text-lg font-semibold text-white hover:bg-[#402C20] focus-visible:border-[#271B14] focus-visible:ring-[#271B14]/30 disabled:opacity-50"
+          disabled={!agreed}
+          onClick={onContinue}
+        >
           {t("continue")}
         </Button>
       </div>

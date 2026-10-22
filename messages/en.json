@@ -28,6 +28,12 @@
     "tryAgain": "Try again"
   },
   "Consent": {
+    "title": "Stay connected with simverse",
+    "subtitle": "An eSIM for Travel",
+    "feature1": "<bold>150+</bold>",
+    "feature2": "text",
+    "feature3": "text",
+    "feature4": "text",
     "agreement": "By continuing, I agree to <tos>Terms of Service</tos> and <privacy>Privacy Policy</privacy>",
     "continue": "Continue"
   },
