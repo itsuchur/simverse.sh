@@ -223,7 +223,15 @@
     "title": "Refund Policy",
     "lastUpdated": "Last updated: August 23rd, 2026"
   },
+  "MarketingFooter": {
+    "trademarks": "The Instagram, Telegram, and X logos are trademarks of their respective owners, registered in the United States and other countries.",
+    "coverage": "Coverage and connectivity may depend on local telecommunications partners. Terms and conditions apply and are subject to change."
+  },
   "Blog": {
+    "pagination": "Blog pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page, number} of {total, number}",
     "metaTitle": "Blog — Simverse",
     "metaDescription": "News and guides from Simverse.",
     "title": "Blog",

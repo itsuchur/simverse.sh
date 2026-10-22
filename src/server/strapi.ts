@@ -21,6 +21,7 @@ export type StrapiArticle = {
 
 type StrapiListResponse<T> = {
   data: T[];
+  meta: { pagination: { pageCount: number } };
 };
 
 function strapiBaseUrl() {
@@ -57,18 +58,22 @@ async function strapiFetch<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function fetchArticles(locale: string): Promise<StrapiArticle[]> {
+export async function fetchArticles(locale: string, page: number) {
   const params = new URLSearchParams({
     populate: "cover",
     locale: locale,
     status: "published",
     sort: "publishedAt:desc",
-    "pagination[pageSize]": "50",
+    "pagination[page]": String(page),
+    "pagination[pageSize]": "5",
   });
   const result = await strapiFetch<StrapiListResponse<StrapiArticle>>(
     `/api/articles?${params.toString()}`,
   );
-  return result?.data ?? [];
+  return {
+    articles: result?.data ?? [],
+    pageCount: result?.meta.pagination.pageCount ?? 0,
+  };
 }
 
 export async function fetchArticleBySlug(

@@ -7,10 +7,12 @@ export function ArticleCover({
   cover,
   title,
   preload = false,
+  thumbnail = false,
 }: {
   cover: StrapiMedia | null;
   title: string;
   preload?: boolean;
+  thumbnail?: boolean;
 }) {
   const src = strapiMediaSrc(cover?.url);
   if (!src) {
@@ -27,7 +29,16 @@ export function ArticleCover({
       width={width}
       height={height}
       preload={preload}
-      className="h-auto w-full rounded-2xl object-cover"
+      sizes={
+        thumbnail
+          ? "(max-width: 640px) calc(100vw - 48px), 320px"
+          : "(max-width: 720px) calc(100vw - 48px), 672px"
+      }
+      className={
+        thumbnail
+          ? "aspect-video w-full max-w-xs rounded-2xl object-cover"
+          : "h-auto w-full rounded-2xl object-cover"
+      }
     />
   );
 }

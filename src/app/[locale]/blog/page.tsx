@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "~/i18n/navigation";
@@ -16,11 +17,23 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function BlogPage() {
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string | string[] }>;
+}) {
+  const { page: pageParam } = await searchParams;
+  const page = pageParam === undefined ? 1 : Number(pageParam);
+  if (Array.isArray(pageParam) || !Number.isSafeInteger(page) || page < 1) {
+    notFound();
+  }
   const t = await getTranslations("Blog");
   const format = await getFormatter();
   const locale = await getLocale();
-  const articles = await fetchArticles(locale);
+  const { articles, pageCount } = await fetchArticles(locale, page);
+  if (page > 1 && page > pageCount) {
+    notFound();
+  }
 
   return (
     <BlogShell>
@@ -43,7 +56,11 @@ export default async function BlogPage() {
                 href={`/blog/${article.slug}`}
                 className="group focus-visible:outline-ring block rounded-2xl outline-offset-8 focus-visible:outline-2"
               >
-                <ArticleCover cover={article.cover} title={article.title} />
+                <ArticleCover
+                  cover={article.cover}
+                  title={article.title}
+                  thumbnail
+                />
                 <h2 className="mt-6 text-2xl font-extrabold tracking-tight text-balance underline-offset-4 group-hover:underline sm:text-3xl">
                   {article.title}
                 </h2>
@@ -67,6 +84,39 @@ export default async function BlogPage() {
           ))}
         </ul>
       )}
+      {pageCount > 1 ? (
+        <nav
+          aria-label={t("pagination")}
+          className="mx-auto mt-12 flex max-w-2xl items-center justify-between gap-4 text-sm"
+        >
+          {page > 1 ? (
+            <Link
+              href={{
+                pathname: "/blog",
+                query: page > 2 ? { page: page - 1 } : {},
+              }}
+              className="underline-offset-4 hover:underline"
+            >
+              {t("previous")}
+            </Link>
+          ) : (
+            <span />
+          )}
+          <span aria-current="page">
+            {t("pageOf", { page, total: pageCount })}
+          </span>
+          {page < pageCount ? (
+            <Link
+              href={{ pathname: "/blog", query: { page: page + 1 } }}
+              className="underline-offset-4 hover:underline"
+            >
+              {t("next")}
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      ) : null}
     </BlogShell>
   );
 }
