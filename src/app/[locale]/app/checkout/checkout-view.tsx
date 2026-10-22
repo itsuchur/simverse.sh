@@ -300,7 +300,11 @@ export function CheckoutView({
         <div className="flex items-baseline justify-between gap-6">
           <dt className="text-muted-foreground">{t("validityExtension")}</dt>
           <dd className="text-right font-medium">
-            {t(supportTopUpType === 3 ? "supported" : "notSupported")}
+            {t(
+              supportTopUpType === 2 || supportTopUpType === 3
+                ? "supported"
+                : "notSupported",
+            )}
           </dd>
         </div>
       </dl>
