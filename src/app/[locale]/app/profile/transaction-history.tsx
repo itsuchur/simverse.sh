@@ -24,6 +24,7 @@ import {
 
 export type HistoryOrder = {
   orderUuid: string;
+  isTopup: boolean;
   packageName: string;
   countryCode: string | null;
   dataAmountMb: number | null;
@@ -152,6 +153,11 @@ export function TransactionHistory() {
                         <Globe className="size-7 shrink-0" aria-hidden />
                       )}
                       <div className="min-w-0 flex-1">
+                        <p className="text-muted-foreground mb-1 text-xs font-medium">
+                          {order.isTopup
+                            ? t("transactionTopup")
+                            : t("transactionEsimPurchase")}
+                        </p>
                         <CardTitle className="leading-snug">{title}</CardTitle>
                         <CardDescription className="text-base">
                           {[data, duration].filter(Boolean).join(" · ")}

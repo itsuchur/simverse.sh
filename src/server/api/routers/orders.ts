@@ -9,6 +9,7 @@ export const ordersRouter = createTRPCRouter({
       orderBy: { createdAt: "desc" },
       select: {
         orderUuid: true,
+        topupOfOrderId: true,
         packageName: true,
         countryCode: true,
         dataAmountMb: true,
@@ -23,6 +24,7 @@ export const ordersRouter = createTRPCRouter({
 
     return rows.map((row) => ({
       orderUuid: row.orderUuid,
+      isTopup: row.topupOfOrderId !== null,
       packageName: row.packageName,
       countryCode: row.countryCode,
       dataAmountMb: row.dataAmountMb,
