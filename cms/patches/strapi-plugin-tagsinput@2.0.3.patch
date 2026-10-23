@@ -1,0 +1,130 @@
+diff --git a/dist/_chunks/Input-DUnG8vg6.mjs b/dist/_chunks/Input-DUnG8vg6.mjs
+index ad7a4b97a6621e2885ae79fc3c0422fcbb668b61..71ac759e989a9c48e6b45b7f1a893ba47adeccec 100644
+--- a/dist/_chunks/Input-DUnG8vg6.mjs
++++ b/dist/_chunks/Input-DUnG8vg6.mjs
+@@ -148,6 +148,7 @@ const Tags = ({
+   name,
+   onChange,
+   required,
++  disabled,
+   value
+ }) => {
+   const { formatMessage } = useIntl();
+@@ -186,9 +187,9 @@ const Tags = ({
+     const lastTag = newTags[newTags.length - 1];
+     const suggestionsArray = suggestions.data || [];
+     const existingTag = suggestionsArray.find(
+-      (s) => s[attrName]?.toLowerCase() === lastTag.toLowerCase()
++      (s) => s[attrName]?.toLowerCase() === (lastTag || "").toLowerCase()
+     );
+-    if (!existingTag) {
++    if (lastTag && !existingTag) {
+       if (apiUrl) {
+         try {
+           const response = await axios.post(apiUrl, {
+@@ -213,7 +214,7 @@ const Tags = ({
+       }
+     }
+     setTags(newTags);
+-    const value2 = JSON.stringify(newTags.map((tag) => ({ [attrName]: tag })));
++    const value2 = newTags.map((tag) => ({ [attrName]: tag }));
+     onChange({
+       target: {
+         name,
+@@ -295,6 +296,9 @@ const Tags = ({
+                 value: tags,
+                 onChange: handleTagsChange,
+                 onlyUnique: true,
++                addOnBlur: true,
++                disabled,
++                inputProps: { name, disabled },
+                 renderInput: autocompleteRenderInput
+               }
+             ) }),
+@@ -323,7 +327,7 @@ Tags.propTypes = {
+   error: PropTypes.string,
+   labelAction: PropTypes.object,
+   required: PropTypes.bool,
+-  value: PropTypes.string
++  value: PropTypes.oneOfType([PropTypes.string, PropTypes.array])
+ };
+ export {
+   Tags as default
+diff --git a/dist/_chunks/Input-Dhgse2n1.js b/dist/_chunks/Input-Dhgse2n1.js
+index 06a5a525ee462ba3aececfaa0c861f7dd675af81..52b6d339ab2883922d1d573a4c8f3104111e7b42 100644
+--- a/dist/_chunks/Input-Dhgse2n1.js
++++ b/dist/_chunks/Input-Dhgse2n1.js
+@@ -155,6 +155,7 @@ const Tags = ({
+   name,
+   onChange,
+   required,
++  disabled,
+   value
+ }) => {
+   const { formatMessage } = reactIntl.useIntl();
+@@ -193,9 +194,9 @@ const Tags = ({
+     const lastTag = newTags[newTags.length - 1];
+     const suggestionsArray = suggestions.data || [];
+     const existingTag = suggestionsArray.find(
+-      (s) => s[attrName]?.toLowerCase() === lastTag.toLowerCase()
++      (s) => s[attrName]?.toLowerCase() === (lastTag || "").toLowerCase()
+     );
+-    if (!existingTag) {
++    if (lastTag && !existingTag) {
+       if (apiUrl) {
+         try {
+           const response = await axios__default.default.post(apiUrl, {
+@@ -220,7 +221,7 @@ const Tags = ({
+       }
+     }
+     setTags(newTags);
+-    const value2 = JSON.stringify(newTags.map((tag) => ({ [attrName]: tag })));
++    const value2 = newTags.map((tag) => ({ [attrName]: tag }));
+     onChange({
+       target: {
+         name,
+@@ -302,6 +303,9 @@ const Tags = ({
+                 value: tags,
+                 onChange: handleTagsChange,
+                 onlyUnique: true,
++                addOnBlur: true,
++                disabled,
++                inputProps: { name, disabled },
+                 renderInput: autocompleteRenderInput
+               }
+             ) }),
+@@ -330,7 +334,7 @@ Tags.propTypes = {
+   error: PropTypes__default.default.string,
+   labelAction: PropTypes__default.default.object,
+   required: PropTypes__default.default.bool,
+-  value: PropTypes__default.default.string
++  value: PropTypes__default.default.oneOfType([PropTypes__default.default.string, PropTypes__default.default.array])
+ };
+ exports.default = Tags;
+ //# sourceMappingURL=Input-Dhgse2n1.js.map
+diff --git a/dist/admin/index.js b/dist/admin/index.js
+index 662b92f933ececbdd35de830f1e90b83e2b62d58..8b4c6bc3fe00104e250c9a3395850d7d89b53259 100644
+--- a/dist/admin/index.js
++++ b/dist/admin/index.js
+@@ -110,7 +110,7 @@ const index = {
+     app.customFields.register({
+       name: "tags",
+       pluginId,
+-      type: "text",
++      type: "json",
+       intlLabel: {
+         id: getTranslation("form.label"),
+         defaultMessage: "TagsInput"
+diff --git a/dist/admin/index.mjs b/dist/admin/index.mjs
+index 36e548fb347d752630ab385bb9f61c94d6344cd5..7d5a9e0fe486c71c058ccffdb01051b6eb8fb683 100644
+--- a/dist/admin/index.mjs
++++ b/dist/admin/index.mjs
+@@ -109,7 +109,7 @@ const index = {
+     app.customFields.register({
+       name: "tags",
+       pluginId,
+-      type: "text",
++      type: "json",
+       intlLabel: {
+         id: getTranslation("form.label"),
+         defaultMessage: "TagsInput"

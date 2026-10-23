@@ -12,6 +12,12 @@ publish the article. English and Russian articles can have different tags.
 Tags appear on blog previews and article pages; existing articles can leave
 the field empty. No separate Tags collection or suggestions API is required.
 
+The Bun patch in `patches/` aligns the plugin's admin registration and change
+payload with its JSON storage type, confirms pending tags on blur, and fixes
+removing the last tag. Keep the patches available during Docker installs.
+Run `bun test src/admin/tagsinput.test.tsx` from this directory to check the
+actual input's edit, reload, and removal behavior.
+
 After installing this change, rebuild and restart the CMS so Strapi registers
 the plugin and synchronizes the article schema (`bun install`, `bun run build`,
 then `bun run start`, or rebuild the CMS Docker service).

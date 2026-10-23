@@ -27,9 +27,11 @@
     "styled-components": "^6.0.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "happy-dom": "^21.0.4",
     "typescript": "^5"
   },
   "trustedDependencies": [
@@ -44,5 +46,8 @@
   "strapi": {
     "uuid": "f20acc62-80b7-4340-959e-d006885adf7d",
     "installId": "67239e46bd2bcd197738c441e7f527c5caee167cc89af45146b3b28929406171"
+  },
+  "patchedDependencies": {
+    "strapi-plugin-tagsinput@2.0.3": "patches/strapi-plugin-tagsinput@2.0.3.patch"
   }
 }
