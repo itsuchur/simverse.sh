@@ -7,8 +7,8 @@ import {
   recoverPendingOrders,
 } from "~/server/orders/fulfill";
 import {
-  processTopupRefund,
-  syncXhubTopupRefund,
+  processPendingRefund,
+  syncXhubRefund,
 } from "~/server/orders/topup-refund";
 import { handleXhubWebhook } from "~/server/webhooks/payments/xhub";
 import { fakeDb } from "~/test/fake-db";
@@ -215,10 +215,10 @@ describe("unfulfillable paid top-ups", () => {
       await payXhub(child.orderUuid);
       if (outcome === "reversed") {
         stubRefund("completed");
-        await processTopupRefund(child.id);
+        await processPendingRefund(child.id);
       }
       stubRefund(outcome);
-      await syncXhubTopupRefund({
+      await syncXhubRefund({
         paymentId: PAYMENT.slice(4),
         refundId: REFUND.slice(4),
       });
@@ -320,8 +320,8 @@ describe("unfulfillable paid top-ups", () => {
     const key = child.paymentRefundKey;
     const fetchMock = stubRefund();
     await Promise.all([
-      processTopupRefund(child.id),
-      processTopupRefund(child.id),
+      processPendingRefund(child.id),
+      processPendingRefund(child.id),
     ]);
     for (const [, init] of fetchMock.mock.calls) {
       expect(init?.headers).toMatchObject({ "Idempotency-Key": key });
@@ -329,7 +329,7 @@ describe("unfulfillable paid top-ups", () => {
     // Simulate a crash after the provider accepted the request but before its
     // ID was stored. Recovery must send exactly the same logical request.
     child.paymentRefundId = null;
-    await processTopupRefund(child.id);
+    await processPendingRefund(child.id);
     expect(fetchMock.mock.calls.at(-1)?.[1]?.headers).toMatchObject({
       "Idempotency-Key": key,
     });
@@ -340,8 +340,8 @@ describe("unfulfillable paid top-ups", () => {
     stubRefund();
     await payXhub(child.orderUuid);
     const fetchMock = stubRefund("completed");
-    await syncXhubTopupRefund({ paymentId: "other-payment", refundId: REFUND });
-    await syncXhubTopupRefund({ paymentId: PAYMENT, refundId: "other-refund" });
+    await syncXhubRefund({ paymentId: "other-payment", refundId: REFUND });
+    await syncXhubRefund({ paymentId: PAYMENT, refundId: "other-refund" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(child.status).toBe("refund_pending");
   });

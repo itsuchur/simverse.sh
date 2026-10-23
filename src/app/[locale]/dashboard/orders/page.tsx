@@ -1,6 +1,7 @@
 import { formatOrderPrice } from "~/lib/format-order-price";
 import {
   PLATEGA_PAYMENT_PROVIDER,
+  XHUB_PAYMENT_PROVIDER,
   paymentStatus,
 } from "~/lib/order-status";
 import { db } from "~/server/db";
@@ -8,13 +9,15 @@ import { db } from "~/server/db";
 import { OrderCard, OrderRow, type OrderRecord } from "./order-row";
 import { RefundOrderButton } from "./refund-order-button";
 
-function canRefundPlategaOrder(order: {
+function canRefundOrder(order: {
   paymentProvider: string;
   paymentStatus: string;
   paymentChargeId: string | null;
 }) {
   return (
-    order.paymentProvider === PLATEGA_PAYMENT_PROVIDER &&
+    [PLATEGA_PAYMENT_PROVIDER, XHUB_PAYMENT_PROVIDER].includes(
+      order.paymentProvider,
+    ) &&
     order.paymentStatus === paymentStatus.paid &&
     !!order.paymentChargeId
   );
@@ -61,6 +64,7 @@ function toOrderRecord(order: {
   paymentRefundId: string | null;
   paymentChargebackId: string | null;
   refundedAmount: bigint | null;
+  refundReason: string | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -104,6 +108,7 @@ function toOrderRecord(order: {
     paymentRefundId: order.paymentRefundId,
     paymentChargebackId: order.paymentChargebackId,
     refundedAmount: order.refundedAmount?.toString() ?? null,
+    refundReason: order.refundReason,
     status: order.status,
     failureReason: order.failureReason,
     esimIccid: order.esimIccid,
@@ -146,9 +151,13 @@ export default async function DashboardOrdersPage() {
 
       <div className="space-y-3 md:hidden">
         {records.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center">No orders yet.</p>
+          <p className="text-muted-foreground py-8 text-center">
+            No orders yet.
+          </p>
         ) : (
-          records.map((order) => <OrderCard key={order.orderUuid} order={order} />)
+          records.map((order) => (
+            <OrderCard key={order.orderUuid} order={order} />
+          ))
         )}
       </div>
 
@@ -224,8 +233,11 @@ export default async function DashboardOrdersPage() {
                     {order.esimIccid ?? "—"}
                   </td>
                   <td className="border-border border-t px-5 py-3.5">
-                    {canRefundPlategaOrder(order) ? (
-                      <RefundOrderButton orderUuid={order.orderUuid} />
+                    {canRefundOrder(order) ? (
+                      <RefundOrderButton
+                        orderUuid={order.orderUuid}
+                        refundReason={order.refundReason}
+                      />
                     ) : null}
                   </td>
                 </OrderRow>

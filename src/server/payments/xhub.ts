@@ -52,6 +52,7 @@ export function createXhubRefund(input: {
   paymentId: string;
   orderUuid: string;
   idempotencyKey: string;
+  reason: string;
 }): Promise<XhubRefund> {
   return xhubRefundRequest("/refunds", {
     method: "POST",
@@ -59,8 +60,7 @@ export function createXhubRefund(input: {
     body: JSON.stringify({
       payment_id: input.paymentId,
       external_id: input.orderUuid,
-      reason:
-        "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
+      reason: input.reason,
     }),
   });
 }

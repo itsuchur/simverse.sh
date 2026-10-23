@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-
+import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/button";
-
-import { toggleUserBanned } from "./actions";
+import { ReasonActionButton } from "../_components/reason-action-button";
+import { setUserBanned } from "./actions";
 
 export function BanUserButton({
   userId,
@@ -13,23 +13,41 @@ export function BanUserButton({
   userId: string;
   isBanned: boolean;
 }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
-
+  const [error, setError] = useState<string | null>(null);
+  if (!isBanned)
+    return (
+      <ReasonActionButton
+        label="Ban"
+        onSubmit={(reason) => setUserBanned(userId, true, reason)}
+      />
+    );
   return (
-    <Button
-      type="button"
-      size="lg"
-      className="h-10 px-4 text-base"
-      variant={isBanned ? "outline" : "destructive"}
-      disabled={pending}
-      onClick={() => {
-        setPending(true);
-        void toggleUserBanned(userId).finally(() => {
-          setPending(false);
-        });
-      }}
-    >
-      {pending ? "Saving…" : isBanned ? "Unban" : "Ban"}
-    </Button>
+    <div>
+      <Button
+        type="button"
+        size="lg"
+        variant="outline"
+        disabled={pending}
+        onClick={() => {
+          setPending(true);
+          setError(null);
+          void setUserBanned(userId, false)
+            .then(() => router.refresh())
+            .catch((err: unknown) =>
+              setError(err instanceof Error ? err.message : "Unban failed"),
+            )
+            .finally(() => setPending(false));
+        }}
+      >
+        {pending ? "Saving..." : "Unban"}
+      </Button>
+      {error && (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

@@ -9,7 +9,7 @@ import {
   markXhubRefunded,
 } from "~/server/orders/fulfill";
 import { verifyXhubWebhookSignature } from "~/server/payments/xhub";
-import { syncXhubTopupRefund } from "~/server/orders/topup-refund";
+import { syncXhubRefund } from "~/server/orders/topup-refund";
 
 const refundEventSchema = z.object({
   event: z.enum([
@@ -78,7 +78,7 @@ export const handleXhubWebhook = withWebhookLogging(
       const parsed = refundEventSchema.safeParse(payload);
       if (!parsed.success)
         return Response.json({ error: "Invalid body" }, { status: 400 });
-      await syncXhubTopupRefund({
+      await syncXhubRefund({
         paymentId: parsed.data.payment_id,
         refundId: parsed.data.refund_id,
       });

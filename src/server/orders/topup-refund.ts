@@ -24,6 +24,7 @@ type RefundOrder = {
   paymentRefundKey: string;
   priceAmount: bigint;
   currency: string;
+  refundReason: string | null;
 };
 
 function bareId(id: string) {
@@ -62,7 +63,7 @@ async function refundFailed(order: RefundOrder, error: unknown) {
   });
 }
 
-async function applyRefund(order: RefundOrder, refund: XhubRefund) {
+export async function applyXhubRefund(order: RefundOrder, refund: XhubRefund) {
   if (
     !order.paymentChargeId ||
     bareId(refund.payment_id) !== bareId(order.paymentChargeId)
@@ -139,10 +140,11 @@ async function applyRefund(order: RefundOrder, refund: XhubRefund) {
   }
 }
 
-export async function processTopupRefund(orderId: bigint) {
+export async function processPendingRefund(orderId: bigint) {
   const order = await db.order.findUnique({ where: { id: orderId } });
   if (
-    !order?.topupOfOrderId ||
+    !order ||
+    (!order.topupOfOrderId && !order.refundReason) ||
     order.status !== orderStatus.refundPending ||
     order.paymentStatus !== paymentStatus.paid
   )
@@ -169,8 +171,11 @@ export async function processTopupRefund(orderId: bigint) {
           paymentId: order.paymentChargeId,
           orderUuid: order.orderUuid,
           idempotencyKey: order.paymentRefundKey,
+          reason:
+            order.refundReason ??
+            "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
         });
-    await applyRefund(order, refund);
+    await applyXhubRefund(order, refund);
   } catch (error) {
     await refundFailed(order, error);
   }
@@ -191,6 +196,8 @@ export async function requestTopupRefund(
       status: uncertainSupplierOutcome
         ? orderStatus.refundRequired
         : orderStatus.refundPending,
+      refundReason:
+        "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
       failureReason: uncertainSupplierOutcome
         ? "topup_outcome_unknown"
         : "topup_parent_unavailable",
@@ -207,11 +214,11 @@ export async function requestTopupRefund(
     );
     return;
   }
-  await processTopupRefund(orderId);
+  await processPendingRefund(orderId);
 }
 
 /** Fetch the current REST state so duplicate/out-of-order events cannot undo it. */
-export async function syncXhubTopupRefund(input: {
+export async function syncXhubRefund(input: {
   paymentId: string;
   refundId: string;
 }) {
@@ -220,7 +227,6 @@ export async function syncXhubTopupRefund(input: {
     where: {
       paymentProvider: XHUB_PAYMENT_PROVIDER,
       paymentChargeId: { in: [paymentId, `pay_${paymentId}`] },
-      topupOfOrderId: { not: null },
       status: {
         in: [
           orderStatus.refundPending,
@@ -237,7 +243,7 @@ export async function syncXhubTopupRefund(input: {
   )
     return;
   try {
-    await applyRefund(order, await getXhubRefund(input.refundId));
+    await applyXhubRefund(order, await getXhubRefund(input.refundId));
   } catch (error) {
     await refundFailed(order, error);
     // Ask the provider to retry if its state cannot be reconciled yet.

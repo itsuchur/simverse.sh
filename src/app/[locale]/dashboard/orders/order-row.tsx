@@ -12,6 +12,7 @@ import {
 import { formatOrderPrice } from "~/lib/format-order-price";
 import {
   PLATEGA_PAYMENT_PROVIDER,
+  XHUB_PAYMENT_PROVIDER,
   paymentStatus,
 } from "~/lib/order-status";
 
@@ -40,6 +41,7 @@ export type OrderRecord = {
   paymentRefundId: string | null;
   paymentChargebackId: string | null;
   refundedAmount: string | null;
+  refundReason: string | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -85,6 +87,7 @@ const ORDER_FIELDS: {
     column: "payment_chargeback_id",
     value: (order) => order.paymentChargebackId,
   },
+  { column: "refund_reason", value: (order) => order.refundReason },
   { column: "refunded_amount", value: (order) => order.refundedAmount },
   { column: "status", value: (order) => order.status },
   { column: "failure_reason", value: (order) => order.failureReason },
@@ -128,7 +131,7 @@ function OrderDetailDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 data-open:zoom-in-100 data-closed:zoom-out-100 top-auto bottom-0 left-1/2 max-h-[min(90dvh,48rem)] w-full max-w-[calc(100%-0rem)] translate-x-[-50%] translate-y-0 gap-4 overflow-y-auto rounded-t-2xl rounded-b-none p-6 text-base sm:top-1/2 sm:bottom-auto sm:max-w-3xl sm:translate-y-[-50%] sm:rounded-xl sm:data-open:slide-in-from-bottom-0 sm:data-closed:slide-out-to-bottom-0 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95">
+      <DialogContent className="data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 data-open:zoom-in-100 data-closed:zoom-out-100 sm:data-open:slide-in-from-bottom-0 sm:data-closed:slide-out-to-bottom-0 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95 top-auto bottom-0 left-1/2 max-h-[min(90dvh,48rem)] w-full max-w-[calc(100%-0rem)] translate-x-[-50%] translate-y-0 gap-4 overflow-y-auto rounded-t-2xl rounded-b-none p-6 text-base sm:top-1/2 sm:bottom-auto sm:max-w-3xl sm:translate-y-[-50%] sm:rounded-xl">
         <DialogHeader>
           <DialogTitle className="text-xl">Order {order.id}</DialogTitle>
           <DialogDescription>
@@ -214,7 +217,9 @@ export function OrderCard({ order }: { order: OrderRecord }) {
     order.paymentProvider,
   );
   const canRefund =
-    order.paymentProvider === PLATEGA_PAYMENT_PROVIDER &&
+    [PLATEGA_PAYMENT_PROVIDER, XHUB_PAYMENT_PROVIDER].includes(
+      order.paymentProvider,
+    ) &&
     order.paymentStatus === paymentStatus.paid &&
     !!order.paymentChargeId;
 
@@ -237,7 +242,9 @@ export function OrderCard({ order }: { order: OrderRecord }) {
             </div>
             <div className="shrink-0 text-right">
               <div className="font-medium tabular-nums">{price}</div>
-              <div className="text-muted-foreground text-sm">{order.status}</div>
+              <div className="text-muted-foreground text-sm">
+                {order.status}
+              </div>
             </div>
           </div>
           <div className="text-muted-foreground mt-3 space-y-0.5 text-sm">
@@ -251,7 +258,12 @@ export function OrderCard({ order }: { order: OrderRecord }) {
             </div>
           </div>
         </button>
-        {canRefund ? <RefundOrderButton orderUuid={order.orderUuid} /> : null}
+        {canRefund ? (
+          <RefundOrderButton
+            orderUuid={order.orderUuid}
+            refundReason={order.refundReason}
+          />
+        ) : null}
       </div>
       {dialog}
     </>

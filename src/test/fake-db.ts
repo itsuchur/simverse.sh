@@ -5,6 +5,9 @@
  */
 
 export type FakeUser = {
+  email: string;
+  isBanned: boolean;
+  banReason: string | null;
   id: string;
   telegramId: string | null;
   languageCode: string | null;
@@ -55,6 +58,7 @@ export type FakeOrder = {
   paymentRefundKey: string;
   paymentChargebackId: string | null;
   refundedAmount: bigint | null;
+  refundReason: string | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -161,6 +165,7 @@ function orderDefaults(): Omit<
     paymentRefundKey: crypto.randomUUID(),
     paymentChargebackId: null,
     refundedAmount: null,
+    refundReason: null,
     status: "created",
     failureReason: null,
     esimIccid: null,
@@ -215,6 +220,9 @@ class FakeDb {
 
   seedUser(user: Partial<FakeUser> & { id: string }): FakeUser {
     const record: FakeUser = {
+      email: `${user.id}@telegram.local`,
+      isBanned: false,
+      banReason: null,
       telegramId: null,
       languageCode: null,
       preferredLanguage: null,
@@ -551,6 +559,15 @@ class FakeDb {
   };
 
   user = {
+    update: async (args: {
+      where: { id: string };
+      data: Partial<FakeUser>;
+    }) => {
+      const user = this.users.get(args.where.id);
+      if (!user) throw new Error("User not found");
+      Object.assign(user, args.data);
+      return { ...user };
+    },
     findUnique: async (args: {
       where: { id?: string; telegramId?: string };
       select?: Record<string, boolean>;

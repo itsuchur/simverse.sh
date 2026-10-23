@@ -46,6 +46,7 @@ model User {
   /// First FingerprintJS visitorId collected in the Mini App
   fingerprint         String?
   /// When true, the user cannot add to cart or start checkout
+  banReason           String?   @map("ban_reason")
   isBanned            Boolean   @default(false)
   /// Soft delete: user requested account deletion; data purged within a month
   isDeleted           Boolean   @default(false)
@@ -146,6 +147,7 @@ model Order {
   /// Separate, durable idempotency key for refund creation (never the payment key).
   paymentRefundKey    String  @default(dbgenerated("gen_random_uuid()")) @map("payment_refund_key") @db.Uuid
   paymentChargebackId String? @map("payment_chargeback_id")
+  refundReason        String? @map("refund_reason")
   refundedAmount      BigInt? @map("refunded_amount")
 
   status        String  @default("created")

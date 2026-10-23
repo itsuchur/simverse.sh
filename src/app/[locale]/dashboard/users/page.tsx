@@ -16,6 +16,7 @@ export default async function DashboardUsersPage() {
       telegramUsername: true,
       fingerprint: true,
       isBanned: true,
+      banReason: true,
       createdAt: true,
     },
   });
@@ -26,7 +27,9 @@ export default async function DashboardUsersPage() {
 
       <div className="space-y-3 md:hidden">
         {users.length === 0 ? (
-          <p className="text-muted-foreground py-8 text-center">No users yet.</p>
+          <p className="text-muted-foreground py-8 text-center">
+            No users yet.
+          </p>
         ) : (
           users.map((user) => (
             <div
@@ -37,7 +40,10 @@ export default async function DashboardUsersPage() {
                 <div className="min-w-0">
                   <div className="truncate font-medium">{user.name}</div>
                   <div className="text-muted-foreground text-sm">
-                    {user.createdAt.toISOString().replace("T", " ").slice(0, 19)}
+                    {user.createdAt
+                      .toISOString()
+                      .replace("T", " ")
+                      .slice(0, 19)}
                   </div>
                 </div>
                 <div className="shrink-0 text-sm font-medium">
@@ -55,6 +61,11 @@ export default async function DashboardUsersPage() {
                   {user.fingerprint ?? "—"}
                 </div>
               </div>
+              {user.banReason && (
+                <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                  Ban reason: {user.banReason}
+                </p>
+              )}
               {isDashboardEmail(user.email) ? null : (
                 <BanUserButton
                   userId={user.id}
@@ -111,6 +122,11 @@ export default async function DashboardUsersPage() {
                   </td>
                   <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
                     {user.isBanned ? "Yes" : "No"}
+                    {user.banReason && (
+                      <p className="max-w-64 text-sm whitespace-pre-wrap">
+                        {user.banReason}
+                      </p>
+                    )}
                   </td>
                   <td className="border-border border-t px-5 py-3.5">
                     {isDashboardEmail(user.email) ? null : (

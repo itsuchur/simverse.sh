@@ -50,6 +50,23 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${geist.variable} font-sans antialiased`}>
       <head>
+        <script
+          {...{ nowprocket: "", "seraph-accel-crit": "1" }}
+          data-noptimize="1"
+          data-cfasync="false"
+          data-wpfc-render="false"
+          data-no-defer="1"
+          data-cmp-ab="2"
+          dangerouslySetInnerHTML={{
+            __html: `(function () {
+  var script = document.createElement("script");
+  script.async = 1;
+  script.setAttribute("data-cmp-ab", "2");
+  script.src = 'https://emrldco.com/NTg5NzQ0.js?t=589744';
+  document.head.appendChild(script);
+})();`,
+          }}
+        />
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"

@@ -26,7 +26,7 @@ import { isEsimLifecycleStatus } from "~/lib/esim-status";
 import { captureServerEvent } from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
 import {
-  processTopupRefund,
+  processPendingRefund,
   requestTopupRefund,
 } from "~/server/orders/topup-refund";
 import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
@@ -237,6 +237,10 @@ async function claimSupplierOrder(orderId: bigint): Promise<boolean> {
 
 export async function placeSupplierOrder(order: OrderRow) {
   const stored = await db.order.findUnique({ where: { id: order.id } });
+  if (stored?.status === orderStatus.refundPending) {
+    await processPendingRefund(stored.id);
+    return;
+  }
   if (stored?.topupOfOrderId) {
     await placeSupplierTopup(stored);
     return;
@@ -340,7 +344,7 @@ async function placeSupplierTopup(order: {
   topupPeriodDays: number | null;
 }) {
   if (order.status === orderStatus.refundPending) {
-    await processTopupRefund(order.id);
+    await processPendingRefund(order.id);
     return;
   }
   if (order.status === orderStatus.issued || order.topupOfOrderId === null) {
@@ -977,6 +981,8 @@ export async function markXhubRefunded(input: {
 }) {
   await db.order.updateMany({
     where: {
+      // Managed refunds use refund REST state; payment events have no refund ID.
+      refundReason: null,
       orderUuid: input.orderUuid,
       paymentProvider: XHUB_PAYMENT_PROVIDER,
       OR: [
