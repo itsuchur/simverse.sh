@@ -158,7 +158,7 @@ describe("handlePlategaWebhook", () => {
       paymentStatus: "refunded",
       status: "issued",
       paymentChargeId: TRANSACTION_ID,
-      paymentRefundId: TRANSACTION_ID,
+
       refundedAmount: 1099n,
     });
 

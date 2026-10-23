@@ -186,9 +186,9 @@ within 16 minutes of the stored expiry time (the invoice reuse window plus a
 supplier-request margin). Payments arriving after the parent profile becomes
 unavailable are taken out of supplier recovery and sent to refund handling.
 
-X-Hub uses its [refund API](https://docs.x-hub.online/payments/refunds/) with a
-persisted, separate `payment_refund_key`. Apply migration
-`20261021120000_add_payment_refund_key` before running the new app or poller.
+X-Hub uses its [refund API](https://docs.x-hub.online/payments/refunds/) with the
+durable `refunds.idempotency_key`. Each order has one full-refund request;
+retries reuse the same record, reason, and key.
 The merchant account must have the refund endpoint enabled by X-Hub; a 404 is
 reported to Sentry for manual handling. Orders stay `refund_pending` and payments
 stay `paid` until the refund is confirmed. The existing X-Hub webhook endpoint
@@ -197,9 +197,42 @@ handles `refund.completed`, `refund.rejected`, `refund.failed`, and
 
 An unavailable/failed refund becomes `refund_required` and produces a Sentry
 error tagged `reason: topup_refund_failed`, with the order UUID, payment ID,
-refund ID/key, amount in minor units, and currency. This includes Trybit: its
+refund/request IDs, amount in minor units, and currency. This includes Trybit: its
 documented cancellation method only cancels unpaid invoices, while a payout
 needs a separate API key and a verified recipient wallet that this app does
 not store. Resolve these cases manually; `refund_required` does not mean money
 was returned. An uncertain earlier supplier top-up also requires manual
 reconciliation to avoid refunding a successfully delivered top-up.
+
+## Refund records and dashboard
+
+The dashboard **Refunds** tab lists dashboard requests, automatic top-up refunds,
+provider-reported refunds, and migrated records. It includes status filtering,
+pagination, order links, amounts/currencies, provider identifiers, request
+initiators, failure codes, and timestamps. Staff-triggered requests record the
+signed-in staff user. The `orders` table retains `payment_status` and
+`refunded_amount` as transactional summaries; refund details live in `refunds`.
+Refund transitions use `requested`, `processing`, `completed`, `failed`,
+`reversed`, and `manual_review`. A reversal preserves the original completion
+timestamp while removing the order's refunded total.
+
+Migration `20261024180000_create_refunds` backfills existing refunds and preserves
+their idempotency keys, then removes the old refund ID/key/reason columns from
+`orders`. Historical initiators and exact request times were not stored; these
+records are labeled `legacy` and use the last known order update timestamp.
+
+This migration requires a coordinated update of the web app and poller. For an
+existing running stack, build the new images first, then stop both old processes
+before applying the migration with the new poller image:
+
+```bash
+docker compose -f compose.prod.yaml build app poller
+docker compose -f compose.prod.yaml stop app poller
+docker compose -f compose.prod.yaml run --rm --no-deps poller bun run db:migrate
+docker compose -f compose.prod.yaml up -d app poller
+```
+
+Do not restart an old app/poller image against the migrated schema. Verify the
+backfill, unique constraints, concurrent request behavior, and transaction
+rollback locally with `bun run test:refunds-migration` (requires Docker; creates
+and removes its own isolated PostgreSQL container).

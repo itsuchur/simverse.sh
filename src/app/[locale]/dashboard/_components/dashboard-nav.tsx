@@ -26,6 +26,11 @@ const navItems = [
     match: (path: string) => path.startsWith("/dashboard/orders"),
   },
   {
+    href: "/dashboard/refunds",
+    label: "Refunds",
+    match: (path: string) => path.startsWith("/dashboard/refunds"),
+  },
+  {
     href: "/dashboard/packages",
     label: "Packages",
     match: (path: string) => path.startsWith("/dashboard/packages"),

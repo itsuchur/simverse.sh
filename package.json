@@ -20,6 +20,7 @@
     "preview": "next build && next start",
     "start": "next start",
     "test": "bun test",
+    "test:refunds-migration": "bun scripts/test-refunds-migration.ts",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov",
     "typecheck": "tsc --noEmit"
   },

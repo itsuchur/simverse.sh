@@ -63,7 +63,7 @@ Required in production; optional in development (the Google button is hidden if 
 
 1. Open `https://dashboard.simverse.sh` (or `/dashboard` on the local/ngrok host) while signed out of the Mini App (or use a browser that has no Telegram session cookie).
 2. Sign in with Google as `support@simverse.sh`.
-3. You should land on the dashboard with Home / Orders / Users.
+3. You should land on the dashboard with Home / Orders / Refunds / Packages / Users / Webhooks.
 4. Any other Google account in the Workspace should fail at user create (`FORBIDDEN`) and must not get a `user` row.
 
 If Google shows `redirect_uri_mismatch`, the URI in the client must match `{BETTER_AUTH_URL}/api/auth/callback/google` exactly (scheme, host, no trailing slash on the path).
@@ -71,3 +71,12 @@ If Google shows `redirect_uri_mismatch`, the URI in the client must match `{BETT
 Open the dashboard on the **same host** as `BETTER_AUTH_URL` (production: `https://dashboard.simverse.sh`; locally the ngrok URL, not a mismatched `localhost` origin unless that origin is listed as a Google redirect URI).
 
 `state_mismatch` after Google returns means the OAuth state cookie did not round-trip. This app stores state in the `verification` table and does not require that cookie on callback; restart the app after pulling that change and try again.
+
+## Refunds
+
+The Refunds tab shows 20 records per page, with status filters and links to the
+associated order. It includes automatic, staff-requested, provider-reported, and
+migrated refunds. New dashboard requests retain the initiating staff account.
+Refunds remain full-order-only; retries reuse the existing refund request.
+Apply the dedicated refunds migration using the coordinated app/poller rollout
+documented in the root README before running this version.

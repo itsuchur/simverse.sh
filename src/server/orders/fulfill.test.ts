@@ -389,7 +389,9 @@ describe("markPlategaRefunded / markPlategaChargeback", () => {
     });
 
     expect(order.paymentStatus).toBe("refunded");
-    expect(order.paymentRefundId).toBe("tx-1");
+    expect(fakeDb.refundForOrder(order.id)?.providerRefundId ?? null).toBe(
+      "tx-1",
+    );
     expect(order.refundedAmount).toBe(1099n);
   });
 
@@ -399,7 +401,7 @@ describe("markPlategaRefunded / markPlategaChargeback", () => {
       paymentStatus: "refunded",
       status: "issued",
       paymentChargeId: "tx-1",
-      paymentRefundId: "tx-1",
+
       refundedAmount: 1099n,
     });
 
@@ -417,6 +419,7 @@ describe("markCardlinkRefunded / markCardlinkChargeback", () => {
   function seedPaidCardlink() {
     return fakeDb.seedOrder({
       paymentProvider: "cardlink",
+      paymentChargeId: "BILL-1",
       paymentStatus: "paid",
       status: "issued",
       priceAmount: 1099n,
@@ -428,6 +431,7 @@ describe("markCardlinkRefunded / markCardlinkChargeback", () => {
     const order = seedPaidCardlink();
 
     await markCardlinkRefunded({
+      billId: "BILL-1",
       orderUuid: order.orderUuid,
       refundId: "REF-1",
       amount: "10.99",
@@ -442,6 +446,7 @@ describe("markCardlinkRefunded / markCardlinkChargeback", () => {
     const order = seedPaidCardlink();
 
     await markCardlinkRefunded({
+      billId: "BILL-1",
       orderUuid: order.orderUuid,
       refundId: "REF-1",
       amount: "abc",
@@ -454,7 +459,11 @@ describe("markCardlinkRefunded / markCardlinkChargeback", () => {
   test("chargeback applies to paid and refunded orders and replays safely", async () => {
     const order = seedPaidCardlink();
     order.paymentStatus = "refunded";
-    order.paymentRefundId = "REF-1";
+    fakeDb.seedRefund({
+      orderId: order.id,
+      providerRefundId: "REF-1",
+      status: "completed",
+    });
 
     await markCardlinkChargeback({
       orderUuid: order.orderUuid,
@@ -919,9 +928,13 @@ describe("checkout recovery regressions", () => {
 
   for (const kind of ["refund", "chargeback"] as const) {
     test(`${kind} before payment confirmation blocks fulfillment`, async () => {
-      const order = fakeDb.seedOrder({ paymentProvider: "cardlink" });
+      const order = fakeDb.seedOrder({
+        paymentProvider: "cardlink",
+        paymentInvoiceUrl: "https://cardlink.link/transfer/BILL-1",
+      });
       if (kind === "refund")
         await markCardlinkRefunded({
+          billId: "BILL-1",
           orderUuid: order.orderUuid,
           refundId: "REF-1",
           amount: "10.99",

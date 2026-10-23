@@ -1,5 +1,4 @@
-import "server-only";
-
+﻿import "server-only";
 import * as Sentry from "@sentry/nextjs";
 import {
   orderStatus,
@@ -7,31 +6,21 @@ import {
   XHUB_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
+import { refundStatus } from "~/lib/refund-status";
 import { db } from "~/server/db";
 import {
   createXhubRefund,
   getXhubRefund,
   type XhubRefund,
 } from "~/server/payments/xhub";
-
-type RefundOrder = {
-  id: bigint;
-  orderUuid: string;
-  topupOfOrderId: bigint | null;
-  paymentProvider: string;
-  paymentChargeId: string | null;
-  paymentRefundId: string | null;
-  paymentRefundKey: string;
-  priceAmount: bigint;
-  currency: string;
-  refundReason: string | null;
-};
+import { ensureRefund, type RefundOrder } from "~/server/refunds/store";
 
 function bareId(id: string) {
   return id.replace(/^(pay_|ref_)/, "");
 }
 
 async function refundFailed(order: RefundOrder, error: unknown) {
+  const refund = await db.refund.findUnique({ where: { orderId: order.id } });
   Sentry.captureException(error, {
     level: "error",
     tags: {
@@ -43,139 +32,188 @@ async function refundFailed(order: RefundOrder, error: unknown) {
       orderUuid: order.orderUuid,
       parentOrderId: order.topupOfOrderId?.toString(),
       paymentChargeId: order.paymentChargeId,
-      refundId: order.paymentRefundId,
-      refundKey: order.paymentRefundKey,
+      refundId: refund?.providerRefundId,
+      refundRequestId: refund?.id,
       amount: order.priceAmount.toString(),
       currency: order.currency,
       manualRefundRequired: true,
     },
   });
-  await db.order.updateMany({
-    where: {
-      id: order.id,
-      status: orderStatus.refundPending,
-      paymentStatus: paymentStatus.paid,
-    },
-    data: {
-      status: orderStatus.refundRequired,
-      failureReason: "topup_refund_failed",
-    },
-  });
-}
-
-export async function applyXhubRefund(order: RefundOrder, refund: XhubRefund) {
-  if (
-    !order.paymentChargeId ||
-    bareId(refund.payment_id) !== bareId(order.paymentChargeId)
-  ) {
-    throw new Error("X-Hub refund payment ID mismatch");
-  }
-  if (
-    order.paymentRefundId &&
-    bareId(refund.id) !== bareId(order.paymentRefundId)
-  ) {
-    throw new Error("X-Hub refund ID mismatch");
-  }
-  const amount = BigInt(refund.amount_rub.replace(".", ""));
-  if (order.currency !== "RUB" || amount !== order.priceAmount) {
-    throw new Error(
-      "X-Hub refund amount or currency mismatch; reconcile manually",
-    );
-  }
-
-  const where = {
-    id: order.id,
-    status: {
-      in: [
-        orderStatus.refundPending,
-        orderStatus.refundRequired,
-        orderStatus.refunded,
-      ],
-    },
-    paymentStatus: { in: [paymentStatus.paid, paymentStatus.refunded] },
-  };
-  if (refund.status === "completed") {
-    await db.order.updateMany({
-      where,
-      data: {
-        status: orderStatus.refunded,
-        paymentStatus: paymentStatus.refunded,
-        paymentRefundId: refund.id,
-        refundedAmount: amount,
-        failureReason: null,
-      },
-    });
-  } else if (
-    ["rejected", "failed", "cancelled", "reversed"].includes(refund.status)
-  ) {
-    const changed = await db.order.updateMany({
-      where: {
-        ...where,
-        status: { in: [orderStatus.refundPending, orderStatus.refunded] },
-      },
-      data: {
-        status: orderStatus.refundRequired,
-        paymentStatus: paymentStatus.paid,
-        paymentRefundId: refund.id,
-        refundedAmount: null,
-        failureReason: `topup_refund_${refund.status}`,
-      },
-    });
-    if (changed.count > 0) {
-      await refundFailed(
-        order,
-        new Error(`X-Hub refund ${refund.status}; manual refund required`),
-      );
-    }
-  } else {
-    // A request/executing response is not proof that the customer got their money.
-    await db.order.updateMany({
+  await db.$transaction(async (tx) => {
+    const changed = await tx.order.updateMany({
       where: {
         id: order.id,
         status: orderStatus.refundPending,
         paymentStatus: paymentStatus.paid,
       },
-      data: { paymentRefundId: refund.id, updatedAt: new Date() },
+      data: {
+        status: orderStatus.refundRequired,
+        failureReason: "topup_refund_failed",
+      },
     });
+    if (!changed.count) return;
+    await tx.refund.updateMany({
+      where: {
+        orderId: order.id,
+        status: { in: [refundStatus.requested, refundStatus.processing] },
+      },
+      data: {
+        status: refundStatus.manualReview,
+        failureCode: "refund_reconciliation_required",
+      },
+    });
+  });
+}
+
+export async function applyXhubRefund(
+  order: RefundOrder,
+  response: XhubRefund,
+) {
+  if (
+    !order.paymentChargeId ||
+    bareId(response.payment_id) !== bareId(order.paymentChargeId)
+  )
+    throw new Error("X-Hub refund payment ID mismatch");
+  const amount = BigInt(response.amount_rub.replace(".", ""));
+  if (order.currency !== "RUB" || amount !== order.priceAmount)
+    throw new Error(
+      "X-Hub refund amount or currency mismatch; reconcile manually",
+    );
+  const failed = await db.$transaction(async (tx) => {
+    const current = await tx.order.update({
+      where: { id: order.id },
+      data: { id: order.id },
+    });
+    const refund = await tx.refund.findUniqueOrThrow({
+      where: { orderId: order.id },
+    });
+    if (
+      refund.providerRefundId &&
+      bareId(response.id) !== bareId(refund.providerRefundId)
+    )
+      throw new Error("X-Hub refund ID mismatch");
+    if (refund.amount !== amount || refund.currency !== order.currency)
+      throw new Error("Refund request amount or currency mismatch");
+    if (
+      current.paymentStatus !== paymentStatus.paid &&
+      current.paymentStatus !== paymentStatus.refunded
+    )
+      return;
+    if (
+      refund.status === refundStatus.reversed &&
+      response.status !== "reversed"
+    )
+      return;
+    if (
+      refund.status === refundStatus.completed &&
+      response.status !== "completed" &&
+      response.status !== "reversed"
+    )
+      return;
+    if (response.status === "completed") {
+      await tx.refund.update({
+        where: { id: refund.id },
+        data: {
+          status: refundStatus.completed,
+          providerRefundId: response.id,
+          providerStatus: response.status,
+          completedAt: refund.completedAt ?? new Date(),
+          failureCode: null,
+        },
+      });
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: orderStatus.refunded,
+          paymentStatus: paymentStatus.refunded,
+          refundedAmount: amount,
+          failureReason: null,
+        },
+      });
+    } else if (
+      ["rejected", "failed", "cancelled", "reversed"].includes(response.status)
+    ) {
+      await tx.refund.update({
+        where: { id: refund.id },
+        data: {
+          status:
+            response.status === "reversed"
+              ? refundStatus.reversed
+              : refundStatus.failed,
+          providerRefundId: response.id,
+          providerStatus: response.status,
+          failureCode: "provider_" + response.status,
+        },
+      });
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: orderStatus.refundRequired,
+          paymentStatus: paymentStatus.paid,
+          refundedAmount: null,
+          failureReason: "topup_refund_" + response.status,
+        },
+      });
+      return (
+        refund.status !== refundStatus.failed &&
+        refund.status !== refundStatus.reversed
+      );
+    } else if (
+      refund.status !== refundStatus.completed &&
+      refund.status !== refundStatus.reversed
+    ) {
+      await tx.refund.update({
+        where: { id: refund.id },
+        data: {
+          status: refundStatus.processing,
+          providerRefundId: response.id,
+          providerStatus: response.status,
+          failureCode: null,
+        },
+      });
+    }
+  });
+  if (failed) {
+    await refundFailed(
+      order,
+      new Error("X-Hub refund " + response.status + "; manual refund required"),
+    );
   }
 }
 
 export async function processPendingRefund(orderId: bigint) {
   const order = await db.order.findUnique({ where: { id: orderId } });
   if (
-    !order ||
-    (!order.topupOfOrderId && !order.refundReason) ||
-    order.status !== orderStatus.refundPending ||
+    order?.status !== orderStatus.refundPending ||
     order.paymentStatus !== paymentStatus.paid
   )
     return;
+  const refund = await ensureRefund(order, {
+    source: "automatic",
+    reason:
+      "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
+  });
   try {
-    if (order.paymentProvider === TRYBIT_PAYMENT_PROVIDER) {
-      // The documented cancellation API accepts unpaid invoices only. A payout
-      // needs a separate key plus a verified recipient wallet, neither is stored.
+    if (order.paymentProvider === TRYBIT_PAYMENT_PROVIDER)
       throw new Error(
         "Trybit automatic refund unavailable: manual refund needs a verified recipient wallet and payout credentials",
       );
-    }
     if (
       order.paymentProvider !== XHUB_PAYMENT_PROVIDER ||
       !order.paymentChargeId
-    ) {
+    )
       throw new Error(
-        "Automatic top-up refund unavailable: unsupported provider or missing payment ID",
+        "Automatic refund unavailable: unsupported provider or missing payment ID",
       );
-    }
-    const refund = order.paymentRefundId
-      ? await getXhubRefund(order.paymentRefundId)
+    const response = refund.providerRefundId
+      ? await getXhubRefund(refund.providerRefundId)
       : await createXhubRefund({
           paymentId: order.paymentChargeId,
           orderUuid: order.orderUuid,
-          idempotencyKey: order.paymentRefundKey,
-          reason:
-            order.refundReason ??
-            "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
+          idempotencyKey: refund.idempotencyKey,
+          reason: refund.reason,
         });
-    await applyXhubRefund(order, refund);
+    await applyXhubRefund(order, response);
   } catch (error) {
     await refundFailed(order, error);
   }
@@ -185,27 +223,47 @@ export async function requestTopupRefund(
   orderId: bigint,
   uncertainSupplierOutcome = false,
 ) {
-  const claimed = await db.order.updateMany({
-    where: {
-      id: orderId,
-      topupOfOrderId: { not: null },
-      status: orderStatus.ordering,
-      paymentStatus: paymentStatus.paid,
-    },
-    data: {
-      status: uncertainSupplierOutcome
-        ? orderStatus.refundRequired
-        : orderStatus.refundPending,
-      refundReason:
-        "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
-      failureReason: uncertainSupplierOutcome
-        ? "topup_outcome_unknown"
-        : "topup_parent_unavailable",
-    },
+  const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
+  const claimed = await db.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        topupOfOrderId: { not: null },
+        status: orderStatus.ordering,
+        paymentStatus: paymentStatus.paid,
+      },
+      data: {
+        status: uncertainSupplierOutcome
+          ? orderStatus.refundRequired
+          : orderStatus.refundPending,
+        failureReason: uncertainSupplierOutcome
+          ? "topup_outcome_unknown"
+          : "topup_parent_unavailable",
+      },
+    });
+    if (result.count) {
+      const refund = await ensureRefund(
+        order,
+        {
+          source: "automatic",
+          reason:
+            "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
+        },
+        tx,
+      );
+      if (uncertainSupplierOutcome)
+        await tx.refund.update({
+          where: { id: refund.id },
+          data: {
+            status: refundStatus.manualReview,
+            failureCode: "supplier_outcome_unknown",
+          },
+        });
+    }
+    return result.count;
   });
-  if (claimed.count === 0) return;
+  if (!claimed) return;
   if (uncertainSupplierOutcome) {
-    const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
     await refundFailed(
       order,
       new Error(
@@ -217,7 +275,7 @@ export async function requestTopupRefund(
   await processPendingRefund(orderId);
 }
 
-/** Fetch the current REST state so duplicate/out-of-order events cannot undo it. */
+/** Reconcile authoritative REST state, including reversals and late completion. */
 export async function syncXhubRefund(input: {
   paymentId: string;
   refundId: string;
@@ -226,7 +284,7 @@ export async function syncXhubRefund(input: {
   const order = await db.order.findFirst({
     where: {
       paymentProvider: XHUB_PAYMENT_PROVIDER,
-      paymentChargeId: { in: [paymentId, `pay_${paymentId}`] },
+      paymentChargeId: { in: [paymentId, "pay_" + paymentId] },
       status: {
         in: [
           orderStatus.refundPending,
@@ -237,16 +295,17 @@ export async function syncXhubRefund(input: {
     },
   });
   if (!order) return;
+  const refund = await db.refund.findUnique({ where: { orderId: order.id } });
   if (
-    order.paymentRefundId &&
-    bareId(order.paymentRefundId) !== bareId(input.refundId)
+    !refund ||
+    (refund.providerRefundId &&
+      bareId(refund.providerRefundId) !== bareId(input.refundId))
   )
     return;
   try {
     await applyXhubRefund(order, await getXhubRefund(input.refundId));
   } catch (error) {
     await refundFailed(order, error);
-    // Ask the provider to retry if its state cannot be reconciled yet.
     throw error;
   }
 }

@@ -38,10 +38,14 @@ export type OrderRecord = {
   paymentProvider: string;
   paymentChargeId: string | null;
   paymentStatus: string;
-  paymentRefundId: string | null;
   paymentChargebackId: string | null;
   refundedAmount: string | null;
-  refundReason: string | null;
+  refund: {
+    id: string;
+    providerRefundId: string | null;
+    reason: string;
+    status: string;
+  } | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -82,12 +86,17 @@ const ORDER_FIELDS: {
   { column: "payment_provider", value: (order) => order.paymentProvider },
   { column: "payment_charge_id", value: (order) => order.paymentChargeId },
   { column: "payment_status", value: (order) => order.paymentStatus },
-  { column: "payment_refund_id", value: (order) => order.paymentRefundId },
+  { column: "refund_id", value: (order) => order.refund?.id },
+  {
+    column: "provider_refund_id",
+    value: (order) => order.refund?.providerRefundId,
+  },
+  { column: "refund_status", value: (order) => order.refund?.status },
   {
     column: "payment_chargeback_id",
     value: (order) => order.paymentChargebackId,
   },
-  { column: "refund_reason", value: (order) => order.refundReason },
+  { column: "refund_reason", value: (order) => order.refund?.reason },
   { column: "refunded_amount", value: (order) => order.refundedAmount },
   { column: "status", value: (order) => order.status },
   { column: "failure_reason", value: (order) => order.failureReason },
@@ -134,9 +143,7 @@ function OrderDetailDialog({
       <DialogContent className="data-open:slide-in-from-bottom-4 data-closed:slide-out-to-bottom-4 data-open:zoom-in-100 data-closed:zoom-out-100 sm:data-open:slide-in-from-bottom-0 sm:data-closed:slide-out-to-bottom-0 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95 top-auto bottom-0 left-1/2 max-h-[min(90dvh,48rem)] w-full max-w-[calc(100%-0rem)] translate-x-[-50%] translate-y-0 gap-4 overflow-y-auto rounded-t-2xl rounded-b-none p-6 text-base sm:top-1/2 sm:bottom-auto sm:max-w-3xl sm:translate-y-[-50%] sm:rounded-xl">
         <DialogHeader>
           <DialogTitle className="text-xl">Order {order.id}</DialogTitle>
-          <DialogDescription>
-            All columns from the orders table.
-          </DialogDescription>
+          <DialogDescription>Order and refund details.</DialogDescription>
         </DialogHeader>
         <dl className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(10rem,14rem)_1fr] sm:gap-x-6 sm:gap-y-3">
           {ORDER_FIELDS.map(({ column, value }) => {
@@ -261,7 +268,7 @@ export function OrderCard({ order }: { order: OrderRecord }) {
         {canRefund ? (
           <RefundOrderButton
             orderUuid={order.orderUuid}
-            refundReason={order.refundReason}
+            refundReason={order.refund?.reason ?? null}
           />
         ) : null}
       </div>

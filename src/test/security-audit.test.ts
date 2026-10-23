@@ -98,7 +98,7 @@ test("AUDIT: Cardlink failure callback signature remains valid after changing st
   expect(esimOrderCallCount()).toBe(1);
 });
 
-test("AUDIT: signed Cardlink refund can be redirected to a different order UUID", async () => {
+test("signed Cardlink refund cannot be redirected to a different order UUID", async () => {
   const original = fakeDb.seedOrder({
     paymentProvider: "cardlink",
     paymentStatus: "paid",
@@ -126,7 +126,8 @@ test("AUDIT: signed Cardlink refund can be redirected to a different order UUID"
     post({ ...refund, InvId: victim.orderUuid }),
   );
   expect(response.status).toBe(200);
-  expect(victim.paymentStatus).toBe("refunded");
+  expect(victim.paymentStatus).toBe("paid");
+  expect(fakeDb.refundForOrder(victim.id)).toBeNull();
   expect(original.paymentStatus).toBe("paid");
 });
 

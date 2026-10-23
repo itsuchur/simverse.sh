@@ -1,3 +1,4 @@
+import type { Refund } from "@prisma/client";
 /**
  * In-memory stand-in for the Prisma client, covering only the query shapes
  * used by the order fulfillment code (`src/server/orders/*`) and the webhook
@@ -54,11 +55,8 @@ export type FakeOrder = {
   cartRevision: string | null;
   paymentStatus: string;
   paymentChargeId: string | null;
-  paymentRefundId: string | null;
-  paymentRefundKey: string;
   paymentChargebackId: string | null;
   refundedAmount: bigint | null;
-  refundReason: string | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -124,7 +122,7 @@ function matchValue(actual: unknown, condition: unknown): boolean {
   return actual === condition;
 }
 
-function matchWhere(record: FakeOrder, where: Where): boolean {
+function matchWhere(record: object, where: Where): boolean {
   return Object.entries(where).every(([key, condition]) => {
     if (condition === undefined) {
       return true;
@@ -161,11 +159,8 @@ function orderDefaults(): Omit<
     cartRevision: null,
     paymentStatus: "pending",
     paymentChargeId: null,
-    paymentRefundId: null,
-    paymentRefundKey: crypto.randomUUID(),
     paymentChargebackId: null,
     refundedAmount: null,
-    refundReason: null,
     status: "created",
     failureReason: null,
     esimIccid: null,
@@ -190,6 +185,8 @@ function orderDefaults(): Omit<
 
 class FakeDb {
   private orders: FakeOrder[] = [];
+  private refunds: Refund[] = [];
+  private transactionQueue: Promise<void> = Promise.resolve();
   private excludedPackageCodes: FakeExcludedPackageCode[] = [];
   private excludedCountryCodes: FakeExcludedCountryCode[] = [];
   private users = new Map<string, FakeUser>();
@@ -208,6 +205,7 @@ class FakeDb {
 
   reset() {
     this.orders = [];
+    this.refunds = [];
     this.excludedPackageCodes = [];
     this.excludedCountryCodes = [];
     this.users.clear();
@@ -217,6 +215,92 @@ class FakeDb {
     this.nextExcludedCountryCodeId = 1n;
     this.nextWebhookLogId = 1n;
   }
+
+  refundForOrder(orderId: bigint): Refund | null {
+    return this.refunds.find((refund) => refund.orderId === orderId) ?? null;
+  }
+
+  seedRefund(input: Partial<Refund> & { orderId: bigint }): Refund {
+    const order = this.orders.find((order) => order.id === input.orderId)!;
+    const record: Refund = {
+      id: crypto.randomUUID(),
+      provider: order.paymentProvider,
+      providerPaymentId: order.paymentChargeId,
+      providerRefundId: null,
+      idempotencyKey: crypto.randomUUID(),
+      amount: order.priceAmount,
+      currency: order.currency,
+      status: "requested",
+      providerStatus: null,
+      reason: "Customer request",
+      source: "automatic",
+      requestedById: null,
+      failureCode: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      completedAt: null,
+      ...input,
+    };
+    this.refunds.push(record);
+    return record;
+  }
+
+  async $transaction<T>(run: (tx: FakeDb) => Promise<T>): Promise<T> {
+    const previous = this.transactionQueue;
+    let release!: () => void;
+    this.transactionQueue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    const orderStates = this.orders.map((row) => ({ row, state: { ...row } }));
+    const refundStates = this.refunds.map((row) => ({
+      row,
+      state: { ...row },
+    }));
+    try {
+      return await run(this);
+    } catch (error) {
+      orderStates.forEach(({ row, state }) => Object.assign(row, state));
+      refundStates.forEach(({ row, state }) => Object.assign(row, state));
+      this.orders = orderStates.map(({ row }) => row);
+      this.refunds = refundStates.map(({ row }) => row);
+      throw error;
+    } finally {
+      release();
+    }
+  }
+
+  refund = {
+    findUnique: async (args: { where: Where }) =>
+      this.refunds.find((row) => matchWhere(row, args.where)) ?? null,
+    findUniqueOrThrow: async (args: { where: Where }) => {
+      const row = this.refunds.find((row) => matchWhere(row, args.where));
+      if (!row) throw new Error("Refund not found");
+      return { ...row };
+    },
+    upsert: async (args: {
+      where: Where;
+      create: Partial<Refund> & { orderId: bigint };
+      update: Partial<Refund>;
+    }) => {
+      const row = this.refunds.find((row) => matchWhere(row, args.where));
+      if (row) return { ...row };
+      return { ...this.seedRefund(args.create) };
+    },
+    update: async (args: { where: Where; data: Partial<Refund> }) => {
+      const row = this.refunds.find((row) => matchWhere(row, args.where));
+      if (!row) throw new Error("Refund not found");
+      Object.assign(row, args.data, { updatedAt: new Date() });
+      return { ...row };
+    },
+    updateMany: async (args: { where: Where; data: Partial<Refund> }) => {
+      const rows = this.refunds.filter((row) => matchWhere(row, args.where));
+      rows.forEach((row) =>
+        Object.assign(row, args.data, { updatedAt: new Date() }),
+      );
+      return { count: rows.length };
+    },
+  };
 
   seedUser(user: Partial<FakeUser> & { id: string }): FakeUser {
     const record: FakeUser = {

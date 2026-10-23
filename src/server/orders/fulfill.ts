@@ -1,3 +1,4 @@
+import { recordCompletedRefund } from "~/server/refunds/store";
 import "server-only";
 
 import { hasEsimCredentials } from "~/lib/esim-provisioning";
@@ -876,25 +877,12 @@ export async function markPlategaRefunded(input: {
   transactionId: string;
   refundedAmount: bigint;
 }) {
-  await db.order.updateMany({
-    where: {
-      orderUuid: input.orderUuid,
-      paymentProvider: PLATEGA_PAYMENT_PROVIDER,
-      OR: [
-        {
-          paymentStatus: paymentStatus.paid,
-        },
-        {
-          paymentStatus: paymentStatus.refunded,
-          paymentRefundId: input.transactionId,
-        },
-      ],
-    },
-    data: {
-      paymentStatus: paymentStatus.refunded,
-      paymentRefundId: input.transactionId,
-      refundedAmount: input.refundedAmount,
-    },
+  await recordCompletedRefund({
+    orderUuid: input.orderUuid,
+    provider: PLATEGA_PAYMENT_PROVIDER,
+    paymentId: input.transactionId,
+    refundId: input.transactionId,
+    amount: input.refundedAmount,
   });
 }
 
@@ -979,67 +967,32 @@ export async function markXhubRefunded(input: {
   paymentId: string;
   refundedAmount: bigint;
 }) {
-  await db.order.updateMany({
-    where: {
-      // Managed refunds use refund REST state; payment events have no refund ID.
-      refundReason: null,
-      orderUuid: input.orderUuid,
-      paymentProvider: XHUB_PAYMENT_PROVIDER,
-      OR: [
-        {
-          paymentStatus: paymentStatus.paid,
-        },
-        {
-          paymentStatus: paymentStatus.refunded,
-          paymentRefundId: input.paymentId,
-        },
-      ],
-    },
-    data: {
-      paymentStatus: paymentStatus.refunded,
-      paymentRefundId: input.paymentId,
-      refundedAmount: input.refundedAmount,
-    },
+  await recordCompletedRefund({
+    orderUuid: input.orderUuid,
+    provider: XHUB_PAYMENT_PROVIDER,
+    paymentId: input.paymentId,
+    refundId: null,
+    amount: input.refundedAmount,
+    unmanagedOnly: true,
   });
 }
 
 export async function markCardlinkRefunded(input: {
   orderUuid: string;
+  billId: string;
   refundId: string;
   amount: string;
   currency: string;
 }) {
   const cents = usdAmountToCents(input.amount);
-  if (cents === null) {
-    return;
-  }
-
-  await db.order.updateMany({
-    where: {
-      orderUuid: input.orderUuid,
-      paymentProvider: CARDLINK_PAYMENT_PROVIDER,
-      currency: input.currency.toUpperCase(),
-      OR: [
-        {
-          paymentStatus: {
-            in: [
-              paymentStatus.pending,
-              paymentStatus.failed,
-              paymentStatus.paid,
-            ],
-          },
-        },
-        {
-          paymentStatus: paymentStatus.refunded,
-          paymentRefundId: input.refundId,
-        },
-      ],
-    },
-    data: {
-      paymentStatus: paymentStatus.refunded,
-      paymentRefundId: input.refundId,
-      refundedAmount: cents,
-    },
+  if (cents === null) return;
+  await recordCompletedRefund({
+    orderUuid: input.orderUuid,
+    provider: CARDLINK_PAYMENT_PROVIDER,
+    paymentId: input.billId,
+    refundId: input.refundId,
+    amount: cents,
+    currency: input.currency,
   });
 }
 

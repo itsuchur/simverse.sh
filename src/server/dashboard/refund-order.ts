@@ -3,6 +3,8 @@ import "server-only";
 import { dashboardReasonSchema } from "~/lib/dashboard-reason";
 import { createXhubRefund, getXhubRefund } from "~/server/payments/xhub";
 import { applyXhubRefund } from "~/server/orders/topup-refund";
+import { ensureRefund } from "~/server/refunds/store";
+import { refundStatus } from "~/lib/refund-status";
 
 import {
   PLATEGA_PAYMENT_PROVIDER,
@@ -22,7 +24,11 @@ import {
   queryEsimAccessProfiles,
 } from "~/server/suppliers/esimaccess/order";
 
-export async function refundDashboardOrder(orderUuid: string, reason: string) {
+export async function refundDashboardOrder(
+  orderUuid: string,
+  reason: string,
+  requestedById: string,
+) {
   const refundReason = dashboardReasonSchema.parse(reason);
 
   const order = await db.order.findUnique({
@@ -32,9 +38,6 @@ export async function refundDashboardOrder(orderUuid: string, reason: string) {
       status: true,
       topupOfOrderId: true,
       currency: true,
-      refundReason: true,
-      paymentRefundId: true,
-      paymentRefundKey: true,
       orderUuid: true,
       paymentProvider: true,
       paymentStatus: true,
@@ -71,7 +74,8 @@ export async function refundDashboardOrder(orderUuid: string, reason: string) {
   const isXhub = order.paymentProvider === XHUB_PAYMENT_PROVIDER;
   if (isXhub && order.currency !== "RUB")
     throw new Error("X-Hub refund requires RUB");
-  if (order.refundReason && order.refundReason !== refundReason) {
+  const existing = await db.refund.findUnique({ where: { orderId: order.id } });
+  if (existing && existing.reason !== refundReason) {
     throw new Error(
       "A refund has already been requested with a different reason",
     );
@@ -87,81 +91,110 @@ export async function refundDashboardOrder(orderUuid: string, reason: string) {
     throw new Error("eSIM is activated; refund is not possible");
   if (profile && !alreadyCancelled && !profile.esimTranNo)
     throw new Error("eSIM is missing esimTranNo; cannot cancel with supplier");
-  const claimed = await db.order.updateMany({
-    where: {
-      id: order.id,
-      paymentStatus: paymentStatus.paid,
-      status: order.status,
-      refundReason: order.refundReason,
-    },
-    data: { refundReason, status: orderStatus.refundRequired },
-  });
-  if (!claimed.count) throw new Error("Order changed; refresh and try again");
-  if (profile && !alreadyCancelled && profile.esimTranNo) {
-    await cancelEsimAccessProfile(profile.esimTranNo);
-    await db.order.update({
-      where: { orderUuid },
-      data: {
-        esimStatus: "CANCEL",
-        ...(profile.iccid && !order.esimIccid
-          ? { esimIccid: profile.iccid }
-          : {}),
-      },
-    });
-  }
-
-  if (isXhub) {
-    // Persist the request before contacting X-Hub. Retries reuse both reason and UUID.
-    const pending = await db.order.updateMany({
+  const refundRequest = await db.$transaction(async (tx) => {
+    const claimed = await tx.order.updateMany({
       where: {
         id: order.id,
         paymentStatus: paymentStatus.paid,
-        status: orderStatus.refundRequired,
+        status: order.status,
       },
-      data: { status: orderStatus.refundPending },
+      data: { status: orderStatus.refundRequired },
     });
-    if (!pending.count)
-      throw new Error("Order changed; refresh to see the refund status");
-    const refund = order.paymentRefundId
-      ? await getXhubRefund(order.paymentRefundId)
-      : await createXhubRefund({
-          paymentId: order.paymentChargeId,
-          orderUuid,
-          idempotencyKey: order.paymentRefundKey,
-          reason: refundReason,
-        });
-    await applyXhubRefund({ ...order, refundReason }, refund);
-    if (
-      ["rejected", "failed", "cancelled", "reversed"].includes(refund.status)
-    ) {
-      throw new Error(`X-Hub refund ${refund.status}; manual review required`);
-    }
-    return { pending: refund.status !== "completed" };
-  }
-
-  const cancelSupported = await checkPlategaCancelSupported(
-    order.paymentChargeId,
-  );
-  if (!cancelSupported.supported) {
-    throw new Error(
-      cancelSupported.blockReason ?? "Platega cancel is not supported",
+    if (!claimed.count) throw new Error("Order changed; refresh and try again");
+    const request = await ensureRefund(
+      order,
+      { reason: refundReason, source: "dashboard", requestedById },
+      tx,
     );
-  }
-
-  const cancelResult = await cancelPlategaTransaction(order.paymentChargeId);
-  if (!cancelResult.accepted || cancelResult.manualControlRequired) {
-    throw new Error(cancelResult.message || "Platega refund was not accepted");
-  }
-
-  await markPlategaRefunded({
-    orderUuid: order.orderUuid,
-    transactionId: order.paymentChargeId,
-    refundedAmount: order.priceAmount,
+    if (request.reason !== refundReason)
+      throw new Error(
+        "A refund has already been requested with a different reason",
+      );
+    return request;
   });
+  try {
+    if (profile && !alreadyCancelled && profile.esimTranNo) {
+      await cancelEsimAccessProfile(profile.esimTranNo);
+      await db.order.update({
+        where: { orderUuid },
+        data: {
+          esimStatus: "CANCEL",
+          ...(profile.iccid && !order.esimIccid
+            ? { esimIccid: profile.iccid }
+            : {}),
+        },
+      });
+    }
 
-  await db.order.updateMany({
-    where: { id: order.id, paymentStatus: paymentStatus.refunded },
-    data: { status: orderStatus.refunded },
-  });
-  return { pending: false };
+    if (isXhub) {
+      // Persist the request before contacting X-Hub. Retries reuse both reason and UUID.
+      const pending = await db.order.updateMany({
+        where: {
+          id: order.id,
+          paymentStatus: paymentStatus.paid,
+          status: orderStatus.refundRequired,
+        },
+        data: { status: orderStatus.refundPending },
+      });
+      if (!pending.count)
+        throw new Error("Order changed; refresh to see the refund status");
+      const refund = refundRequest.providerRefundId
+        ? await getXhubRefund(refundRequest.providerRefundId)
+        : await createXhubRefund({
+            paymentId: order.paymentChargeId,
+            orderUuid,
+            idempotencyKey: refundRequest.idempotencyKey,
+            reason: refundReason,
+          });
+      await applyXhubRefund(order, refund);
+      if (
+        ["rejected", "failed", "cancelled", "reversed"].includes(refund.status)
+      ) {
+        throw new Error(
+          `X-Hub refund ${refund.status}; manual review required`,
+        );
+      }
+      return { pending: refund.status !== "completed" };
+    }
+
+    const cancelSupported = await checkPlategaCancelSupported(
+      order.paymentChargeId,
+    );
+    if (!cancelSupported.supported) {
+      throw new Error(
+        cancelSupported.blockReason ?? "Platega cancel is not supported",
+      );
+    }
+
+    const cancelResult = await cancelPlategaTransaction(order.paymentChargeId);
+    if (!cancelResult.accepted || cancelResult.manualControlRequired) {
+      throw new Error(
+        cancelResult.message || "Platega refund was not accepted",
+      );
+    }
+
+    await markPlategaRefunded({
+      orderUuid: order.orderUuid,
+      transactionId: order.paymentChargeId,
+      refundedAmount: order.priceAmount,
+    });
+
+    await db.order.updateMany({
+      where: { id: order.id, paymentStatus: paymentStatus.refunded },
+      data: { status: orderStatus.refunded },
+    });
+    return { pending: false };
+  } catch (error) {
+    await db.refund.updateMany({
+      where: {
+        id: refundRequest.id,
+        status: { in: [refundStatus.requested, refundStatus.processing] },
+      },
+      data: {
+        status: refundStatus.manualReview,
+        failureCode: "refund_reconciliation_required",
+      },
+    });
+    throw error;
+  }
 }

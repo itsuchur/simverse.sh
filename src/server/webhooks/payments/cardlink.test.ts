@@ -211,7 +211,9 @@ describe("handleCardlinkRefundWebhook", () => {
 
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("refunded");
-    expect(order.paymentRefundId).toBe("REF-1");
+    expect(fakeDb.refundForOrder(order.id)?.providerRefundId ?? null).toBe(
+      "REF-1",
+    );
     expect(order.refundedAmount).toBe(1099n);
   });
 
@@ -222,7 +224,9 @@ describe("handleCardlinkRefundWebhook", () => {
 
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("refunded");
-    expect(order.paymentRefundId).toBe("REF-1");
+    expect(fakeDb.refundForOrder(order.id)?.providerRefundId ?? null).toBe(
+      "REF-1",
+    );
   });
 
   test("second refund with a different id does not overwrite", async () => {
@@ -230,7 +234,9 @@ describe("handleCardlinkRefundWebhook", () => {
     await handleCardlinkRefundWebhook(refundForm(order));
     await handleCardlinkRefundWebhook(refundForm(order, { Id: "REF-2" }));
 
-    expect(order.paymentRefundId).toBe("REF-1");
+    expect(fakeDb.refundForOrder(order.id)?.providerRefundId ?? null).toBe(
+      "REF-1",
+    );
   });
 
   test("invalid signature returns 401", async () => {
@@ -280,7 +286,6 @@ describe("handleCardlinkChargebackWebhook", () => {
       paymentProvider: "cardlink",
       paymentStatus: "refunded",
       status: "issued",
-      paymentRefundId: "REF-1",
     });
 
     await handleCardlinkChargebackWebhook(chargebackForm(order));

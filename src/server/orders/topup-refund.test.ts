@@ -110,15 +110,19 @@ describe("unfulfillable paid top-ups", () => {
     await payXhub(child.orderUuid);
     expect(child.paymentStatus).toBe("paid");
     expect(child.status).toBe("refund_pending");
-    expect(child.paymentRefundId).toBe(REFUND);
+    expect(fakeDb.refundForOrder(child.id)?.providerRefundId ?? null).toBe(
+      REFUND,
+    );
     expect(child.refundedAmount).toBeNull();
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://api.x-hub.online/api/v1/refunds");
     expect(init?.headers).toMatchObject({
-      "Idempotency-Key": child.paymentRefundKey,
+      "Idempotency-Key": fakeDb.refundForOrder(child.id)!.idempotencyKey,
       "X-Api-Key": "xh_test_key",
     });
-    expect(child.paymentRefundKey).not.toBe(child.orderUuid);
+    expect(fakeDb.refundForOrder(child.id)!.idempotencyKey).not.toBe(
+      child.orderUuid,
+    );
     expect(JSON.parse(init?.body as string)).toEqual({
       payment_id: PAYMENT,
       external_id: child.orderUuid,
@@ -236,11 +240,11 @@ describe("unfulfillable paid top-ups", () => {
     }) as unknown as typeof fetch;
     await payXhub(child.orderUuid);
     expect(child.status).toBe("refund_required");
-    const refundKey = child.paymentRefundKey;
+    const refundKey = fakeDb.refundForOrder(child.id)!.idempotencyKey;
     stubRefund("completed");
     await handleXhubWebhook(webhook("refund.completed"));
     expect(child.status).toBe("refunded");
-    expect(child.paymentRefundKey).toBe(refundKey);
+    expect(fakeDb.refundForOrder(child.id)!.idempotencyKey).toBe(refundKey);
   });
 
   test("a previously abandoned supplier request must be reconciled before refunding", async () => {
@@ -317,7 +321,7 @@ describe("unfulfillable paid top-ups", () => {
     child.status = "refund_pending";
     child.paymentStatus = "paid";
     child.paymentChargeId = PAYMENT;
-    const key = child.paymentRefundKey;
+    const key = fakeDb.seedRefund({ orderId: child.id }).idempotencyKey;
     const fetchMock = stubRefund();
     await Promise.all([
       processPendingRefund(child.id),
@@ -328,7 +332,7 @@ describe("unfulfillable paid top-ups", () => {
     }
     // Simulate a crash after the provider accepted the request but before its
     // ID was stored. Recovery must send exactly the same logical request.
-    child.paymentRefundId = null;
+    fakeDb.refundForOrder(child.id)!.providerRefundId = null;
     await processPendingRefund(child.id);
     expect(fetchMock.mock.calls.at(-1)?.[1]?.headers).toMatchObject({
       "Idempotency-Key": key,

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { formatOrderPrice } from "~/lib/format-order-price";
 import {
   PLATEGA_PAYMENT_PROVIDER,
@@ -5,6 +6,7 @@ import {
   paymentStatus,
 } from "~/lib/order-status";
 import { db } from "~/server/db";
+import { requireDashboardSession } from "~/server/dashboard/access";
 
 import { OrderCard, OrderRow, type OrderRecord } from "./order-row";
 import { RefundOrderButton } from "./refund-order-button";
@@ -61,10 +63,14 @@ function toOrderRecord(order: {
   paymentProvider: string;
   paymentChargeId: string | null;
   paymentStatus: string;
-  paymentRefundId: string | null;
   paymentChargebackId: string | null;
   refundedAmount: bigint | null;
-  refundReason: string | null;
+  refund: {
+    id: string;
+    providerRefundId: string | null;
+    reason: string;
+    status: string;
+  } | null;
   status: string;
   failureReason: string | null;
   esimIccid: string | null;
@@ -105,10 +111,9 @@ function toOrderRecord(order: {
     paymentProvider: order.paymentProvider,
     paymentChargeId: order.paymentChargeId,
     paymentStatus: order.paymentStatus,
-    paymentRefundId: order.paymentRefundId,
     paymentChargebackId: order.paymentChargebackId,
     refundedAmount: order.refundedAmount?.toString() ?? null,
-    refundReason: order.refundReason,
+    refund: order.refund,
     status: order.status,
     failureReason: order.failureReason,
     esimIccid: order.esimIccid,
@@ -127,11 +132,30 @@ function toOrderRecord(order: {
   };
 }
 
-export default async function DashboardOrdersPage() {
+export default async function DashboardOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string | string[] }>;
+}) {
+  await requireDashboardSession();
+  const rawOrder = (await searchParams).order;
+  const orderUuid = z
+    .string()
+    .uuid()
+    .safeParse(Array.isArray(rawOrder) ? rawOrder[0] : rawOrder);
   const orders = await db.order.findMany({
+    where: orderUuid.success ? { orderUuid: orderUuid.data } : {},
     take: ORDER_LIMIT,
     orderBy: { createdAt: "desc" },
     include: {
+      refund: {
+        select: {
+          id: true,
+          providerRefundId: true,
+          reason: true,
+          status: true,
+        },
+      },
       user: {
         select: {
           name: true,
@@ -236,7 +260,7 @@ export default async function DashboardOrdersPage() {
                     {canRefundOrder(order) ? (
                       <RefundOrderButton
                         orderUuid={order.orderUuid}
-                        refundReason={order.refundReason}
+                        refundReason={order.refund?.reason ?? null}
                       />
                     ) : null}
                   </td>

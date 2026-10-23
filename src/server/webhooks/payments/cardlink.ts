@@ -143,6 +143,7 @@ export const handleCardlinkRefundWebhook = withWebhookLogging(
     if (status === "SUCCESS") {
       await markCardlinkRefunded({
         orderUuid,
+        billId,
         refundId,
         amount,
         currency,

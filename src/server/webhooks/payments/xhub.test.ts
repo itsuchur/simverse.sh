@@ -85,7 +85,9 @@ describe("handleXhubWebhook", () => {
     const order = seedPendingOrder();
     stubEsimAccess({ orderNo: "EA-XHUB", profiles: [PROFILE] });
 
-    const response = await handleXhubWebhook(callback(payload(order.orderUuid)));
+    const response = await handleXhubWebhook(
+      callback(payload(order.orderUuid)),
+    );
 
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("paid");
@@ -181,7 +183,8 @@ describe("handleXhubWebhook", () => {
 
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("refunded");
-    expect(order.paymentRefundId).toBe(PAYMENT_ID);
+    expect(fakeDb.refundForOrder(order.id)?.status).toBe("completed");
+    expect(fakeDb.refundForOrder(order.id)?.providerRefundId).toBeNull();
     expect(order.refundedAmount).toBe(50000n);
   });
 

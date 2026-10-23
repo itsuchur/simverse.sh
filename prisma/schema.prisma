@@ -55,6 +55,7 @@ model User {
   sessions Session[]
   accounts Account[]
   orders   Order[]
+  requestedRefunds Refund[] @relation("RefundRequester")
 
   @@unique([email])
   @@map("user")
@@ -142,12 +143,10 @@ model Order {
   paymentInvoiceClaim String? @map("payment_invoice_claim") @db.Uuid
   paymentChargeId     String? @map("payment_charge_id")
   paymentStatus       String  @default("pending") @map("payment_status")
-  paymentRefundId     String? @map("payment_refund_id")
-  /// Separate, durable idempotency key for refund creation (never the payment key).
-  paymentRefundKey    String  @default(dbgenerated("gen_random_uuid()")) @map("payment_refund_key") @db.Uuid
   paymentChargebackId String? @map("payment_chargeback_id")
-  refundReason        String? @map("refund_reason")
+  /// Denormalized completed refund total, updated transactionally with Refund.
   refundedAmount      BigInt? @map("refunded_amount")
+  refund              Refund?
 
   status        String  @default("created")
   failureReason String? @map("failure_reason")
@@ -201,7 +200,35 @@ model Order {
   @@map("orders")
 }
 
-/// Raw inbound webhook requests for debugging / audit.
+/// One durable full-refund request per order. Retries reuse its idempotency key.
+model Refund {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           BigInt   @unique(map: "uq_refunds_order") @map("order_id")
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  provider          String
+  providerPaymentId String?  @map("provider_payment_id")
+  providerRefundId  String?  @map("provider_refund_id")
+  idempotencyKey    String   @unique @default(dbgenerated("gen_random_uuid()")) @map("idempotency_key") @db.Uuid
+  amount            BigInt
+  currency          String   @db.Char(3)
+  status            String   @default("requested")
+  providerStatus    String?  @map("provider_status")
+  reason            String
+  source            String
+  requestedById     String?  @map("requested_by_id")
+  requestedBy       User?    @relation("RefundRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  failureCode       String?  @map("failure_code")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  @@unique([provider, providerRefundId], map: "uq_refunds_provider_refund")
+  @@index([status, createdAt(sort: Desc)], map: "idx_refunds_status_created_at")
+  @@index([createdAt(sort: Desc)], map: "idx_refunds_created_at")
+  @@map("refunds")
+}
+
+/// Sanitized inbound webhook requests for debugging / audit.
 model WebhookLog {
   id         BigInt   @id @default(autoincrement())
   source     String

@@ -1,7 +1,7 @@
 import { markXhubRefunded } from "~/server/orders/fulfill";
 import { rejects } from "node:assert/strict";
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
-import { refundDashboardOrder } from "./refund-order";
+import { refundDashboardOrder as submitRefund } from "./refund-order";
 import {
   processPendingRefund,
   syncXhubRefund,
@@ -12,7 +12,12 @@ import { esimAccessPost, resetTestState } from "~/test/mocks";
 const originalFetch = globalThis.fetch;
 const paymentId = "pay_550e8400-e29b-41d4-a716-446655440000";
 const refundId = "ref_9f8e7d6c-5b4a-4321-9876-0123456789ab";
-beforeEach(resetTestState);
+const refundDashboardOrder = (id: string, reason: string) =>
+  submitRefund(id, reason, "staff-1");
+beforeEach(() => {
+  resetTestState();
+  fakeDb.seedUser({ id: "staff-1", email: "support@simverse.sh" });
+});
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
@@ -49,7 +54,7 @@ test("missing, blank, or oversized refund reasons cause no side effects", async 
   expect(fetchMock).not.toHaveBeenCalled();
   expect(esimAccessPost).not.toHaveBeenCalled();
   expect(order.status).toBe("issued");
-  expect(order.refundReason).toBeNull();
+  expect(fakeDb.refundForOrder(order.id)?.reason ?? null).toBeNull();
 });
 test("submitted reason is stored and sent with a durable refund key; requested is not completed", async () => {
   const order = seed();
@@ -57,14 +62,23 @@ test("submitted reason is stored and sent with a durable refund key; requested i
   expect(
     await refundDashboardOrder(order.orderUuid, "  Customer request  "),
   ).toEqual({ pending: true });
-  expect(order.refundReason).toBe("Customer request");
+  expect(fakeDb.refundForOrder(order.id)?.reason ?? null).toBe(
+    "Customer request",
+  );
   expect(order.status).toBe("refund_pending");
+  expect(fakeDb.refundForOrder(order.id)).toMatchObject({
+    source: "dashboard",
+    requestedById: "staff-1",
+    status: "processing",
+  });
   expect(order.paymentStatus).toBe("paid");
-  expect(order.paymentRefundId).toBe(refundId);
+  expect(fakeDb.refundForOrder(order.id)?.providerRefundId ?? null).toBe(
+    refundId,
+  );
   const [url, init] = fetchMock.mock.calls[0]!;
   expect(url).toBe("https://api.x-hub.online/api/v1/refunds");
   expect(new Headers(init?.headers).get("Idempotency-Key")).toBe(
-    order.paymentRefundKey,
+    fakeDb.refundForOrder(order.id)!.idempotencyKey,
   );
   expect(JSON.parse(init?.body as string)).toEqual({
     payment_id: paymentId,
@@ -100,7 +114,7 @@ test("timeout recovery reuses the persisted reason and key", async () => {
   expect(order.paymentStatus).toBe("refunded");
   const init = fetchMock.mock.calls[0]![1];
   expect(new Headers(init?.headers).get("Idempotency-Key")).toBe(
-    order.paymentRefundKey,
+    fakeDb.refundForOrder(order.id)!.idempotencyKey,
   );
   expect((JSON.parse(init?.body as string) as { reason: string }).reason).toBe(
     "Customer request",
@@ -180,7 +194,7 @@ test("rejects unsafe top-ups, fulfillment in progress, unsupported providers and
     new RegExp("provider"),
   );
   order.paymentProvider = "xhub";
-  order.refundReason = "Original request";
+  fakeDb.seedRefund({ orderId: order.id, reason: "Original request" });
   await rejects(
     refundDashboardOrder(order.orderUuid, "Different request"),
     new RegExp("different reason"),
@@ -197,7 +211,9 @@ test("payment-level refund events cannot overwrite a managed refund ID", async (
     paymentId,
     refundedAmount: 50000n,
   });
-  expect(order.paymentRefundId).toBe(refundId);
+  expect(fakeDb.refundForOrder(order.id)?.providerRefundId ?? null).toBe(
+    refundId,
+  );
   expect(order.paymentStatus).toBe("paid");
   stub("completed");
   await syncXhubRefund({ paymentId, refundId });
