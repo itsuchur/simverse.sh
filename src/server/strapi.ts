@@ -16,6 +16,7 @@ export type StrapiArticle = {
   excerpt: string | null;
   publishedAt: string | null;
   cover: StrapiMedia | null;
+  tags?: unknown;
   body?: unknown;
 };
 

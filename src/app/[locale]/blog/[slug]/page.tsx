@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "~/i18n/navigation";
+import { articleTags } from "~/lib/article-tags";
 import { fetchArticleBySlug } from "~/server/strapi";
 
 import { ArticleBody } from "../_components/article-body";
 import { ArticleCover } from "../_components/article-cover";
+import { ArticleTags } from "../_components/article-tags";
 import { BlogShell } from "../_components/blog-shell";
 
 type BlogArticlePageProps = {
@@ -28,6 +30,7 @@ export async function generateMetadata({
   return {
     title: article.title,
     description: article.excerpt ?? t("metaDescription"),
+    keywords: articleTags(article.tags),
   };
 }
 
@@ -68,6 +71,7 @@ export default async function BlogArticlePage({
             })}
           </time>
         ) : null}
+        <ArticleTags tags={article.tags} />
         <div className="mt-8">
           <ArticleCover cover={article.cover} title={article.title} preload />
         </div>

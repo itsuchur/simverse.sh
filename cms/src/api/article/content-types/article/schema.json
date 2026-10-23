@@ -54,6 +54,15 @@
         }
       }
     },
+    "tags": {
+      "type": "customField",
+      "customField": "plugin::tagsinput.tags",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
     "body": {
       "type": "blocks",
       "pluginOptions": {

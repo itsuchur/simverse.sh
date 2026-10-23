@@ -4,6 +4,18 @@ Headless CMS for the public blog. Next.js reads published **Article** documents
 and renders them at `/blog` (local/ngrok) and `https://blog.simverse.sh`
 (production). The admin UI and REST API are this service.
 
+## Article tags
+
+Articles include an optional, localized **Tags** custom field provided by
+`strapi-plugin-tagsinput`. Enter a tag and press Enter to add it, then save and
+publish the article. English and Russian articles can have different tags.
+Tags appear on blog previews and article pages; existing articles can leave
+the field empty. No separate Tags collection or suggestions API is required.
+
+After installing this change, rebuild and restart the CMS so Strapi registers
+the plugin and synchronizes the article schema (`bun install`, `bun run build`,
+then `bun run start`, or rebuild the CMS Docker service).
+
 ## Local
 
 Strapi is started by `compose.override.yaml` on port **1337**, using the same

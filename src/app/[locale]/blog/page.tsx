@@ -6,6 +6,7 @@ import { Link } from "~/i18n/navigation";
 import { fetchArticles } from "~/server/strapi";
 
 import { ArticleCover } from "./_components/article-cover";
+import { ArticleTags } from "./_components/article-tags";
 import { BlogShell } from "./_components/blog-shell";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -80,6 +81,7 @@ export default async function BlogPage({
                   </p>
                 ) : null}
               </Link>
+              <ArticleTags tags={article.tags} />
             </li>
           ))}
         </ul>

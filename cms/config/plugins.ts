@@ -26,6 +26,7 @@ const deniedTypes = [
 const config = ({
   env,
 }: Core.Config.Shared.ConfigParams): Core.Config.Plugin => ({
+  tagsinput: { enabled: true },
   "users-permissions": {
     config: {
       jwtManagement: "refresh",
