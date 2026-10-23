@@ -38,7 +38,7 @@ function Inline({ tokens }: { tokens: LegalInline[] }) {
 function BlockContent({ block }: { block: LegalBlock }) {
   if (block.type === "h2") {
     return (
-      <h2 className="text-lg font-medium">
+      <h2 className="text-foreground mt-10 text-2xl font-extrabold tracking-tight first:mt-0 sm:text-3xl">
         <Inline tokens={block.children} />
       </h2>
     );
@@ -46,7 +46,7 @@ function BlockContent({ block }: { block: LegalBlock }) {
 
   if (block.type === "h3") {
     return (
-      <h3 className="font-medium">
+      <h3 className="text-foreground mt-6 text-lg font-bold tracking-tight">
         <Inline tokens={block.children} />
       </h3>
     );
@@ -82,5 +82,9 @@ export function LegalMarkdown({ blocks }: { blocks: LegalBlock[] }) {
     <BlockContent key={index} block={block} />
   ));
 
-  return <div className="mt-6 space-y-4 text-sm leading-6">{content}</div>;
+  return (
+    <div className="text-muted-foreground space-y-4 text-sm leading-6 wrap-break-word">
+      {content}
+    </div>
+  );
 }
