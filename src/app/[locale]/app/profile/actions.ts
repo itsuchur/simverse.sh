@@ -36,8 +36,9 @@ export async function updateDataUsageNotificationsAction(enabled: boolean) {
     throw new Error("Unauthorized");
   }
 
+  const dataUsageNotifications = z.boolean().parse(enabled);
   await db.user.update({
     where: { id: session.user.id },
-    data: { dataUsageNotifications: enabled },
+    data: { dataUsageNotifications },
   });
 }

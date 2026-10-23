@@ -6,6 +6,7 @@ import {
   invoiceResponse,
 } from "~/server/orders/checkout";
 import { getAuth } from "~/server/better-auth";
+import { limitMiniappRequest } from "~/server/http/rate-limit";
 import { getCartSnapshot } from "~/server/cart";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { PLATEGA_PAYMENT_PROVIDER } from "~/lib/order-status";
@@ -44,6 +45,9 @@ export async function POST(request: Request) {
   if (typeof telegramId !== "string" || telegramId.length === 0) {
     return unauthorized();
   }
+  const limited = await limitMiniappRequest(session.user.id, "checkout");
+  if (limited) return limited;
+
   if (await isUserBanned(session.user.id)) {
     return forbidden();
   }

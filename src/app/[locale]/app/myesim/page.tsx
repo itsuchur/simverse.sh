@@ -4,6 +4,7 @@ import { needsActivationFallback } from "~/lib/esim-lifecycle";
 import { paymentStatus } from "~/lib/order-status";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
+import { limitMiniappRequest } from "~/server/http/rate-limit";
 import { syncEsimLifecycleForUser } from "~/server/orders/esim-lifecycle-sync";
 import { syncPendingProfilesForUser } from "~/server/orders/fulfill";
 
@@ -23,13 +24,14 @@ export default async function AppMyESIms() {
     requestHeaders.get("next-router-segment-prefetch") === "1";
   if (!isPrefetch) {
     const userId = session.user.id;
-    after(() =>
-      syncPendingProfilesForUser(userId)
+    after(async () => {
+      if (await limitMiniappRequest(userId, "profile-sync")) return;
+      await syncPendingProfilesForUser(userId)
         .then(() => syncEsimLifecycleForUser(userId))
         .catch((error: unknown) => {
           console.error("[myesim] profile sync failed", error);
-        }),
-    );
+        });
+    });
   }
 
   const rows = await db.order.findMany({

@@ -3,9 +3,10 @@ import type { TelegramMiniAppData } from "better-auth-telegram";
 
 import { getAuth } from "~/server/better-auth";
 import { db } from "~/server/db";
+import { limitPrecheckRequest } from "~/server/http/rate-limit";
 
 const bodySchema = z.object({
-  initData: z.string().min(1),
+  initData: z.string().min(1).max(16_384),
 });
 
 /**
@@ -15,6 +16,9 @@ const bodySchema = z.object({
  * never registered, or they previously deleted their account.
  */
 export async function POST(request: Request) {
+  const limited = await limitPrecheckRequest(request);
+  if (limited) return limited;
+
   let json: unknown;
   try {
     json = await request.json();

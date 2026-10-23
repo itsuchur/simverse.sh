@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getAuth } from "~/server/better-auth";
 import { db } from "~/server/db";
+import { limitMiniappRequest } from "~/server/http/rate-limit";
 
 const bodySchema = z.object({
   visitorId: z.string().min(1).max(128),
@@ -16,6 +17,9 @@ export async function POST(request: Request) {
   if (!session) {
     return unauthorized();
   }
+
+  const limited = await limitMiniappRequest(session.user.id, "account");
+  if (limited) return limited;
 
   let json: unknown;
   try {

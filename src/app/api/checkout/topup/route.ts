@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
 import { getAuth } from "~/server/better-auth";
+import { limitMiniappRequest } from "~/server/http/rate-limit";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import {
   TRYBIT_PAYMENT_PROVIDER,
@@ -28,7 +29,7 @@ const bodySchema = z.object({
   orderUuid: z.string().uuid(),
   provider: z.enum(["trybit", "xhub"]),
   locale: z.enum(["en", "ru"]).optional(),
-  packageCode: z.string().min(1),
+  packageCode: z.string().min(1).max(255),
   days: z
     .number()
     .int()
@@ -54,6 +55,9 @@ export async function POST(request: Request) {
   if (typeof telegramId !== "string" || telegramId.length === 0) {
     return unauthorized();
   }
+  const limited = await limitMiniappRequest(session.user.id, "checkout");
+  if (limited) return limited;
+
   if (await isUserBanned(session.user.id)) return forbidden();
   if (!(await isSalesActive())) return forbidden();
 

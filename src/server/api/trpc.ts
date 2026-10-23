@@ -15,6 +15,7 @@ import { ZodError } from "zod";
 
 import { getAuth } from "~/server/better-auth";
 import { db } from "~/server/db";
+import { limitMiniappRequest } from "~/server/http/rate-limit";
 
 /**
  * 1. CONTEXT
@@ -123,9 +124,16 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  */
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
-  .use(({ ctx, next }) => {
+  .use(async ({ ctx, next }) => {
     if (!ctx.session?.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    const limited = await limitMiniappRequest(ctx.session.user.id, "api");
+    if (limited) {
+      throw new TRPCError({
+        code:
+          limited.status === 429 ? "TOO_MANY_REQUESTS" : "SERVICE_UNAVAILABLE",
+      });
     }
     return next({
       ctx: {

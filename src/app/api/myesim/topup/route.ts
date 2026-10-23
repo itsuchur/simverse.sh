@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getAuth } from "~/server/better-auth";
+import { limitMiniappRequest } from "~/server/http/rate-limit";
 import { listTopupOffers } from "~/server/orders/topup";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
@@ -13,6 +14,8 @@ function unauthorized() {
 export async function GET(request: Request) {
   const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) return unauthorized();
+  const limited = await limitMiniappRequest(session.user.id, "topup");
+  if (limited) return limited;
   if (await isUserBanned(session.user.id)) return forbidden();
 
   const url = new URL(request.url);

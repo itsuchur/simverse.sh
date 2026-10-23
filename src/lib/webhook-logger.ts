@@ -5,6 +5,10 @@ import * as Sentry from "@sentry/nextjs";
 import type { Prisma } from "@prisma/client";
 
 import { db } from "~/server/db";
+import {
+  redactWebhookHeaders,
+  redactWebhookValue,
+} from "~/lib/webhook-redaction";
 
 /** `null` = ok; `Response` = 503 logging-unavailable. */
 export type PersistWebhookLog = () => Promise<Response | null>;
@@ -42,11 +46,8 @@ function loggingUnavailableResponse() {
 
 export function withWebhookLogging(source: string, handler: Handler) {
   return async function (request: Request): Promise<Response> {
-    const headers = Object.fromEntries(
-      Array.from(request.headers.entries(), ([name, value]) => [
-        name,
-        name === "x-secret" ? "[REDACTED]" : value,
-      ]),
+    const headers = redactWebhookHeaders(
+      request.headers,
     ) satisfies Prisma.InputJsonObject;
 
     let rawBody = "";
@@ -82,7 +83,13 @@ export function withWebhookLogging(source: string, handler: Handler) {
           data: {
             source,
             headers,
-            ...(body === null ? {} : { payload: body }),
+            ...(body === null
+              ? {}
+              : {
+                  payload: (typeof body === "string"
+                    ? "[UNPARSED BODY]"
+                    : redactWebhookValue(body)) as Prisma.InputJsonValue,
+                }),
           },
         });
         return null;

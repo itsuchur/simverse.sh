@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
 import { getAuth } from "~/server/better-auth";
+import { limitMiniappRequest } from "~/server/http/rate-limit";
 import {
   cartPlanForPackageCode,
   CatalogIncompleteError,
@@ -14,7 +15,7 @@ import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
 const putBodySchema = z.object({
-  packageCode: z.string().min(1),
+  packageCode: z.string().min(1).max(255),
 });
 
 function unauthorized() {
@@ -39,6 +40,9 @@ export async function PUT(request: Request) {
   if (!authz) {
     return unauthorized();
   }
+  const limited = await limitMiniappRequest(authz.session.user.id, "cart");
+  if (limited) return limited;
+
   if (await isUserBanned(authz.session.user.id)) {
     return forbidden();
   }
@@ -72,10 +76,13 @@ export async function PUT(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const telegramId = (await requireTelegramSession(request))?.telegramId;
-  if (!telegramId) {
+  const authz = await requireTelegramSession(request);
+  if (!authz) {
     return unauthorized();
   }
+  const { telegramId } = authz;
+  const limited = await limitMiniappRequest(authz.session.user.id, "cart");
+  if (limited) return limited;
 
   const plan = await getCartPlan(telegramId);
   if (!plan) {
@@ -114,10 +121,13 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const telegramId = (await requireTelegramSession(request))?.telegramId;
-  if (!telegramId) {
+  const authz = await requireTelegramSession(request);
+  if (!authz) {
     return unauthorized();
   }
+  const { telegramId } = authz;
+  const limited = await limitMiniappRequest(authz.session.user.id, "cart");
+  if (limited) return limited;
 
   await clearCart(telegramId);
   return new Response(null, { status: 204 });
