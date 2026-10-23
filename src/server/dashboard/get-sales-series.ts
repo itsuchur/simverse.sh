@@ -16,14 +16,22 @@ export async function getSalesSeries(
   const { start } = salesWindow(range, now);
   const orders = await db.order.findMany({
     where: {
-      paymentStatus: paymentStatus.paid,
-      paidAt: { gte: start },
+      paymentStatus: {
+        in: [
+          paymentStatus.paid,
+          paymentStatus.refunded,
+          paymentStatus.chargeback,
+        ],
+      },
+      paidAt: { gte: start, lte: now },
     },
     select: {
       priceAmount: true,
       currency: true,
       paymentProvider: true,
       paidAt: true,
+      paymentStatus: true,
+      refundedAmount: true,
     },
   });
 

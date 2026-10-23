@@ -101,25 +101,13 @@ function matchValue(actual: unknown, condition: unknown): boolean {
     if ("not" in cond) {
       return actual !== cond.not;
     }
-    if ("lt" in cond) {
+    if (["lt", "gte", "lte"].some((key) => key in cond)) {
       return (
         actual instanceof Date &&
-        cond.lt instanceof Date &&
-        actual.getTime() < cond.lt.getTime()
-      );
-    }
-    if ("gte" in cond) {
-      return (
-        actual instanceof Date &&
-        cond.gte instanceof Date &&
-        actual.getTime() >= cond.gte.getTime()
-      );
-    }
-    if ("lte" in cond) {
-      return (
-        actual instanceof Date &&
-        cond.lte instanceof Date &&
-        actual.getTime() <= cond.lte.getTime()
+        (!("lt" in cond) || (cond.lt instanceof Date && actual < cond.lt)) &&
+        (!("gte" in cond) ||
+          (cond.gte instanceof Date && actual >= cond.gte)) &&
+        (!("lte" in cond) || (cond.lte instanceof Date && actual <= cond.lte))
       );
     }
     throw new Error(

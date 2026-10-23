@@ -90,30 +90,40 @@ describe("aggregateSalesSeries", () => {
           priceAmount: 1000n,
           currency: "USD",
           paymentProvider: "trybit",
+          paymentStatus: "paid",
+          refundedAmount: null,
           paidAt: new Date("2026-09-26T08:00:00.000Z"),
         },
         {
           priceAmount: 500n,
           currency: "USD",
           paymentProvider: "cardlink",
+          paymentStatus: "paid",
+          refundedAmount: null,
           paidAt: new Date("2026-09-26T09:00:00.000Z"),
         },
         {
           priceAmount: 200n,
           currency: "XTR",
           paymentProvider: "telegram_stars",
+          paymentStatus: "paid",
+          refundedAmount: null,
           paidAt: new Date("2026-09-20T01:00:00.000Z"),
         },
         {
           priceAmount: 99900n,
           currency: "RUB",
           paymentProvider: "cardlink",
+          paymentStatus: "paid",
+          refundedAmount: null,
           paidAt: new Date("2026-09-21T01:00:00.000Z"),
         },
         {
           priceAmount: 1000n,
           currency: "USD",
           paymentProvider: "trybit",
+          paymentStatus: "paid",
+          refundedAmount: null,
           paidAt: new Date("2026-09-19T23:00:00.000Z"),
         },
       ],
@@ -128,6 +138,7 @@ describe("aggregateSalesSeries", () => {
     expect(series[1]?.key).toBe("2026-09-21");
     expect(series[1]?.orderCount).toBe(1);
     expect(series[1]?.revenueUsd).toBe(0);
+    expect(series[1]?.revenueRub).toBe(999);
     expect(series[6]?.key).toBe("2026-09-26");
     expect(series[6]?.orderCount).toBe(2);
     expect(series[6]?.revenueUsd).toBe(15);
@@ -140,12 +151,16 @@ describe("aggregateSalesSeries", () => {
           priceAmount: 2000n,
           currency: "USD",
           paymentProvider: "trybit",
+          paymentStatus: "paid",
+          refundedAmount: null,
           paidAt: new Date("2026-09-15T00:00:00.000Z"),
         },
         {
           priceAmount: 1000n,
           currency: "USD",
           paymentProvider: "trybit",
+          paymentStatus: "paid",
+          refundedAmount: null,
           paidAt: new Date("2025-10-02T00:00:00.000Z"),
         },
       ],
@@ -165,5 +180,35 @@ describe("aggregateSalesSeries", () => {
   test("startOfUtc helpers truncate correctly", () => {
     expect(startOfUtcDay(now).toISOString()).toBe("2026-09-26T00:00:00.000Z");
     expect(startOfUtcMonth(now).toISOString()).toBe("2026-09-01T00:00:00.000Z");
+  });
+  test("bounds aggregation to now and clamps over-refunds to zero", () => {
+    const base = {
+      priceAmount: 1000n,
+      currency: "USD",
+      paymentProvider: "trybit",
+      paymentStatus: "paid",
+      refundedAmount: null,
+    };
+    const series = aggregateSalesSeries(
+      [
+        { ...base, paidAt: now },
+        { ...base, paidAt: new Date(now.getTime() + 1) },
+        { ...base, paidAt: new Date("2026-09-30T00:00:00Z") },
+        { ...base, paidAt: new Date("2025-09-30T00:00:00Z") },
+        { ...base, paidAt: now, refundedAmount: 1500n },
+        {
+          ...base,
+          paidAt: now,
+          currency: "XTR",
+          paymentProvider: "telegram_stars",
+          priceAmount: 100n,
+          refundedAmount: 20n,
+        },
+      ],
+      "year",
+      now,
+    );
+    expect(series.at(-1)?.orderCount).toBe(3);
+    expect(series.at(-1)?.revenueUsd).toBe(12.4);
   });
 });

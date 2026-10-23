@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   CartesianGrid,
   ComposedChart,
@@ -37,10 +39,10 @@ function salesHref(range: SalesRange) {
   return `/dashboard?range=${range}`;
 }
 
-function formatUsd(value: number) {
+function formatMoney(value: number, currency: "USD" | "RUB") {
   return value.toLocaleString("en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
@@ -53,7 +55,10 @@ export function SalesGraph({
   range: SalesRange;
   series: SalesPoint[];
 }) {
-  const totalRevenue = series.reduce((sum, point) => sum + point.revenueUsd, 0);
+  const [currency, setCurrency] = useState<"USD" | "RUB">("USD");
+  const revenueKey = currency === "USD" ? "revenueUsd" : "revenueRub";
+  const totalUsd = series.reduce((sum, point) => sum + point.revenueUsd, 0);
+  const totalRub = series.reduce((sum, point) => sum + point.revenueRub, 0);
   const totalOrders = series.reduce((sum, point) => sum + point.orderCount, 0);
 
   return (
@@ -90,13 +95,13 @@ export function SalesGraph({
         </div>
         <div className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-sm">
           <span>
-            Revenue{" "}
+            Net revenue{" "}
             <span className="text-foreground font-medium tabular-nums">
-              {formatUsd(Math.round(totalRevenue * 100) / 100)}
+              {formatMoney(totalUsd, "USD")} + {formatMoney(totalRub, "RUB")}
             </span>
           </span>
           <span>
-            Orders{" "}
+            Paid orders{" "}
             <span className="text-foreground font-medium tabular-nums">
               {totalOrders}
             </span>
@@ -104,6 +109,38 @@ export function SalesGraph({
         </div>
       </CardHeader>
       <CardContent className="pt-2">
+        <p className="text-muted-foreground mb-3 text-xs">
+          {range === "year"
+            ? "Last 12 calendar months"
+            : range === "week"
+              ? "Last 7 days"
+              : "Last 30 days"}
+          , UTC, through now. Net revenue subtracts refunds and chargebacks from
+          the original payment period. Paid orders include refunded orders and
+          top-ups. USD includes Stars at $0.03 per Star.
+        </p>
+        <div
+          className="mb-3 flex gap-2"
+          role="group"
+          aria-label="Revenue currency"
+        >
+          {(["USD", "RUB"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={currency === value}
+              onClick={() => setCurrency(value)}
+              className={cn(
+                "rounded-md px-3 py-1 text-sm",
+                currency === value
+                  ? "bg-muted font-medium"
+                  : "text-muted-foreground",
+              )}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
         <div className="h-56 w-full min-w-0 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
@@ -124,7 +161,7 @@ export function SalesGraph({
                 axisLine={false}
                 width={48}
                 tick={{ fontSize: 11 }}
-                tickFormatter={(value: number) => formatUsd(value)}
+                tickFormatter={(value: number) => formatMoney(value, currency)}
               />
               <YAxis
                 yAxisId="orders"
@@ -139,8 +176,11 @@ export function SalesGraph({
                 formatter={(value, name) => {
                   const numeric =
                     typeof value === "number" ? value : Number(value);
-                  if (name === "Revenue") {
-                    return [formatUsd(numeric), "Revenue"];
+                  if (name === `Net revenue (${currency})`) {
+                    return [
+                      formatMoney(numeric, currency),
+                      `Net revenue (${currency})`,
+                    ];
                   }
                   return [numeric, "Orders"];
                 }}
@@ -157,8 +197,8 @@ export function SalesGraph({
               <Line
                 yAxisId="revenue"
                 type="monotone"
-                dataKey="revenueUsd"
-                name="Revenue"
+                dataKey={revenueKey}
+                name={`Net revenue (${currency})`}
                 stroke="var(--chart-1)"
                 strokeWidth={2}
                 dot={false}

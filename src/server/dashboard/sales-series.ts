@@ -1,4 +1,4 @@
-import { STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
+import { paymentStatus, STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
 import { USD_PER_STAR } from "~/lib/usd-to-stars";
 
 export const SALES_RANGES = ["week", "month", "year"] as const;
@@ -10,6 +10,7 @@ export type SalesPoint = {
   label: string;
   /** Customer revenue normalized to USD major units. */
   revenueUsd: number;
+  revenueRub: number;
   orderCount: number;
 };
 
@@ -18,6 +19,8 @@ export type SalesOrderRow = {
   currency: string;
   paymentProvider: string;
   paidAt: Date | null;
+  paymentStatus: string;
+  refundedAmount: bigint | null;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -93,20 +96,18 @@ function monthLabel(date: Date): string {
   });
 }
 
-function emptyBuckets(
-  range: SalesRange,
-  now: Date,
-): Map<string, SalesPoint> {
+function emptyBuckets(range: SalesRange, now: Date): Map<string, SalesPoint> {
   const { start, end, bucket } = salesWindow(range, now);
   const points = new Map<string, SalesPoint>();
 
   if (bucket === "month") {
-    for (let cursor = new Date(start); cursor <= end; ) {
+    for (let cursor = new Date(start); cursor <= end;) {
       const key = monthKey(cursor);
       points.set(key, {
         key,
         label: monthLabel(cursor),
         revenueUsd: 0,
+        revenueRub: 0,
         orderCount: 0,
       });
       cursor = new Date(
@@ -116,12 +117,13 @@ function emptyBuckets(
     return points;
   }
 
-  for (let cursor = new Date(start); cursor <= end; ) {
+  for (let cursor = new Date(start); cursor <= end;) {
     const key = dayKey(cursor);
     points.set(key, {
       key,
       label: dayLabel(cursor),
       revenueUsd: 0,
+      revenueRub: 0,
       orderCount: 0,
     });
     cursor = new Date(cursor.getTime() + DAY_MS);
@@ -149,10 +151,7 @@ export function orderRevenueUsd(order: {
   if (currency === "USD") {
     return amount / 100;
   }
-  if (
-    currency === "XTR" ||
-    order.paymentProvider === STARS_PAYMENT_PROVIDER
-  ) {
+  if (currency === "XTR" || order.paymentProvider === STARS_PAYMENT_PROVIDER) {
     return amount * USD_PER_STAR;
   }
   return 0;
@@ -163,11 +162,11 @@ export function aggregateSalesSeries(
   range: SalesRange,
   now: Date = new Date(),
 ): SalesPoint[] {
-  const { bucket } = salesWindow(range, now);
+  const { start, bucket } = salesWindow(range, now);
   const points = emptyBuckets(range, now);
 
   for (const order of orders) {
-    if (!order.paidAt) {
+    if (!order.paidAt || order.paidAt < start || order.paidAt > now) {
       continue;
     }
     const key =
@@ -177,11 +176,25 @@ export function aggregateSalesSeries(
       continue;
     }
     point.orderCount += 1;
-    point.revenueUsd += orderRevenueUsd(order);
+    // Keep the original paid order count; attribute its net value to paidAt.
+    const refund =
+      order.refundedAmount ??
+      (order.paymentStatus === paymentStatus.refunded ? order.priceAmount : 0n);
+    const remaining =
+      order.paymentStatus === paymentStatus.chargeback
+        ? 0n
+        : order.priceAmount - refund;
+    const priceAmount = remaining > 0n ? remaining : 0n;
+    if (order.currency.toUpperCase() === "RUB") {
+      point.revenueRub += Number(priceAmount) / 100;
+    } else {
+      point.revenueUsd += orderRevenueUsd({ ...order, priceAmount });
+    }
   }
 
   return [...points.values()].map((point) => ({
     ...point,
     revenueUsd: Math.round(point.revenueUsd * 100) / 100,
+    revenueRub: Math.round(point.revenueRub * 100) / 100,
   }));
 }
