@@ -1,6 +1,6 @@
 # Refund Policy
 
-**Last updated: August 23rd, 2026**
+**Last updated: October 23rd, 2026**
 
 This Refund Policy explains when a refund may be requested for eSIM products purchased through **simverse**, operated by **Individual Entrepreneur Dmitrii Efimov**, Georgian Tax Number **345637091**, registered at **Tamar Mepe St. N22A, apt 143, Batumi, Georgia**.
 
@@ -150,23 +150,20 @@ Approved refunds will normally be returned using the original payment method.
 
 Payments may be processed through third-party providers including:
 
-- **Cardlink** — [https://cardlink.link/en](https://cardlink.link/en)
+- **X-Hub Online** — [https://x-hub.online/](https://x-hub.online/)
 - **Trybit** — [https://trybit.com](https://trybit.com)
-- **Telegram Stars** — processed through Telegram; [https://telegram.org/tos/stars](https://telegram.org/tos/stars)
 
-The processing of a refund by Cardlink, Trybit, Telegram, a bank, card network, cryptocurrency network, wallet provider, or other financial intermediary may also be governed by that provider's own terms, policies, technical rules, and processing times.
+The processing of a refund by X-Hub Online, Trybit, a bank, card network, cryptocurrency network, wallet provider, or other financial intermediary may also be governed by that provider's own terms, policies, technical rules, and processing times.
 
 simverse may approve and initiate a refund, but the time required for funds to appear in your account or wallet may depend on the relevant third-party provider.
 
-## 11. Cryptocurrency and Telegram Stars Payments
+## 11. Cryptocurrency Payments
 
 Where a purchase was paid using cryptocurrency through Trybit, the refund process may be subject to the technical and operational rules of the relevant payment provider.
 
 Unless otherwise required by law, any approved refund will be processed according to the amount and method supported by the payment provider at the time the refund is issued.
 
 Network fees, exchange-rate movements, blockchain confirmation times, or wallet-provider rules may affect the final amount or timing of a cryptocurrency refund where such effects are outside the reasonable control of simverse.
-
-Where a purchase was paid using Telegram Stars, the refund process may also be subject to Telegram's Terms of Service for Telegram Stars and Telegram's technical and operational rules.
 
 ## 12. Chargebacks and Payment Disputes
 

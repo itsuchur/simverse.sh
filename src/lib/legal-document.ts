@@ -32,14 +32,10 @@ export type LegalBlock =
   | { type: "ul"; items: LegalInline[][] }
   | { type: "ol"; items: LegalInline[][] };
 
-export async function readLegalMarkdown(
-  id: LegalDocumentId,
-  locale: string,
-) {
+export async function readLegalMarkdown(id: LegalDocumentId, locale: string) {
   const englishFilename = LEGAL_FILES[id];
   const localizedFilename = resolveLegalFilename(id, locale);
-  const filePath = (filename: string) =>
-    path.join(process.cwd(), filename);
+  const filePath = (filename: string) => path.join(process.cwd(), filename);
 
   let markdown: string;
   try {
@@ -48,12 +44,7 @@ export async function readLegalMarkdown(
     markdown = await readFile(filePath(englishFilename), "utf8");
   }
 
-  return parseLegalMarkdown(
-    markdown
-      .replace(/^# .+\n+/, "")
-      .replace(/^\*\*(Last updated|Обновлено):[^*]+\*\*\n+/, "")
-      .trim(),
-  );
+  return parseLegalMarkdown(markdown.replace(/^# .+\n+/, "").trim());
 }
 
 export function parseLegalMarkdown(markdown: string): LegalBlock[] {

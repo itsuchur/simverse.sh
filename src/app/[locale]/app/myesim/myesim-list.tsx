@@ -399,7 +399,7 @@ export function MyEsimList({
             src="https://fonts.gstatic.com/s/e/notoemoji/latest/1fae3/lottie.json"
             loop
             autoplay
-            className="size-64"
+            className="size-48"
           />
         </div>
         <p className="text-muted-foreground max-w-sm text-base">

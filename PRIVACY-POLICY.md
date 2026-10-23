@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated: August 23rd, 2026**
+**Last updated: October 23rd, 2026**
 
 This Privacy Policy explains how **Individual Entrepreneur Dmitrii Efimov**, Georgian Tax Number **345637091**, registered at **Tamar Mepe St. N22A, apt 143, Batumi, Georgia** (referred to as **"simverse"**, the **"Miniapp"**, **"we"**, **"us"**, or **"our"**) collects, uses, stores, shares, and protects personal data when you access or use the Miniapp, purchase an eSIM, contact support, or otherwise interact with our services.
 
@@ -216,13 +216,12 @@ Where processing legally requires consent, we will request it separately. Where 
 
 Payments may be processed by third-party payment providers, including:
 
-- **Cardlink** — [https://cardlink.link/en](https://cardlink.link/en)
+- **X-Hub Online** — [https://x-hub.online/](https://x-hub.online/)
 - **Trybit** — [https://trybit.com](https://trybit.com)
-- **Telegram Stars** — processed through Telegram; [https://telegram.org/tos/stars](https://telegram.org/tos/stars)
 
 When you choose a payment provider, that provider may independently collect and process payment information, identity information, technical information, fraud-prevention information, wallet information, financial information, or other information necessary to process the transaction and comply with its own legal obligations.
 
-Your relationship with Cardlink, Trybit, or Telegram (for Telegram Stars) is also governed by that provider's own terms of service, privacy policy, and other applicable policies.
+Your relationship with X-Hub Online or Trybit is also governed by that provider's own terms of service, privacy policy, and other applicable policies.
 
 We may receive from payment providers information such as payment status, transaction identifiers, amount, currency, risk or fraud signals, refund status, and other information necessary to reconcile and manage your purchase.
 
@@ -253,7 +252,7 @@ A provisioning partner may also process certain network or telecommunications in
 We may disclose or make personal data available to categories of recipients including:
 
 - eSIM provisioning partners and telecommunications providers;
-- Cardlink, Trybit, and Telegram;
+- X-Hub Online, Trybit, and Telegram;
 - hosting and infrastructure providers;
 - Amazon Web Services for backup storage;
 - Cloudflare for security, network protection, and delivery;

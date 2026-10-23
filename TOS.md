@@ -1,6 +1,6 @@
 # Terms of Service
 
-**Last updated: August 23rd, 2026**
+**Last updated: October 23rd, 2026**
 
 These Terms of Service ("Terms") create a legally binding agreement between you (the "User", "you", or "your") and **Individual Entrepreneur Dmitrii Efimov**, Georgian Tax Number **345637091**, registered at **Tamar Mepe St. N22A, apt 143, Batumi, Georgia** (referred to as **"simverse"**, the **"Miniapp"**, **"we"**, **"us"**, or **"our"**).
 
@@ -88,15 +88,14 @@ You are responsible for reviewing the price and product details before placing a
 
 Payments may be processed by third-party payment providers, including:
 
-- **Cardlink** — [https://cardlink.link/en](https://cardlink.link/en)
+- **X-Hub Online** — [https://x-hub.online/](https://x-hub.online/)
 - **Trybit** — [https://trybit.com](https://trybit.com)
-- **Telegram Stars** — processed through Telegram; [https://telegram.org/tos/stars](https://telegram.org/tos/stars)
 
 When you choose to pay through a third-party payment provider, your relationship with that provider, including its processing of your payment, payment credentials, transaction restrictions, fees, compliance checks, refunds, disputes, and other payment-related matters, may also be governed by that provider's own terms of service, privacy policy, and other applicable rules.
 
-Cardlink's Terms of Use are available at [https://cardlink.link/en/terms-of-use](https://cardlink.link/en/terms-of-use). Trybit publishes its applicable terms and policies on its website. Telegram Stars payments are also governed by Telegram's Terms of Service for Telegram Stars.
+X-Hub Online and Trybit publish their applicable terms and policies on their websites.
 
-simverse is the seller of the eSIM product. Cardlink, Trybit, and Telegram act as independent third-party payment-service providers and are not responsible for the eSIM service itself unless their own terms expressly provide otherwise.
+simverse is the seller of the eSIM product. X-Hub Online and Trybit act as independent third-party payment-service providers and are not responsible for the eSIM service itself unless their own terms expressly provide otherwise.
 
 You authorize us and the selected payment provider to process the amount displayed at checkout using your chosen payment method.
 
@@ -140,7 +139,7 @@ If the eSIM remains unactivated and the refund request is made within the 14-day
 
 Refunds will normally be made using the original payment method. The time required for funds to appear after a refund has been approved depends on the relevant payment provider, payment network, bank, blockchain, or other financial intermediary.
 
-Where a payment was made through Cardlink, Trybit, or Telegram Stars, the processing of the refund by that payment provider is also subject to the provider's own terms, technical rules, and processing procedures.
+Where a payment was made through X-Hub Online or Trybit, the processing of the refund by that payment provider is also subject to the provider's own terms, technical rules, and processing procedures.
 
 Nothing in these Terms limits any mandatory consumer rights that cannot lawfully be excluded.
 

@@ -31,7 +31,6 @@ export async function LegalPage({
 
   return (
     <FullScreenDocument title={t("title")} showCloseButton={false}>
-      <p className="text-muted-foreground text-sm">{t("lastUpdated")}</p>
       <LegalMarkdown blocks={content} />
     </FullScreenDocument>
   );
