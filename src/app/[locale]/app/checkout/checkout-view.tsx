@@ -292,18 +292,14 @@ export function CheckoutView({
           <dd className="font-medium">{duration}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-6">
-          <dt className="text-muted-foreground">{t("dataTopUps")}</dt>
-          <dd className="text-right font-medium">
-            {t(supportTopUpType === 2 ? "supported" : "notSupported")}
-          </dd>
-        </div>
-        <div className="flex items-baseline justify-between gap-6">
-          <dt className="text-muted-foreground">{t("validityExtension")}</dt>
+          <dt className="text-muted-foreground">{t("topUps")}</dt>
           <dd className="text-right font-medium">
             {t(
-              supportTopUpType === 2 || supportTopUpType === 3
-                ? "supported"
-                : "notSupported",
+              supportTopUpType === 2
+                ? "topUpsDataAndValidity"
+                : supportTopUpType === 3
+                  ? "topUpsValidity"
+                  : "notSupported",
             )}
           </dd>
         </div>
