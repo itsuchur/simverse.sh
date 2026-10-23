@@ -21,9 +21,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<{ page?: string | string[]; tag?: string | string[] }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, tag: tagParam } = await searchParams;
+  if (Array.isArray(tagParam) || (tagParam?.length ?? 0) > 200) notFound();
+  const trimmedTag = tagParam?.trim();
+  const tag = trimmedTag === "" ? undefined : trimmedTag;
   const page = pageParam === undefined ? 1 : Number(pageParam);
   if (Array.isArray(pageParam) || !Number.isSafeInteger(page) || page < 1) {
     notFound();
@@ -31,7 +34,7 @@ export default async function BlogPage({
   const t = await getTranslations("Blog");
   const format = await getFormatter();
   const locale = await getLocale();
-  const { articles, pageCount } = await fetchArticles(locale, page);
+  const { articles, pageCount } = await fetchArticles(locale, page, tag);
   if (page > 1 && page > pageCount) {
     notFound();
   }
@@ -45,9 +48,18 @@ export default async function BlogPage({
         {t("intro")}
       </p>
 
+      {tag ? (
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm">
+          <p>{t("filteredByTag", { tag })}</p>
+          <Link href="/blog" className="underline underline-offset-4">
+            {t("back")}
+          </Link>
+        </div>
+      ) : null}
+
       {articles.length === 0 ? (
         <p className="text-muted-foreground mt-16 text-center text-sm">
-          {t("empty")}
+          {tag ? t("emptyTag", { tag }) : t("empty")}
         </p>
       ) : (
         <ul className="mx-auto mt-16 max-w-2xl space-y-12 sm:mt-20 sm:space-y-16">
@@ -95,7 +107,10 @@ export default async function BlogPage({
             <Link
               href={{
                 pathname: "/blog",
-                query: page > 2 ? { page: page - 1 } : {},
+                query: {
+                  ...(tag ? { tag } : {}),
+                  ...(page > 2 ? { page: page - 1 } : {}),
+                },
               }}
               className="underline-offset-4 hover:underline"
             >
@@ -109,7 +124,10 @@ export default async function BlogPage({
           </span>
           {page < pageCount ? (
             <Link
-              href={{ pathname: "/blog", query: { page: page + 1 } }}
+              href={{
+                pathname: "/blog",
+                query: { ...(tag ? { tag } : {}), page: page + 1 },
+              }}
               className="underline-offset-4 hover:underline"
             >
               {t("next")}

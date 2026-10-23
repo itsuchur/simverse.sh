@@ -59,7 +59,11 @@ async function strapiFetch<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function fetchArticles(locale: string, page: number) {
+export async function fetchArticles(
+  locale: string,
+  page: number,
+  tag?: string,
+) {
   const params = new URLSearchParams({
     populate: "cover",
     locale: locale,
@@ -68,6 +72,7 @@ export async function fetchArticles(locale: string, page: number) {
     "pagination[page]": String(page),
     "pagination[pageSize]": "5",
   });
+  if (tag) params.set("tag", tag);
   const result = await strapiFetch<StrapiListResponse<StrapiArticle>>(
     `/api/articles?${params.toString()}`,
   );

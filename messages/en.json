@@ -243,6 +243,8 @@
     "metaDescription": "News and guides from Simverse.",
     "title": "Blog",
     "intro": "Travel eSIM tips, product updates, and destination guides.",
+    "filteredByTag": "Posts tagged “{tag}”",
+    "emptyTag": "No posts tagged “{tag}”.",
     "empty": "No posts yet. Check back soon.",
     "back": "All posts",
     "notFoundTitle": "Post not found"
