@@ -17,11 +17,16 @@ export default factories.createCoreController(
           .connection("articles")
           .select("id")
           .whereJsonSupersetOf("tags", [{ name: tag.trim() }]);
-        ctx.query.filters = {
-          $and: [
-            query.filters ?? {},
-            { id: { $in: rows.map(({ id }) => id) } },
-          ],
+        // Assign the whole query: Strapi returns a fresh object from its getter.
+        // Keep a non-empty ID list so query serialization preserves no matches.
+        ctx.query = {
+          ...query,
+          filters: {
+            $and: [
+              query.filters ?? {},
+              { id: { $in: rows.length ? rows.map(({ id }) => id) : [0] } },
+            ],
+          },
         };
       }
       return super.find(ctx);
