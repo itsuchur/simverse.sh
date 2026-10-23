@@ -4,7 +4,6 @@
 
 generator client {
   provider      = "prisma-client-js"
-  output        = "../generated/prisma"
   // native = local Mac; linux-arm64 = Docker (Bun on Apple Silicon)
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
 }

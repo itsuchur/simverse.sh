@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import { checkEsimUsage } from "~/server/orders/usage-check";
 import { consumeUsageCheckAttempt } from "~/server/orders/usage-check-limit";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
@@ -12,7 +12,7 @@ function unauthorized() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) return unauthorized();
 
   const telegramId = session.user.telegramId;

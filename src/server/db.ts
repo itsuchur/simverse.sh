@@ -1,6 +1,6 @@
 import "server-only";
 
-import { PrismaClient } from "../../generated/prisma";
+import { PrismaClient } from "@prisma/client";
 
 export function isUniqueConstraintError(error: unknown): boolean {
   return (

@@ -1,4 +1,4 @@
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import { db } from "~/server/db";
 
 /**
@@ -6,7 +6,7 @@ import { db } from "~/server/db";
  * the consent screen and signs back in, recovering their account data.
  */
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

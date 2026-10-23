@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { TelegramMiniAppData } from "better-auth-telegram";
 
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import { db } from "~/server/db";
 
 const bodySchema = z.object({
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   // The plugin endpoint is loosely typed (optional, untyped body); narrow it.
-  const validateMiniApp = auth.api.validateMiniApp as unknown as (input: {
+  const validateMiniApp = getAuth().api.validateMiniApp as unknown as (input: {
     body: { initData: string };
   }) => Promise<{ valid: boolean; data: TelegramMiniAppData | null }>;
 

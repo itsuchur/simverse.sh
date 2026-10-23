@@ -4,7 +4,7 @@ import {
 } from "~/server/orders/checkout";
 import * as Sentry from "@sentry/nextjs";
 
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { getCartSnapshot } from "~/server/cart";
 import { STARS_PAYMENT_PROVIDER } from "~/lib/order-status";
@@ -26,7 +26,7 @@ function unavailable() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) {
     return unauthorized();
   }

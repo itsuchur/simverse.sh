@@ -1,4 +1,4 @@
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import { db } from "~/server/db";
 
 /**
@@ -8,7 +8,7 @@ import { db } from "~/server/db";
  * sign-in); permanent purging is handled out of band.
  */
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   });
 
   // Revokes the current session and clears the auth cookie (nextCookies).
-  await auth.api.signOut({ headers: request.headers });
+  await getAuth().api.signOut({ headers: request.headers });
 
   // Revoke any remaining sessions on other devices.
   await db.session.deleteMany({ where: { userId: session.user.id } });

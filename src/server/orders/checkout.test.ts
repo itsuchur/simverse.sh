@@ -4,11 +4,11 @@ import { esimAccessPost, getCartSnapshot, resetTestState } from "~/test/mocks";
 import { invoiceResponse } from "./checkout";
 
 void mock.module("~/server/better-auth", () => ({
-  auth: {
+  getAuth: () => ({
     api: {
       getSession: async () => ({ user: { id: "user-1", telegramId: "42" } }),
     },
-  },
+  }),
 }));
 void mock.module("~/server/sales", () => ({ isSalesActive: async () => true }));
 

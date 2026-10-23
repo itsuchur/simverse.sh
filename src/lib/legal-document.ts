@@ -35,13 +35,22 @@ export type LegalBlock =
 export async function readLegalMarkdown(id: LegalDocumentId, locale: string) {
   const englishFilename = LEGAL_FILES[id];
   const localizedFilename = resolveLegalFilename(id, locale);
-  const filePath = (filename: string) => path.join(process.cwd(), filename);
+  // next.config.js explicitly includes all six legal files in standalone output.
+  // Their dynamic locale lookup must not trigger tracing of the entire project.
+  const filePath = (filename: string) =>
+    path.join(/* turbopackIgnore: true */ process.cwd(), filename);
 
   let markdown: string;
   try {
-    markdown = await readFile(filePath(localizedFilename), "utf8");
+    markdown = await readFile(
+      /* turbopackIgnore: true */ filePath(localizedFilename),
+      "utf8",
+    );
   } catch {
-    markdown = await readFile(filePath(englishFilename), "utf8");
+    markdown = await readFile(
+      /* turbopackIgnore: true */ filePath(englishFilename),
+      "utf8",
+    );
   }
 
   return parseLegalMarkdown(markdown.replace(/^# .+\n+/, "").trim());

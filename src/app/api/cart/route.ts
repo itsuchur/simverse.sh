@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import {
   cartPlanForPackageCode,
   CatalogIncompleteError,
@@ -26,7 +26,7 @@ function unavailable() {
 }
 
 async function requireTelegramSession(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   const telegramId = session?.user.telegramId;
   if (!session || typeof telegramId !== "string" || telegramId.length === 0) {
     return null;

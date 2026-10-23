@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import { listTopupOffers } from "~/server/orders/topup";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
@@ -11,7 +11,7 @@ function unauthorized() {
 }
 
 export async function GET(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) return unauthorized();
   if (await isUserBanned(session.user.id)) return forbidden();
 

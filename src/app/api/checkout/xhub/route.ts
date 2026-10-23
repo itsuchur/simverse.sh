@@ -5,7 +5,7 @@ import {
   checkoutRequestSchema,
   invoiceResponse,
 } from "~/server/orders/checkout";
-import { auth } from "~/server/better-auth";
+import { getAuth } from "~/server/better-auth";
 import { getCartSnapshot } from "~/server/cart";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { XHUB_PAYMENT_PROVIDER } from "~/lib/order-status";
@@ -35,7 +35,7 @@ function unavailable() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) {
     return unauthorized();
   }
