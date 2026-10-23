@@ -88,6 +88,31 @@ describe("miniapp host locale routing", () => {
 });
 
 describe("other hosts", () => {
+  for (const locale of ["en", "ru"]) {
+    test(`an explicit ${locale} blog link overrides a conflicting blog language cookie`, () => {
+      const otherLocale = locale === "en" ? "ru" : "en";
+      const response = proxy(
+        new NextRequest(`https://blog.simverse.sh/${locale}`, {
+          headers: {
+            host: "blog.simverse.sh",
+            "accept-language": otherLocale,
+            cookie: `NEXT_LOCALE=${otherLocale}`,
+          },
+        }),
+      );
+      expect(response.headers.get("set-cookie")).toContain(
+        `NEXT_LOCALE=${locale}`,
+      );
+      if (locale === "en") {
+        expect(pathnameOf(response.headers.get("location"))).toBe("/");
+      } else {
+        expect(pathnameOf(response.headers.get("x-middleware-rewrite"))).toBe(
+          "/ru/blog",
+        );
+      }
+    });
+  }
+
   test("rewrites the Russian dashboard root under /dashboard", () => {
     const response = proxy(request("https://dashboard.simverse.sh/ru", "ru"));
     expect(pathnameOf(response.headers.get("x-middleware-rewrite"))).toBe(
