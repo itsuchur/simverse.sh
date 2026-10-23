@@ -21,7 +21,10 @@ export async function MarketingHeader() {
 
   return (
     <header className="flex items-center justify-between">
-      <nav aria-label="Social media" className="flex gap-2 pt-4 pl-6">
+      <nav
+        aria-label="Social media"
+        className="flex gap-2 pt-4 pl-6 lg:gap-3 lg:pt-6 lg:pl-10"
+      >
         {SOCIAL_LINKS.map((social) => (
           <a
             key={social.name}
@@ -31,7 +34,7 @@ export async function MarketingHeader() {
             aria-label={social.name}
             className={cn(
               buttonVariants({ size: "icon", variant: "ghost" }),
-              "size-9",
+              "size-9 lg:size-12",
             )}
           >
             <Image
@@ -39,15 +42,18 @@ export async function MarketingHeader() {
               alt=""
               width={20}
               height={20}
-              className="size-5 dark:invert"
+              className="size-5 lg:size-7 dark:invert"
             />
           </a>
         ))}
       </nav>
-      <div className="flex items-center gap-2 pt-4 pr-6">
+      <div className="flex items-center gap-2 pt-4 pr-6 lg:gap-3 lg:pt-6 lg:pr-10">
         <a
           href={`https://blog.simverse.sh/${locale}`}
-          className={cn(buttonVariants({ variant: "ghost" }), "h-9")}
+          className={cn(
+            buttonVariants({ variant: "ghost" }),
+            "h-9 lg:h-12 lg:px-4 lg:text-lg",
+          )}
         >
           {t("title")}
         </a>

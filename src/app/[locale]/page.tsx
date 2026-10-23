@@ -14,28 +14,28 @@ const PAYMENT_METHODS = [
     altKey: "paymentMirAlt",
     width: 512,
     height: 512,
-    className: "h-[8.2rem]",
+    className: "h-[5.5rem]",
   },
   {
     src: "/VISA.svg",
     altKey: "paymentVisaAlt",
     width: 512,
     height: 512,
-    className: "h-[7rem]",
+    className: "h-[4.625rem]",
   },
   {
     src: "/MC.svg",
     altKey: "paymentMcAlt",
     width: 116,
     height: 91,
-    className: "h-12",
+    className: "h-8",
   },
   {
     src: "/SBP.svg",
     altKey: "paymentSbpAlt",
     width: 239,
     height: 120,
-    className: "h-12",
+    className: "h-8",
   },
 ] as const;
 

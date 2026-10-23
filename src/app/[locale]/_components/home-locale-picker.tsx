@@ -34,11 +34,11 @@ export function HomeLocalePicker() {
           aria-label={t("label")}
           className={cn(
             buttonVariants({ size: "default", variant: "ghost" }),
-            "h-9 gap-1 px-2.5 [&_svg:not([class*='size-'])]:size-5",
+            "h-9 gap-1 px-2.5 lg:h-12 lg:gap-2 lg:px-4 [&_svg:not([class*='size-'])]:size-5",
           )}
         >
-          <Globe aria-hidden className="size-5" />
-          <ChevronDown aria-hidden className="size-4 opacity-70" />
+          <Globe aria-hidden className="size-5 lg:size-7" />
+          <ChevronDown aria-hidden className="size-4 opacity-70 lg:size-5" />
         </PopoverTrigger>
         <PopoverContent
           side="bottom"
@@ -55,7 +55,7 @@ export function HomeLocalePicker() {
                     role="option"
                     aria-selected={active}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors outline-none",
+                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors outline-none lg:gap-3 lg:px-4 lg:py-2.5 lg:text-base",
                       active
                         ? "bg-primary text-primary-foreground"
                         : "hover:bg-muted",
