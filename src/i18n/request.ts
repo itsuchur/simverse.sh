@@ -1,6 +1,5 @@
 import { hasLocale, type AbstractIntlMessages } from "next-intl";
 import { getRequestConfig } from "next-intl/server";
-import { notFound } from "next/navigation";
 import * as rootParams from "next/root-params";
 
 import en from "../../messages/en.json";
@@ -15,7 +14,7 @@ const messagesByLocale: Record<
   ru,
 };
 
-export default getRequestConfig(async ({ locale }) => {
+export default getRequestConfig(async ({ locale, requestLocale }) => {
   if (!locale) {
     // next/root-params ships a bare module declaration; the real types are
     // generated into .next/types by `next dev`, so lint from a clean checkout
@@ -25,7 +24,12 @@ export default getRequestConfig(async ({ locale }) => {
     if (hasLocale(routing.locales, paramValue)) {
       locale = paramValue;
     } else {
-      notFound();
+      // Global not-found pages have no root params. Use the language negotiated
+      // by the proxy (or setRequestLocale) when rendering outside that layout.
+      const negotiatedLocale = await requestLocale;
+      locale = hasLocale(routing.locales, negotiatedLocale)
+        ? negotiatedLocale
+        : routing.defaultLocale;
     }
   }
 

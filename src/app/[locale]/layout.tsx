@@ -2,8 +2,9 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
+import { notFound } from "next/navigation";
 import Script from "next/script";
-import { NextIntlClientProvider } from "next-intl";
+import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 
 import {
@@ -34,7 +35,12 @@ const geist = Geist({
 
 export default async function LocaleLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  params,
+}: Readonly<{
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}>) {
+  if (!hasLocale(routing.locales, (await params).locale)) notFound();
   const locale = await getLocale();
   const messages = pickMessages(
     await getMessages(),

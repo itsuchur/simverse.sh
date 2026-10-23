@@ -56,6 +56,7 @@ const config = {
   // Dynamic pages are not reused by default (0s). Keep a short window so
   // tab switches that were not fully prefetched can still paint immediately.
   experimental: {
+    globalNotFound: true,
     agentUpgrade: "latest",
     staleTimes: {
       dynamic: 30,

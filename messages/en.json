@@ -234,6 +234,12 @@
     "trademarks": "The Instagram, Telegram, and X logos are trademarks of their respective owners, registered in the United States and other countries.",
     "coverage": "Coverage and connectivity may depend on local telecommunications partners. Terms and conditions apply and are subject to change."
   },
+  "NotFound": {
+    "title": "This page is off the map.",
+    "description": "The page you're looking for may have moved or no longer exists. Let's get you back on track.",
+    "home": "Back to home",
+    "cta": "Get an eSIM"
+  },
   "Blog": {
     "pagination": "Blog pagination",
     "previous": "Previous",
