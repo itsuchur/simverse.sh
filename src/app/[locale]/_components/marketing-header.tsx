@@ -20,11 +20,8 @@ export async function MarketingHeader() {
   const locale = await getLocale();
 
   return (
-    <header className="flex items-center justify-between">
-      <nav
-        aria-label="Social media"
-        className="flex gap-2 pt-4 pl-6 lg:gap-3 lg:pt-6 lg:pl-10"
-      >
+    <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-3 pt-4 sm:gap-2 sm:px-6 lg:px-10 lg:pt-6">
+      <nav aria-label="Social media" className="flex gap-1 sm:gap-2 lg:gap-3">
         {SOCIAL_LINKS.map((social) => (
           <a
             key={social.name}
@@ -47,12 +44,19 @@ export async function MarketingHeader() {
           </a>
         ))}
       </nav>
-      <div className="flex items-center gap-2 pt-4 pr-6 lg:gap-3 lg:pt-6 lg:pr-10">
+      <Image
+        src="/logo-bw-gro.svg"
+        alt="Simverse"
+        width={1180}
+        height={360}
+        className="h-auto w-12 sm:w-20 dark:invert"
+      />
+      <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
         <a
           href={`https://blog.simverse.sh/${locale}`}
           className={cn(
             buttonVariants({ variant: "ghost" }),
-            "h-9 lg:h-12 lg:px-4 lg:text-lg",
+            "h-9 px-2 sm:px-3 lg:h-12 lg:px-4 lg:text-lg",
           )}
         >
           {t("title")}

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1180"
+   height="360"
+   viewBox="0 0 1180 360"
+   role="img"
+   aria-label="Simverse logo with editable text"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="logo-bw-gro.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.49377626"
+     inkscape:cx="-342.26028"
+     inkscape:cy="-231.8864"
+     inkscape:window-width="3440"
+     inkscape:window-height="1417"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5" />
+  <defs
+     id="defs1">
+    <clipPath
+       id="sim-card-clip">
+      <path
+         d="M124 133 H1284 Q1334 133 1334 183 V701 L1134 899 H124 Q77 899 77 852 V181 Q77 133 124 133 Z"
+         id="path1" />
+    </clipPath>
+  </defs>
+  <g
+     id="sim-card"
+     transform="translate(0 -10) scale(0.38)">
+    <path
+       fill="#000000"
+       d="M124 133 H1284 Q1334 133 1334 183 V701 L1134 899 H124 Q77 899 77 852 V181 Q77 133 124 133 Z"
+       id="path2" />
+    <path
+       d="M193 207 H1215 Q1259 207 1259 251 V675 L1102 824 H193 Q149 824 149 780 V251 Q149 207 193 207 Z"
+       fill="none"
+       stroke="#ffffff"
+       stroke-width="18"
+       stroke-linejoin="round"
+       id="path3" />
+    <g
+       clip-path="url(#sim-card-clip)"
+       fill="#ffffff"
+       id="g5">
+      <path
+         d="M474 100 H646 L333 930 H160 Z"
+         id="path4" />
+      <path
+         d="M905 100 H1080 L766 930 H591 Z"
+         id="path5" />
+    </g>
+  </g>
+  <!-- Live text: edit this element directly in Inkscape -->
+  <text
+     id="brand-name"
+     x="940.12885"
+     y="180.79585"
+     font-family="DejaVu Sans, sans-serif"
+     font-size="116"
+     font-weight="700"
+     fill="#000000"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:317.073px;font-family:groLEAR;-inkscape-font-specification:'groLEAR, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;stroke-width:1.08093"
+     transform="scale(0.55788557,1.7924823)">simverse</text>
+</svg>
