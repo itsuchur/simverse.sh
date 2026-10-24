@@ -45,10 +45,10 @@ export async function MarketingHeader() {
         ))}
       </nav>
       <Image
-        src="/logo-bw-gro.svg"
+        src="/logo-sim-pari.svg"
         alt="Simverse"
-        width={1180}
-        height={360}
+        width={368}
+        height={192}
         className="h-auto w-18 min-[400px]:w-28 sm:w-40 lg:w-64 dark:invert"
       />
       <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
