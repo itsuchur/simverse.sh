@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "check": "eslint . && tsc --noEmit",
+    "check": "eslint . && bun run typecheck",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
@@ -22,7 +22,7 @@
     "test": "bun test",
     "test:refunds-migration": "bun scripts/test-refunds-migration.ts",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "SKIP_ENV_VALIDATION=1 next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
