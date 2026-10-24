@@ -149,37 +149,59 @@ function matchesParentPlan(
   return candidates.some((code) => parents.includes(code));
 }
 
-function resolveDayPassTopupCode(
+function resolveDayPassTopupPackage(
   listed: EsimAccessTopupPackage[],
   pkg: EsimAccessPackage,
-): string | null {
-  const match = listed.find((raw) => matchesParentPlan(raw, pkg));
-  if (!match) return null;
-  return topupPackageCode(match);
+): EsimAccessTopupPackage | null {
+  const exact = listed.find((raw) => matchesParentPlan(raw, pkg));
+  if (exact) return exact;
+
+  // The ICCID top-up list omits the FUP speed segment from daily slugs.
+  // Keep modifiers such as Premium so a different price tier is not selected.
+  const dailySlug = pkg.slug.replace(/_\d+(?:\.\d+)?(?:Kbps|Mbps)(?=_|$)/i, "");
+  if (dailySlug === pkg.slug) return null;
+  return listed.find((raw) => raw.slug === dailySlug) ?? null;
+}
+
+function dayPassQuote(
+  pkg: EsimAccessPackage,
+  topup: EsimAccessTopupPackage,
+  days: number,
+) {
+  const durationDays = topup.duration ?? pkg.duration;
+  const cost = quoteDayPassAmount({
+    retailPrice: topup.price ?? Number.NaN,
+    durationDays,
+    extendDays: days,
+  });
+  const retail = quoteDayPassAmount({
+    retailPrice: topup.retailPrice ?? pkg.retailPrice,
+    durationDays,
+    extendDays: days,
+  });
+  return cost === null || retail === null ? null : { cost, retail };
 }
 
 function dayPassOffers(
   pkg: EsimAccessPackage,
-  topupCode: string,
+  topup: EsimAccessTopupPackage,
   usdRubRate: number,
 ): TopupPackageOffer[] {
+  const topupCode = topupPackageCode(topup);
+  if (!topupCode) return [];
   const offers: TopupPackageOffer[] = [];
   for (const days of DAY_PASS_PRESETS) {
-    const amount = quoteDayPassAmount({
-      retailPrice: pkg.retailPrice,
-      durationDays: pkg.duration,
-      extendDays: days,
-    });
-    if (amount === null) continue;
+    const quote = dayPassQuote(pkg, topup, days);
+    if (!quote) continue;
     offers.push({
       packageCode: topupCode,
       name: pkg.name,
       volumeBytes: pkg.volume,
       validityDays: days,
       days,
-      priceUsd: retailPriceToUsd(amount),
-      priceRub: retailPriceToRub(amount, usdRubRate),
-      priceStars: retailPriceToStars(amount),
+      priceUsd: retailPriceToUsd(quote.retail),
+      priceRub: retailPriceToRub(quote.retail, usdRubRate),
+      priceStars: retailPriceToStars(quote.retail),
     });
   }
   return offers;
@@ -208,9 +230,9 @@ export async function listTopupOffers(input: {
   const listed = await fetchEsimAccessTopupPackages(order.esimIccid);
 
   if (pkg.supportTopUpType === 3) {
-    const topupCode = resolveDayPassTopupCode(listed, pkg);
-    if (!topupCode) return { mode: "none" };
-    const packages = dayPassOffers(pkg, topupCode, meta.usdRubRate);
+    const topup = resolveDayPassTopupPackage(listed, pkg);
+    if (!topup) return { mode: "none" };
+    const packages = dayPassOffers(pkg, topup, meta.usdRubRate);
     if (packages.length === 0) return { mode: "none" };
     return { mode: "packages", action: "extend", packages };
   }
@@ -253,22 +275,19 @@ export async function prepareTopupPurchase(input: {
     ) {
       return "invalid";
     }
-    const topupCode = resolveDayPassTopupCode(listed, pkg);
+    const topup = resolveDayPassTopupPackage(listed, pkg);
+    const topupCode = topup && topupPackageCode(topup);
     if (!topupCode || topupCode !== input.packageCode) return "invalid";
 
-    const amount = quoteDayPassAmount({
-      retailPrice: pkg.retailPrice,
-      durationDays: pkg.duration,
-      extendDays: input.days,
-    });
-    if (amount === null) return "invalid";
+    const quote = dayPassQuote(pkg, topup, input.days);
+    if (!quote) return "invalid";
     const dataAmountMb = Math.max(0, Math.round(pkg.volume / 1024 ** 2));
     return {
-      supplierCost: amount,
+      supplierCost: quote.cost,
       title: pkg.name,
       description: `${pkg.name} · ${input.days}d`,
-      priceUsd: retailPriceToUsd(amount),
-      priceRub: retailPriceToRub(amount, meta.usdRubRate),
+      priceUsd: retailPriceToUsd(quote.retail),
+      priceRub: retailPriceToRub(quote.retail, meta.usdRubRate),
       draft: {
         resellerPlanId: topupCode,
         packageName: pkg.name,

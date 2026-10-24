@@ -46,11 +46,29 @@ const DAY_PASS_PKG = {
   packageCode: "PXP1A9DQ8",
   slug: "TR_1_Daily_1Mbps_Premium",
   name: "Turkey 1GB/Day FUP1Mbps Premium",
-  retailPrice: 500_000,
-  price: 400_000,
+  retailPrice: 21_700,
+  price: 6_200,
   volume: 1024 ** 3,
   duration: 1,
   supportTopUpType: 3,
+};
+
+const DAY_PASS_TOPUP = {
+  packageCode: "TOPUP_P2HXMQ8P5",
+  slug: "TR_1_Daily_Premium",
+  name: "Turkey 1GB/Day Premium",
+  price: 6_200,
+  retailPrice: 21_700,
+  duration: 1,
+};
+
+const STANDARD_DAY_PASS_TOPUP = {
+  ...DAY_PASS_TOPUP,
+  packageCode: "TOPUP_PVRR2RMWQ",
+  slug: "TR_1_Daily",
+  name: "Turkey 1GB/Day",
+  price: 5_000,
+  retailPrice: 17_500,
 };
 
 const DATA_PKG = {
@@ -85,7 +103,7 @@ beforeEach(() => {
 });
 
 describe("listTopupOffers", () => {
-  test("day-pass presets use the TOPUP-list slug", async () => {
+  test("FUP day-pass presets use the compatible Premium TOPUP slug", async () => {
     const parent = seedParent();
     getEsimAccessPackageByCode.mockResolvedValue({
       meta: { usdRubRate: 90 },
@@ -94,13 +112,7 @@ describe("listTopupOffers", () => {
     esimAccessPost.mockResolvedValueOnce({
       success: true,
       obj: {
-        packageList: [
-          {
-            packageCode: "PXP1A9DQ8",
-            slug: "TR_1_Daily_1Mbps",
-            name: "Turkey day pass",
-          },
-        ],
+        packageList: [STANDARD_DAY_PASS_TOPUP, DAY_PASS_TOPUP],
       },
     });
 
@@ -115,11 +127,12 @@ describe("listTopupOffers", () => {
     }
     expect(offers.packages.map((pkg) => pkg.days)).toEqual([1, 3, 7, 15, 30]);
     expect(
-      offers.packages.every((pkg) => pkg.packageCode === "TR_1_Daily_1Mbps"),
+      offers.packages.every((pkg) => pkg.packageCode === "TR_1_Daily_Premium"),
     ).toBe(true);
+    expect(offers.packages[2]?.priceUsd).toBe(15);
   });
 
-  test("day-pass with no TOPUP-list match offers nothing", async () => {
+  test("Premium FUP plan does not fall back to a standard daily top-up", async () => {
     const parent = seedParent();
     getEsimAccessPackageByCode.mockResolvedValue({
       meta: { usdRubRate: 90 },
@@ -127,7 +140,7 @@ describe("listTopupOffers", () => {
     });
     esimAccessPost.mockResolvedValueOnce({
       success: true,
-      obj: { packageList: [{ packageCode: "TOPUP_OTHER", name: "Other" }] },
+      obj: { packageList: [STANDARD_DAY_PASS_TOPUP] },
     });
 
     const offers = await listTopupOffers({
@@ -183,20 +196,14 @@ describe("prepareTopupPurchase", () => {
     esimAccessPost.mockResolvedValueOnce({
       success: true,
       obj: {
-        packageList: [
-          {
-            packageCode: "PXP1A9DQ8",
-            slug: "TR_1_Daily_1Mbps",
-            name: "Turkey day pass",
-          },
-        ],
+        packageList: [DAY_PASS_TOPUP],
       },
     });
 
     const purchase = await prepareTopupPurchase({
       userId: "user-1",
       orderUuid: parent.orderUuid,
-      packageCode: "TR_1_Daily_1Mbps",
+      packageCode: "TR_1_Daily_Premium",
       days: 7,
     });
 
@@ -210,9 +217,11 @@ describe("prepareTopupPurchase", () => {
     ) {
       return;
     }
-    expect(purchase.draft.resellerPlanId).toBe("TR_1_Daily_1Mbps");
+    expect(purchase.draft.resellerPlanId).toBe("TR_1_Daily_Premium");
     expect(purchase.draft.topupPeriodDays).toBe(7);
     expect(purchase.draft.topupOfOrderId).toBe(parent.id);
+    expect(purchase.supplierCost).toBe(41_592);
+    expect(purchase.priceUsd).toBe(15);
   });
 
   test("rejects day-pass days outside the preset set", async () => {
@@ -224,12 +233,7 @@ describe("prepareTopupPurchase", () => {
     esimAccessPost.mockResolvedValueOnce({
       success: true,
       obj: {
-        packageList: [
-          {
-            packageCode: "PXP1A9DQ8",
-            slug: "TR_1_Daily_1Mbps",
-          },
-        ],
+        packageList: [DAY_PASS_TOPUP],
       },
     });
 
@@ -237,7 +241,7 @@ describe("prepareTopupPurchase", () => {
       await prepareTopupPurchase({
         userId: "user-1",
         orderUuid: parent.orderUuid,
-        packageCode: "TR_1_Daily_1Mbps",
+        packageCode: "TR_1_Daily_Premium",
         days: 5,
       }),
     ).toBe("invalid");
@@ -252,12 +256,7 @@ describe("prepareTopupPurchase", () => {
     esimAccessPost.mockResolvedValueOnce({
       success: true,
       obj: {
-        packageList: [
-          {
-            packageCode: "PXP1A9DQ8",
-            slug: "TR_1_Daily_1Mbps",
-          },
-        ],
+        packageList: [DAY_PASS_TOPUP],
       },
     });
 
