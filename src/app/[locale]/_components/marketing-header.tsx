@@ -49,7 +49,7 @@ export async function MarketingHeader() {
         alt="Simverse"
         width={1180}
         height={360}
-        className="h-auto w-16 min-[400px]:w-24 sm:w-32 lg:w-44 dark:invert"
+        className="h-auto w-18 min-[400px]:w-28 sm:w-40 lg:w-64 dark:invert"
       />
       <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
         <a
