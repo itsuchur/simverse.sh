@@ -21,6 +21,7 @@ import {
   isStarsOrderPrice,
   orderPriceMajorUnits,
 } from "~/lib/format-order-price";
+import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
 
 export type HistoryOrder = {
   orderUuid: string;
@@ -64,6 +65,7 @@ function isSingleCountryCode(
 export function TransactionHistory() {
   const t = useTranslations("Profile");
   const tCatalog = useTranslations("Catalog");
+  const tMyEsims = useTranslations("MyEsims");
   const format = useFormatter();
   const locale = useLocale();
   const [open, setOpen] = useState(false);
@@ -116,7 +118,9 @@ export function TransactionHistory() {
               </DialogDescription>
             ) : (
               orders.map((order) => {
-                const data = formatData(order.dataAmountMb);
+                const data = isFupPackageName(order.packageName)
+                  ? tMyEsims("unlimited")
+                  : formatData(order.dataAmountMb);
                 const duration = tCatalog("duration.day", {
                   count: order.validityDays,
                 });
