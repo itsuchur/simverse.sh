@@ -17,6 +17,16 @@ export const paymentStatus = {
   chargeback: "chargeback",
 } as const;
 
+export function dashboardOrderStatus(order: {
+  status: string;
+  esimStatus: string | null;
+}): string {
+  if (order.status === orderStatus.issued && order.esimStatus === "CANCEL") {
+    return "eSIM cancelled";
+  }
+  return order.status;
+}
+
 export const STARS_PAYMENT_PROVIDER = "telegram_stars";
 export const TRYBIT_PAYMENT_PROVIDER = "trybit";
 export const CARDLINK_PAYMENT_PROVIDER = "cardlink";

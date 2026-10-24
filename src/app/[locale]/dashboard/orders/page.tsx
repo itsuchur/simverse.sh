@@ -3,6 +3,7 @@ import { formatOrderPrice } from "~/lib/format-order-price";
 import {
   PLATEGA_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
+  dashboardOrderStatus,
   paymentStatus,
 } from "~/lib/order-status";
 import { db } from "~/server/db";
@@ -251,7 +252,7 @@ export default async function DashboardOrdersPage({
                     {order.paymentProvider} / {order.paymentStatus}
                   </td>
                   <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
-                    {order.status}
+                    {dashboardOrderStatus(order)}
                   </td>
                   <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
                     {order.esimIccid ?? "—"}

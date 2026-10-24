@@ -13,6 +13,7 @@ import { formatOrderPrice } from "~/lib/format-order-price";
 import {
   PLATEGA_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
+  dashboardOrderStatus,
   paymentStatus,
 } from "~/lib/order-status";
 
@@ -250,7 +251,7 @@ export function OrderCard({ order }: { order: OrderRecord }) {
             <div className="shrink-0 text-right">
               <div className="font-medium tabular-nums">{price}</div>
               <div className="text-muted-foreground text-sm">
-                {order.status}
+                {dashboardOrderStatus(order)}
               </div>
             </div>
           </div>
