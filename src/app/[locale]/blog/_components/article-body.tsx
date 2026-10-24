@@ -3,7 +3,9 @@
 import {
   BlocksRenderer,
   type BlocksContent,
-} from "@strapi/blocks-react-renderer";
+} from "@qkix/better-blocks-react-renderer";
+
+import "katex/dist/katex.min.css";
 
 import { strapiMediaSrc } from "~/lib/strapi-media";
 
@@ -17,20 +19,23 @@ export function ArticleBody({ content }: { content: unknown }) {
       <BlocksRenderer
         content={content as BlocksContent}
         blocks={{
-          image: ({ image }) => {
+          image: ({ image, caption, imageAlign }) => {
             const src = strapiMediaSrc(image.url);
             if (!src) {
               return null;
             }
             return (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={src}
-                alt={image.alternativeText ?? ""}
-                width={image.width}
-                height={image.height}
-                className="h-auto w-full rounded-xl"
-              />
+              <figure style={{ textAlign: imageAlign }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={image.alternativeText ?? ""}
+                  width={image.width}
+                  height={image.height}
+                  className="inline-block h-auto max-w-full rounded-xl"
+                />
+                {caption && <figcaption>{caption}</figcaption>}
+              </figure>
             );
           },
         }}

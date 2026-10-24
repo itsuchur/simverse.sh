@@ -4,6 +4,32 @@ Headless CMS for the public blog. Next.js reads published **Article** documents
 and renders them at `/blog` (local/ngrok) and `https://blog.simverse.sh`
 (production). The admin UI and REST API are this service.
 
+## Article body (Better Blocks)
+
+The localized Article **Body** uses `@qkix/strapi-plugin-better-blocks`, the
+maintained successor to the marketplace's deprecated `@k11k` package. The field
+keeps its `body` name and JSON storage, so existing article content stays in place.
+The blog uses the companion React renderer for the extended formatting and blocks.
+
+The admin CSP permits YouTube, Vimeo, Loom, Wistia, Dailymotion and api.video
+iframe previews. Add any other provider's exact host to `config/middlewares.ts`
+before using its embeds. No new environment variables or paid services are needed.
+
+Deploy from the repository directory on the VPS:
+
+```bash
+git pull --ff-only
+docker compose -f compose.prod.yaml build app strapi
+docker compose -f compose.prod.yaml up -d --no-deps app strapi
+docker compose -f compose.prod.yaml logs --tail=100 strapi
+```
+
+Take a Strapi database backup before deployment. Strapi synchronizes the custom
+field schema on startup; no manual SQL or Prisma migration is required. A plain
+container restart is insufficient because both admin and frontend need rebuilding.
+After deployment, open an existing article in each locale, confirm Body content
+is intact, and publish a draft with colors and a table to verify the blog output.
+
 ## Article tags
 
 Articles include an optional, localized **Tags** custom field provided by

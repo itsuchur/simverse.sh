@@ -15,6 +15,7 @@
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
   },
   "dependencies": {
+    "@qkix/strapi-plugin-better-blocks": "0.23.9",
     "@strapi/database": "5.59.0",
     "@strapi/plugin-cloud": "5.59.0",
     "@strapi/plugin-users-permissions": "5.59.0",
