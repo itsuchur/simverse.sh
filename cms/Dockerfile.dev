@@ -35,7 +35,8 @@ COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /opt/
 COPY package.json bun.lock ./
 COPY patches ./patches
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,id=simverse-bun,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 ENV PATH=/opt/node_modules/.bin:$PATH
 
 WORKDIR /opt/app

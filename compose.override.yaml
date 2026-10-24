@@ -86,7 +86,7 @@ services:
   poller:
     build:
       context: .
-      dockerfile: Dockerfile.poller.dev
+      dockerfile: Dockerfile.dev
     command: ["bun", "--conditions=react-server", "--watch", "src/server/cron/root.ts"]
     environment:
       DATABASE_URL: "${DATABASE_URL}"

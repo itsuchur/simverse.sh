@@ -8,7 +8,8 @@ FROM base AS deps
 COPY package.json bun.lock* bun.lockb* ./
 # postinstall runs `prisma generate`; schema must exist before install.
 COPY prisma ./prisma
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,id=simverse-bun,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 
 # --- build ---
 FROM base AS builder
@@ -22,7 +23,8 @@ ARG NEXT_PUBLIC_POSTHOG_HOST
 ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
 ENV NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST
 # Skip runtime credential validation only for this build command.
-RUN SKIP_ENV_VALIDATION=1 bun run build
+RUN --mount=type=cache,id=simverse-next,target=/app/.next/cache,sharing=locked \
+    SKIP_ENV_VALIDATION=1 bun run build
 
 # --- runtime ---
 FROM base AS runner

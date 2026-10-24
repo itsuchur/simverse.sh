@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package.json bun.lock* bun.lockb* ./
 # postinstall runs `prisma generate`; schema must exist before install.
 COPY prisma ./prisma
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,id=simverse-bun,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 
 # Source is bind-mounted at runtime; keep a copy so the image is usable alone.
 COPY . .

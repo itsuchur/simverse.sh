@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM python:3.14.8-slim-bookworm
 
 # Refresh system CA bundle (eMudhra / emSign distrust in bookworm-security).
@@ -10,12 +12,17 @@ COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
+ENV UV_LINK_MODE=copy
+ENV UV_PYTHON_DOWNLOADS=0
+
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=cache,id=simverse-uv,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 COPY mcp_simverse ./mcp_simverse
 COPY main.py ./
-RUN uv sync --frozen --no-dev
+RUN --mount=type=cache,id=simverse-uv,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
 
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=4000
@@ -24,4 +31,4 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health')"
 
-CMD ["uv", "run", "--no-dev", "python", "main.py"]
+CMD ["/app/.venv/bin/python", "main.py"]
