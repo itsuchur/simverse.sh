@@ -42,7 +42,8 @@ ENV PATH=/opt/node_modules/.bin:$PATH
 WORKDIR /opt/app
 COPY . .
 ENV NODE_ENV=production
-RUN bun run build
+# Better Blocks includes Mermaid/Shiki; the admin bundle exceeds Node's default heap.
+RUN NODE_OPTIONS=--max-old-space-size=4096 bun run build
 
 FROM node:22.23.3-bookworm-slim
 ARG NODE_VERSION=22.23.4
