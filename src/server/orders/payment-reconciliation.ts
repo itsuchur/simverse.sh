@@ -6,6 +6,13 @@ import { failTrybitPayment, failXhubPayment, fulfillTrybitPayment, fulfillXhubPa
 import { findTrybitInvoice, getTrybitInvoice, normalizeTrybitInvoiceId, trybitConfigured, type TrybitInvoiceStatus } from "~/server/payments/trybit";
 import { findXhubPayment, getXhubPayment, xhubConfigured } from "~/server/payments/xhub";
 
+/** An abandoned Trybit checkout leaves My eSIMs once this long. A later payment still fulfills. */
+export const TRYBIT_UNPAID_TTL_MS = 12 * 60 * 60 * 1000;
+
+function unpaidTrybitExpired(createdAt: Date, now: Date) {
+  return now.getTime() - createdAt.getTime() >= TRYBIT_UNPAID_TTL_MS;
+}
+
 export async function applyVerifiedTrybitInvoice(orderUuid: string, invoice: TrybitInvoiceStatus) {
   if (invoice.order_id !== orderUuid) throw new Error("Trybit invoice order mismatch");
   if (invoice.status === "paid" || invoice.status === "overpaid") {
@@ -58,11 +65,22 @@ export async function reconcilePendingPayments() {
         const invoice = order.paymentInvoiceId
           ? await getTrybitInvoice(order.paymentInvoiceId)
           : await findTrybitInvoice(order.orderUuid, order.createdAt);
-        if (!invoice) continue;
+        if (!invoice) {
+          if (unpaidTrybitExpired(order.createdAt, now)) await failTrybitPayment(order.orderUuid);
+          continue;
+        }
         if (invoice.order_id !== order.orderUuid) throw new Error("Trybit invoice order mismatch");
         if (order.paymentInvoiceId && normalizeTrybitInvoiceId(order.paymentInvoiceId) !== invoice.uuid) throw new Error("Trybit invoice ID mismatch");
         await db.order.updateMany({ where: { id: order.id, paymentInvoiceId: null }, data: { paymentInvoiceId: invoice.uuid } });
         await applyVerifiedTrybitInvoice(order.orderUuid, invoice);
+        if (
+          invoice.status !== "paid" &&
+          invoice.status !== "overpaid" &&
+          invoice.status !== "canceled" &&
+          unpaidTrybitExpired(order.createdAt, now)
+        ) {
+          await failTrybitPayment(order.orderUuid);
+        }
       } else {
         const payment = order.paymentInvoiceId
           ? await getXhubPayment(order.paymentInvoiceId)

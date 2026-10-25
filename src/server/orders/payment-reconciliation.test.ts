@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
-import { reconcilePendingPayments } from "./payment-reconciliation";
+import { reconcilePendingPayments, TRYBIT_UNPAID_TTL_MS } from "./payment-reconciliation";
 import { fakeDb } from "~/test/fake-db";
 import { esimAccessPost, esimOrderCallCount, resetTestState, sentryCaptureException, stubEsimAccess } from "~/test/mocks";
 
@@ -139,6 +139,26 @@ test("wrong amount and partial payment never buy a supplier package", async () =
   await reconcilePendingPayments();
   expect(order.paymentStatus).toBe("pending");
   expect(esimOrderCallCount()).toBe(0);
+});
+
+test("unpaid Trybit invoice is closed after 12 hours, and a later payment still issues", async () => {
+  const order = seed("trybit", { createdAt: new Date(Date.now() - TRYBIT_UNPAID_TTL_MS) });
+  http.mockImplementation(async () => trybit(order.orderUuid, { status: "created" }));
+  await reconcilePendingPayments();
+  expect(order.paymentStatus).toBe("failed");
+  expect(order.status).toBe("failed");
+  expect(esimOrderCallCount()).toBe(0);
+  order.paymentNextCheckAt = new Date(0);
+  http.mockImplementation(async () => trybit(order.orderUuid));
+  await reconcilePendingPayments();
+  expect(order.status).toBe("issued");
+});
+
+test("a fresh unpaid Trybit invoice stays pending", async () => {
+  const order = seed();
+  http.mockImplementation(async () => trybit(order.orderUuid, { status: "created" }));
+  await reconcilePendingPayments();
+  expect(order.paymentStatus).toBe("pending");
 });
 
 test("old invoices remain eligible, while refunded orders and untouched drafts are skipped", async () => {
