@@ -21,6 +21,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install CMS dependencies
+        run: bun install --frozen-lockfile
+        working-directory: cms
+
       - name: Run tests
         run: bun test --coverage --coverage-reporter=lcov
 
