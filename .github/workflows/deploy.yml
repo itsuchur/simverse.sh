@@ -1,0 +1,19 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: 51.255.42.241
+          username: debian
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 60m
+          script: /usr/local/bin/simverse-deploy
