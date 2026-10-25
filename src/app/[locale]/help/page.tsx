@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import { getTranslations } from "next-intl/server";
 
 import { FAQ_KEYS } from "../_components/faq-keys";
@@ -22,12 +23,13 @@ export default async function HelpPage() {
       showCloseButton={false}
       showBackButton
     >
-      <p className="text-muted-foreground text-sm">{t("intro")}</p>
-
-      <section className="mt-6 space-y-6 text-sm leading-6">
+      <div className="text-muted-foreground space-y-4 text-sm leading-6 wrap-break-word">
+        <p>{t("intro")}</p>
         {FAQ_KEYS.map((key) => (
-          <article key={key} className="space-y-2">
-            <h2 className="text-lg font-medium">{t(`${key}Title`)}</h2>
+          <Fragment key={key}>
+            <h2 className="text-foreground mt-10 text-2xl font-extrabold tracking-tight sm:text-3xl">
+              {t(`${key}Title`)}
+            </h2>
             <p>
               {t.rich(key, {
                 code: (chunks) => (
@@ -37,9 +39,9 @@ export default async function HelpPage() {
                 ),
               })}
             </p>
-          </article>
+          </Fragment>
         ))}
-      </section>
+      </div>
     </FullScreenDocument>
   );
 }

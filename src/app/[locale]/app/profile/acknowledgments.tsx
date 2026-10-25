@@ -2,8 +2,8 @@
 
 import { ChevronRight, Heart } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 
+import { LegalLink } from "../../_components/legal-link";
 import { OverlayBackToAppButton } from "./overlay-back-to-app";
 import { Card, CardTitle } from "~/components/ui/card";
 import {
@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { openExternalLink } from "~/lib/telegram-webapp";
 
 const OPEN_SOURCE = [
   {
@@ -101,26 +100,8 @@ const OPEN_SOURCE = [
 
 const GEIST_OFL_URL = "https://scripts.sil.org/OFL";
 
-function ExternalTextLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
-  return (
-    <a
-      href={href}
-      className="text-foreground underline-offset-3 hover:underline"
-      onClick={(event) => {
-        event.preventDefault();
-        openExternalLink(href);
-      }}
-    >
-      {children}
-    </a>
-  );
-}
+const documentTitleClassName =
+  "w-full max-w-4xl text-center text-5xl leading-tight font-extrabold tracking-tight text-balance sm:text-6xl md:text-7xl";
 
 export function Acknowledgments() {
   const t = useTranslations("Profile");
@@ -153,55 +134,37 @@ export function Acknowledgments() {
         className="data-open:zoom-in-100 data-closed:zoom-out-100 bg-background inset-0 top-0 left-0 flex h-[var(--tg-viewport-stable-height,100dvh)] max-h-[var(--tg-viewport-stable-height,100dvh)] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 ring-0 sm:max-w-none"
       >
         <OverlayBackToAppButton />
-        <DialogHeader className="shrink-0 px-4 pt-[max(6rem,calc(var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px))+var(--tg-content-safe-area-inset-top,0px)+3.5rem))] pb-3">
-          <DialogTitle className="text-center text-xl leading-snug">
-            {t("acknowledgments")}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 pb-[max(1.5rem,calc(var(--tg-safe-area-inset-bottom,env(safe-area-inset-bottom,0px))+var(--tg-content-safe-area-inset-bottom,0px)))] [-webkit-overflow-scrolling:touch]">
-          <div className="mx-auto flex max-w-lg flex-col gap-6">
-            <DialogDescription className="text-lg">
-              {t("acknowledgmentsIntro")}
-            </DialogDescription>
-            <section className="space-y-2">
-              <h3 className="text-muted-foreground text-base font-medium">
+        <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pt-[max(6rem,calc(var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px))+var(--tg-content-safe-area-inset-top,0px)+3.5rem))] pb-[max(1.5rem,calc(var(--tg-safe-area-inset-bottom,env(safe-area-inset-bottom,0px))+var(--tg-content-safe-area-inset-bottom,0px)))] [-webkit-overflow-scrolling:touch]">
+          <div className="mx-auto flex w-full flex-col items-center">
+            <DialogHeader className="w-full">
+              <DialogTitle className={documentTitleClassName}>
+                {t("acknowledgments")}
+              </DialogTitle>
+            </DialogHeader>
+            <article className="text-muted-foreground mt-12 w-full max-w-2xl space-y-4 text-sm leading-6 wrap-break-word sm:mt-16">
+              <DialogDescription>{t("acknowledgmentsIntro")}</DialogDescription>
+              <h2 className="text-foreground mt-10 text-2xl font-extrabold tracking-tight sm:text-3xl">
                 {t("acknowledgmentsOpenSource")}
-              </h3>
-              <ul className="divide-border divide-y">
+              </h2>
+              <ul className="list-disc space-y-1 pl-5">
                 {OPEN_SOURCE.map((item) => (
                   <li key={item.name}>
-                    <a
-                      href={item.href}
-                      className="flex items-baseline justify-between gap-3 py-2.5 text-lg"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        openExternalLink(item.href);
-                      }}
-                    >
-                      <span className="min-w-0 font-medium">{item.name}</span>
-                      <span className="text-muted-foreground shrink-0">
-                        {item.license}
-                      </span>
-                    </a>
+                    <LegalLink href={item.href}>{item.name}</LegalLink> (
+                    {item.license})
                   </li>
                 ))}
               </ul>
-            </section>
-
-            <section className="space-y-2">
-              <h3 className="text-muted-foreground text-base font-medium">
+              <h2 className="text-foreground mt-10 text-2xl font-extrabold tracking-tight sm:text-3xl">
                 {t("acknowledgmentsFonts")}
-              </h3>
-              <p className="text-lg leading-relaxed">
+              </h2>
+              <p>
                 {t.rich("acknowledgmentsGeist", {
                   ofl: (chunks) => (
-                    <ExternalTextLink href={GEIST_OFL_URL}>
-                      {chunks}
-                    </ExternalTextLink>
+                    <LegalLink href={GEIST_OFL_URL}>{chunks}</LegalLink>
                   ),
                 })}
               </p>
-            </section>
+            </article>
           </div>
         </div>
       </DialogContent>
