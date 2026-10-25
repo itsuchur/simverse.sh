@@ -68,7 +68,10 @@
   },
   "OrderConfirmation": {
     "title": "Order Confirmation",
-    "compatibility": "By confirming this order, you confirm that your device is eSIM compatible and network unlocked.",
+    "compatibility": "By confirming this order, you confirm that <devices>your device is eSIM compatible</devices> and network unlocked.",
+    "devicesTitle": "eSIM-compatible phones",
+    "devicesIntro": "Support still depends on the country where the phone was sold, so this list is a guide.",
+    "chinaAddendum": "Phones sold in mainland China often cannot use a foreign eSIM. Many of them, including iPhones through the iPhone 17 series, have two physical SIM slots and no eSIM. Models that do include eSIM are still blocked from installing an eSIM from a carrier outside mainland China, including Hong Kong, Macau, and Taiwan, while the phone is in mainland China. That eSIM can usually be installed only after the phone has left mainland China.",
     "buyNow": "Buy Now",
     "buyFailed": "Couldn't start checkout. Open the app from Telegram and try again.",
     "planSummary": "{data} · {duration}"

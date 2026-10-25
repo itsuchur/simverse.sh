@@ -18,6 +18,7 @@ import {
   catalogNumberFormatOptions,
   catalogPriceAmount,
 } from "~/lib/catalog-price";
+import { esimCompatiblePhones } from "~/lib/esim-compatible-phones";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
 import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types";
@@ -50,6 +51,7 @@ export default function OrderConfirmation({
   const checkoutHref = useMiniappPath("/checkout");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [devicesOpen, setDevicesOpen] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -96,10 +98,49 @@ export default function OrderConfirmation({
             {" · "}
             {price}
           </p>
-          <DialogDescription className="text-base leading-7">
-            {t("compatibility")}
+          <DialogDescription className="text-base leading-7" render={<div />}>
+            {t.rich("compatibility", {
+              devices: (chunks) => (
+                <button
+                  type="button"
+                  className="cursor-pointer bg-transparent p-0 underline underline-offset-2"
+                  onClick={() => setDevicesOpen(true)}
+                >
+                  {chunks}
+                </button>
+              ),
+            })}
           </DialogDescription>
         </DialogHeader>
+        <Dialog open={devicesOpen} onOpenChange={setDevicesOpen}>
+          <DialogContent className="flex max-h-[min(88vh,42rem)] flex-col gap-0 overflow-hidden p-0 text-base sm:max-w-md">
+            <DialogHeader className="shrink-0 px-6 pt-7 pr-14 pb-4">
+              <DialogTitle className="text-lg leading-snug">
+                {t("devicesTitle")}
+              </DialogTitle>
+              <DialogDescription className="text-base leading-7">
+                {t("devicesIntro")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="[max-height:calc(min(88vh,42rem)-7.5rem)] min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch]">
+              <div className="flex flex-col gap-6">
+                {esimCompatiblePhones.map((group) => (
+                  <section key={group.brand}>
+                    <h2 className="text-base font-medium">{group.brand}</h2>
+                    <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 leading-7">
+                      {group.models.map((model) => (
+                        <li key={model}>{model}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+                <p className="text-muted-foreground border-border border-t pt-4 text-sm leading-6">
+                  {t("chinaAddendum")}
+                </p>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
         <DialogFooter className="-mx-6 -mb-0 flex-col gap-3 p-6 sm:flex-col">
           {error ? (
             <p className="text-destructive w-full text-center text-base">
