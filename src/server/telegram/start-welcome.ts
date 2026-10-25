@@ -24,9 +24,9 @@ const COPY = {
     text: [
       "Welcome to Simverse!",
       "",
-      "We sell travel eSIMs you can install in minutes — coverage in about 190 countries at affordable prices.",
+      "We sell travel eSIMs you can install in minutes — coverage in about 150 countries at affordable prices.",
       "",
-      "Pay with Mastercard, Visa, MIR, Russian SBP, or USDT.",
+      "Pay with USDT.",
       "",
       "Our support team is ready to help whenever you need it.",
       "",
@@ -38,9 +38,9 @@ const COPY = {
     text: [
       "Добро пожаловать в Simverse!",
       "",
-      "Мы продаём travel eSIM, которые устанавливаются за минуты — покрытие примерно в 190 странах по доступным ценам.",
+      "Мы продаём travel eSIM, которые устанавливаются за минуты — покрытие примерно в 150 странах по доступным ценам.",
       "",
-      "Оплата: Mastercard, Visa, МИР, СБП или USDT.",
+      "Оплата: СБП или USDT.",
       "",
       "Поддержка всегда на связи и готова помочь.",
       "",
