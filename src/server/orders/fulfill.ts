@@ -15,6 +15,7 @@ import {
 } from "~/server/suppliers/esimaccess/order";
 import {
   CARDLINK_PAYMENT_PROVIDER,
+  CENT_PAYMENT_PROVIDER,
   PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
@@ -36,6 +37,7 @@ import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
+  CENT_PAYMENT_PROVIDER,
   PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
@@ -849,6 +851,52 @@ export async function failCardlinkPayment(orderUuid: string) {
   await failPendingPayment(orderUuid, CARDLINK_PAYMENT_PROVIDER);
 }
 
+export async function fulfillCentPayment(input: {
+  orderUuid: string;
+  billId: string;
+  amount: string;
+  currency: string;
+}) {
+  await fulfillPayment({
+    provider: CENT_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.billId,
+    validate: (order) => {
+      if (input.currency.toUpperCase() !== order.currency) {
+        Sentry.captureMessage("Cent webhook currency mismatch", {
+          level: "error",
+          tags: { component: "cent", reason: "currency_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.currency,
+            received: input.currency,
+          },
+        });
+        return false;
+      }
+
+      const cents = usdAmountToCents(input.amount);
+      if (cents === null || cents !== order.priceAmount) {
+        Sentry.captureMessage("Cent webhook amount mismatch", {
+          level: "error",
+          tags: { component: "cent", reason: "amount_mismatch" },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.priceAmount.toString(),
+            received: input.amount,
+          },
+        });
+        return false;
+      }
+      return true;
+    },
+  });
+}
+
+export async function failCentPayment(orderUuid: string) {
+  await failPendingPayment(orderUuid, CENT_PAYMENT_PROVIDER);
+}
+
 export async function fulfillPlategaPayment(input: {
   orderUuid: string;
   transactionId: string;
@@ -1027,6 +1075,57 @@ export async function markCardlinkChargeback(input: {
     where: {
       orderUuid: input.orderUuid,
       paymentProvider: CARDLINK_PAYMENT_PROVIDER,
+      OR: [
+        {
+          paymentStatus: {
+            in: [
+              paymentStatus.pending,
+              paymentStatus.failed,
+              paymentStatus.paid,
+              paymentStatus.refunded,
+            ],
+          },
+        },
+        {
+          paymentStatus: paymentStatus.chargeback,
+          paymentChargebackId: input.chargebackId,
+        },
+      ],
+    },
+    data: {
+      paymentStatus: paymentStatus.chargeback,
+      paymentChargebackId: input.chargebackId,
+    },
+  });
+}
+
+export async function markCentRefunded(input: {
+  orderUuid: string;
+  billId: string;
+  refundId: string;
+  amount: string;
+  currency: string;
+}) {
+  const cents = usdAmountToCents(input.amount);
+  if (cents === null) return;
+  await recordCompletedRefund({
+    orderUuid: input.orderUuid,
+    provider: CENT_PAYMENT_PROVIDER,
+    paymentId: input.billId,
+    refundId: input.refundId,
+    amount: cents,
+    currency: input.currency,
+  });
+}
+
+export async function markCentChargeback(input: {
+  orderUuid: string;
+  chargebackId: string;
+}) {
+  await db.order.updateMany({
+    where: {
+      orderUuid: input.orderUuid,
+      paymentProvider: CENT_PAYMENT_PROVIDER,
       OR: [
         {
           paymentStatus: {

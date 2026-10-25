@@ -5,10 +5,13 @@ import {
   attachGotResource,
   failTrybitPayment,
   fulfillCardlinkPayment,
+  fulfillCentPayment,
   fulfillStarsPayment,
   fulfillTrybitPayment,
   markCardlinkChargeback,
   markCardlinkRefunded,
+  markCentChargeback,
+  markCentRefunded,
   markPlategaChargeback,
   markPlategaRefunded,
   placeSupplierOrder,
@@ -946,6 +949,39 @@ describe("checkout recovery regressions", () => {
           chargebackId: "CB-1",
         });
       await fulfillCardlinkPayment({
+        orderUuid: order.orderUuid,
+        billId: "BILL-1",
+        amount: "10.99",
+        currency: "USD",
+      });
+      await recoverPendingOrders();
+      expect(order.paymentStatus).toBe(
+        kind === "refund" ? "refunded" : "chargeback",
+      );
+      expect(esimOrderCallCount()).toBe(0);
+    });
+  }
+
+  for (const kind of ["refund", "chargeback"] as const) {
+    test(`Cent ${kind} before payment confirmation blocks fulfillment`, async () => {
+      const order = fakeDb.seedOrder({
+        paymentProvider: "cent",
+        paymentInvoiceUrl: "https://cent.app/transfer/BILL-1",
+      });
+      if (kind === "refund")
+        await markCentRefunded({
+          billId: "BILL-1",
+          orderUuid: order.orderUuid,
+          refundId: "REF-1",
+          amount: "10.99",
+          currency: "USD",
+        });
+      else
+        await markCentChargeback({
+          orderUuid: order.orderUuid,
+          chargebackId: "CB-1",
+        });
+      await fulfillCentPayment({
         orderUuid: order.orderUuid,
         billId: "BILL-1",
         amount: "10.99",

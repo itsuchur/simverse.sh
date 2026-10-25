@@ -24,6 +24,7 @@ void mock.module("~/server/sales", () => ({ isSalesActive: async () => true }));
 const { POST: stars } = await import("~/app/api/checkout/stars/route");
 const { POST: trybit } = await import("~/app/api/checkout/trybit/route");
 const { POST: cardlink } = await import("~/app/api/checkout/cardlink/route");
+const { POST: cent } = await import("~/app/api/checkout/cent/route");
 const { POST: platega } = await import("~/app/api/checkout/platega/route");
 const { POST: xhub } = await import("~/app/api/checkout/xhub/route");
 const { POST: topup } = await import("~/app/api/checkout/topup/route");
@@ -38,6 +39,7 @@ for (const [name, post] of [
   ["stars", stars],
   ["trybit", trybit],
   ["cardlink", cardlink],
+  ["cent", cent],
   ["platega", platega],
 ] as const) {
   describe(`${name} cart revision`, () => {
@@ -86,6 +88,7 @@ for (const [name, post] of [
   ["stars", stars],
   ["trybit", trybit],
   ["cardlink", cardlink],
+  ["cent", cent],
   ["platega", platega],
   ["xhub", xhub],
   ["topup", topup],

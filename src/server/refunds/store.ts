@@ -5,8 +5,14 @@ import {
   orderStatus,
   paymentStatus,
   CARDLINK_PAYMENT_PROVIDER,
+  CENT_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
 import { refundStatus } from "~/lib/refund-status";
+
+const INVOICE_HOST_BY_PROVIDER: Record<string, string> = {
+  [CARDLINK_PAYMENT_PROVIDER]: "cardlink.link",
+  [CENT_PAYMENT_PROVIDER]: "cent.app",
+};
 
 export type RefundOrder = Pick<
   Order,
@@ -73,16 +79,14 @@ export async function recordCompletedRefund(input: {
       return;
     if (order.paymentChargeId && order.paymentChargeId !== input.paymentId)
       return;
-    if (
-      !order.paymentChargeId &&
-      input.provider === CARDLINK_PAYMENT_PROVIDER
-    ) {
-      // A refund may precede the payment notification. Cardlink does not sign
-      // InvId, so bind it to the bill in our server-created invoice URL.
+    const invoiceHost = INVOICE_HOST_BY_PROVIDER[input.provider];
+    if (!order.paymentChargeId && invoiceHost) {
+      // A refund may precede the payment notification. Cardlink/Cent do not
+      // sign InvId, so bind it to the bill in our server-created invoice URL.
       try {
         const invoice = new URL(order.paymentInvoiceUrl ?? "");
         if (
-          invoice.hostname !== "cardlink.link" ||
+          invoice.hostname !== invoiceHost ||
           invoice.pathname.split("/").pop() !== input.paymentId
         )
           return;

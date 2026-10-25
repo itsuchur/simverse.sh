@@ -9,6 +9,10 @@ import {
   handleCardlinkWebhook,
   handleCardlinkRefundWebhook,
 } from "~/server/webhooks/payments/cardlink";
+import {
+  handleCentWebhook,
+  handleCentRefundWebhook,
+} from "~/server/webhooks/payments/cent";
 import { fakeDb } from "~/test/fake-db";
 import { withWebhookLogging } from "~/lib/webhook-logger";
 import { prepareTopupPurchase } from "~/server/orders/topup";
@@ -37,6 +41,13 @@ function post(body: unknown) {
 function cardlinkSign(body: string) {
   return createHash("md5")
     .update(`${body}:test-cardlink-token`)
+    .digest("hex")
+    .toUpperCase();
+}
+
+function centSign(body: string) {
+  return createHash("md5")
+    .update(`${body}:test-cent-token`)
     .digest("hex")
     .toUpperCase();
 }
@@ -130,6 +141,62 @@ test("signed Cardlink refund cannot be redirected to a different order UUID", as
     ),
   };
   const response = await handleCardlinkRefundWebhook(
+    post({ ...refund, InvId: victim.orderUuid }),
+  );
+  expect(response.status).toBe(200);
+  expect(victim.paymentStatus).toBe("paid");
+  expect(fakeDb.refundForOrder(victim.id)).toBeNull();
+  expect(original.paymentStatus).toBe("paid");
+});
+
+test("AUDIT: Cent failure callback signature remains valid after changing status to SUCCESS", async () => {
+  const order = fakeDb.seedOrder({
+    paymentProvider: "cent",
+    priceAmount: 1099n,
+  });
+  const original = {
+    InvId: order.orderUuid,
+    OutSum: "10.99",
+    TrsId: "BILL-unpaid",
+    CurrencyIn: "USD",
+    Status: "FAIL",
+    SignatureValue: centSign(`10.99:${order.orderUuid}`),
+  };
+  await handleCentWebhook(post(original));
+  expect(order.paymentStatus).toBe("failed");
+  const response = await handleCentWebhook(
+    post({ ...original, Status: "SUCCESS" }),
+  );
+  expect(response.status).toBe(200);
+  expect(order.paymentStatus).toBe("paid");
+  expect(esimOrderCallCount()).toBe(1);
+});
+
+test("signed Cent refund cannot be redirected to a different order UUID", async () => {
+  const original = fakeDb.seedOrder({
+    paymentProvider: "cent",
+    paymentStatus: "paid",
+  });
+  fakeDb.seedUser({ id: "user-2", telegramId: "43" });
+  const victim = fakeDb.seedOrder({
+    userId: "user-2",
+    paymentProvider: "cent",
+    paymentStatus: "paid",
+    paymentChargeId: "BILL-victim",
+  });
+  const refund = {
+    Id: "REF-original",
+    Amount: "10.99",
+    Currency: "USD",
+    Status: "SUCCESS",
+    InvId: original.orderUuid,
+    BillId: "BILL-original",
+    PaymentId: "PAY-original",
+    SignatureValue: centSign(
+      "10.99:USD:BILL-original:PAY-original:REF-original",
+    ),
+  };
+  const response = await handleCentRefundWebhook(
     post({ ...refund, InvId: victim.orderUuid }),
   );
   expect(response.status).toBe(200);

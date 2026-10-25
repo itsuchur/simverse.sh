@@ -9,6 +9,7 @@ export const WEBHOOK_SOURCES = [
   "platega",
   "xhub",
   "cardlink",
+  "cent",
 ] as const;
 
 export type WebhookSourceFilter = (typeof WEBHOOK_SOURCES)[number];
@@ -21,6 +22,7 @@ export const WEBHOOK_SOURCE_LABELS: Record<WebhookSourceFilter, string> = {
   platega: "Platega",
   xhub: "X-Hub",
   cardlink: "Cardlink",
+  cent: "Cent",
 };
 
 export function isWebhookSourceFilter(

@@ -30,7 +30,7 @@ TLS and HTTP→HTTPS are provided by the host Traefik stack, not this compose fi
 | `https://kb.simverse.sh` | Wiki.js (behind Cloudflare Access, same as dashboard/cms) |
 
 Internal Compose services can call the app at `http://app:3000/api/...` on the
-`internal` network. Internet callers (Telegram, eSIM Access, Trybit, Cardlink)
+`internal` network. Internet callers (Telegram, eSIM Access, Trybit, Cardlink, Cent)
 must use `https://api.simverse.sh/webhooks/...` (no extra `/api` in the path).
 
 ## 1. Fill `.env`
@@ -63,6 +63,7 @@ and set production values. Origins have **no trailing slash**. Use strong
 | `ESIMFLY_ACCESS_CODE`, `ESIMFLY_SECRET_KEY` | eSIMfly Business API. Optional; the poller skips the eSIMfly catalog sync when unset. |
 | `TRYBIT_API_KEY`, `TRYBIT_SHOP_ID`, `TRYBIT_SECRET_KEY` | Required in production. Checkout crypto invoices. |
 | `CARDLINK_API_TOKEN`, `CARDLINK_SHOP_ID` | Required in production. |
+| `CENT_API_TOKEN`, `CENT_SHOP_ID` | Optional. Cent.app merchant API (same family as Cardlink). |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Internal dashboard. |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Optional Mini App analytics. Host is ingest (`https://us.i.posthog.com` or `https://eu.i.posthog.com`). Keys are baked into the client at **image build**; change them with `--build`. |
 | `OPENROUTER_KEY` | Poller (Russian package names) and MCP (`OPENROUTER_API_KEY` inside the container). |
@@ -77,7 +78,7 @@ Compose-only (used by `compose.prod.yaml`, not in `.env.example`):
 
 What Compose injects:
 
-- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, `BLOG_URL`, `STRAPI_URL`, `STRAPI_API_TOKEN`, Telegram, eSIM Access, Trybit, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
+- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, `BLOG_URL`, `STRAPI_URL`, `STRAPI_API_TOKEN`, Telegram, eSIM Access, Trybit, Cardlink, Cent, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`strapi`:** Postgres `DATABASE_*` (database name `strapi`), `PUBLIC_URL` from `STRAPI_PUBLIC_URL`, `APP_KEYS` / JWT / encryption secrets from `STRAPI_*`.
 - **`wiki`:** `DB_*` from `WIKI_DB_*` (Postgres host `postgres`). Traefik host `kb.simverse.sh`.
 - **`poller`:** same runtime env as **`app`**, plus `OPENROUTER_KEY`. Order recovery imports the app env schema, so production validation needs those secrets even though the worker is not the web app.
@@ -153,6 +154,7 @@ https://api.simverse.sh/webhooks/suppliers/esimaccess?token=<ESIMACCESS_WEBHOOK_
 ### Payments
 
 - **Cardlink:** shop Result URL `https://api.simverse.sh/webhooks/payments/cardlink`, Refund URL `https://api.simverse.sh/webhooks/payments/cardlink/refund`, Chargeback URL `https://api.simverse.sh/webhooks/payments/cardlink/chargeback`
+- **Cent.app:** shop Result URL `https://api.simverse.sh/webhooks/payments/cent`, Refund URL `https://api.simverse.sh/webhooks/payments/cent/refund`, Chargeback URL `https://api.simverse.sh/webhooks/payments/cent/chargeback`. Success URL `https://t.me/simversebot?startapp=successful_payment`, fail URL `https://t.me/simversebot?startapp=failed_payment` (same Telegram Mini App deep links as Trybit).
 - **Trybit:** project notification URL `https://api.simverse.sh/webhooks/payments/trybit` (JSON postbacks). Success URL `https://t.me/simversebot?startapp=successful_payment`, fail URL `https://t.me/simversebot?startapp=failed_payment` (deep links that reopen the Mini App inside Telegram).
 
 ### Google OAuth (dashboard)

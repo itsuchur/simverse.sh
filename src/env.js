@@ -59,6 +59,9 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
         : z.string().min(1).optional(),
+    // Optional until Cent checkout is enabled; gated by centConfigured().
+    CENT_API_TOKEN: z.string().min(1).optional(),
+    CENT_SHOP_ID: z.string().min(1).optional(),
     PLATEGA_MERCHANT_ID:
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
@@ -128,6 +131,8 @@ export const env = createEnv({
     TRYBIT_SECRET_KEY: process.env.TRYBIT_SECRET_KEY,
     CARDLINK_API_TOKEN: process.env.CARDLINK_API_TOKEN,
     CARDLINK_SHOP_ID: process.env.CARDLINK_SHOP_ID,
+    CENT_API_TOKEN: process.env.CENT_API_TOKEN,
+    CENT_SHOP_ID: process.env.CENT_SHOP_ID,
     PLATEGA_MERCHANT_ID: process.env.PLATEGA_MERCHANT_ID,
     PLATEGA_SECRET: process.env.PLATEGA_SECRET,
     XHUB_API_KEY: process.env.XHUB_API_KEY,
