@@ -105,9 +105,10 @@ function matchValue(actual: unknown, condition: unknown): boolean {
     if ("not" in cond) {
       return actual !== cond.not;
     }
-    if (["lt", "gte", "lte"].some((key) => key in cond)) {
+    if (["lt", "gt", "gte", "lte"].some((key) => key in cond)) {
       return (
         actual instanceof Date &&
+        (!("gt" in cond) || (cond.gt instanceof Date && actual > cond.gt)) &&
         (!("lt" in cond) || (cond.lt instanceof Date && actual < cond.lt)) &&
         (!("gte" in cond) ||
           (cond.gte instanceof Date && actual >= cond.gte)) &&
@@ -131,6 +132,9 @@ function matchWhere(record: object, where: Where): boolean {
     }
     if (key === "OR") {
       return (condition as Where[]).some((sub) => matchWhere(record, sub));
+    }
+    if (key === "AND") {
+      return (condition as Where[]).every((sub) => matchWhere(record, sub));
     }
     return matchValue((record as Record<string, unknown>)[key], condition);
   });
@@ -247,6 +251,11 @@ class FakeDb {
     };
     this.refunds.push(record);
     return record;
+  }
+
+  async $executeRaw(_query: TemplateStringsArray) {
+    // Transactions below already serialize the invoice advisory lock in tests.
+    return 1;
   }
 
   async $transaction<T>(run: (tx: FakeDb) => Promise<T>): Promise<T> {

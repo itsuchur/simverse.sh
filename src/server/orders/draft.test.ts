@@ -8,7 +8,7 @@ import {
   type PendingOrderDraft,
 } from "~/server/orders/draft";
 import { fakeDb } from "~/test/fake-db";
-import { resetTestState } from "~/test/mocks";
+import { esimAccessPost, resetTestState } from "~/test/mocks";
 
 const DRAFT: PendingOrderDraft = {
   userId: "user-1",
@@ -24,7 +24,13 @@ const DRAFT: PendingOrderDraft = {
   paymentProvider: "trybit",
 };
 
-beforeEach(resetTestState);
+beforeEach(() => {
+  resetTestState();
+  esimAccessPost.mockResolvedValue({
+    success: true,
+    obj: { balance: 100_000 },
+  });
+});
 
 describe("findOrCreatePendingOrder", () => {
   test("reuses the live pending draft", async () => {
@@ -136,9 +142,9 @@ describe("createPendingInvoice", () => {
     ).toEqual(new Error("provider timeout"));
     expect(order.paymentStatus).toBe("failed");
     expect(
-      await createPendingInvoice(order.id, async () => ({ url: "unreachable" })).catch(
-        (error: unknown) => error,
-      ),
+      await createPendingInvoice(order.id, async () => ({
+        url: "unreachable",
+      })).catch((error: unknown) => error),
     ).toEqual(new Error("invoice_closed"));
   });
 

@@ -6,11 +6,15 @@ import { esimAccessPost } from "~/server/suppliers/esimaccess/client";
  * Merchant balance in eSIM Access scale (10000 = $1.00 USD).
  * Called before payment is finalized so we can confirm we can fulfill the order.
  */
-async function fetchBalance() {
+export async function fetchBalance() {
   const payload = await esimAccessPost<{ balance: number }>("/balance/query");
   const balance = payload.obj?.balance;
 
-  if (typeof balance !== "number" || !Number.isFinite(balance)) {
+  if (
+    typeof balance !== "number" ||
+    !Number.isSafeInteger(balance) ||
+    balance < 0
+  ) {
     throw new Error("eSIM Access balance/query response was invalid");
   }
 

@@ -99,10 +99,17 @@ function mapProfile(raw: unknown): EsimAccessProfile | null {
 export async function orderEsimAccessPackage(input: {
   transactionId: string;
   packageCode: string;
+  amount: number;
 }): Promise<EsimAccessOrderResult> {
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
+    throw new Error("invalid_supplier_cost");
+  }
   const envelope = await esimAccessPost<OrderResponse>("/esim/order", {
     transactionId: input.transactionId,
-    packageInfoList: [{ packageCode: input.packageCode, count: 1 }],
+    amount: input.amount,
+    packageInfoList: [
+      { packageCode: input.packageCode, count: 1, price: input.amount },
+    ],
   });
 
   const orderNo = envelope.obj?.orderNo;

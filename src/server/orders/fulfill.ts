@@ -268,6 +268,8 @@ export async function placeSupplierOrder(order: OrderRow) {
     const result = await orderEsimAccessPackage({
       transactionId: order.orderUuid,
       packageCode: order.resellerPlanId,
+      // Do not let a supplier price change spend another invoice's reservation.
+      amount: Number(stored?.costAmount),
     });
 
     // A GOT_RESOURCE webhook may have attached a supplier order while this

@@ -2,7 +2,7 @@
  * logging tests assert the intended protections.
  * All credentials, database writes, and supplier requests use test fixtures.
  */
-import { beforeEach, expect, test } from "bun:test";
+import { beforeEach, expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { handleTrybitWebhook } from "~/server/webhooks/payments/trybit";
 import {
@@ -41,7 +41,7 @@ function cardlinkSign(body: string) {
     .toUpperCase();
 }
 
-test("AUDIT: one authentic Trybit JWT authorizes altered outer payment fields for two orders", async () => {
+test("Trybit rejects altered outer payment fields even with an authentic JWT", async () => {
   const first = fakeDb.seedOrder({
     paymentProvider: "trybit",
     priceAmount: 1099n,
@@ -57,22 +57,29 @@ test("AUDIT: one authentic Trybit JWT authorizes altered outer payment fields fo
     invoice_id: "original",
     status: "canceled",
   });
-  for (const [index, order] of [first, second].entries()) {
-    const response = await handleTrybitWebhook(
-      post({
-        token,
-        order_id: order.orderUuid,
-        invoice_id: `invented-${index}`,
-        invoice_info: {
-          status: "paid",
-          amount_usd: Number(order.priceAmount) / 100,
-        },
-      }),
-    );
-    expect(response.status).toBe(200);
-    expect(order.paymentStatus).toBe("paid");
+  const lookup = spyOn(globalThis, "fetch").mockResolvedValue(
+    Response.json({ status: "success", result: [] }),
+  );
+  try {
+    for (const [index, order] of [first, second].entries()) {
+      const response = await handleTrybitWebhook(
+        post({
+          token,
+          order_id: order.orderUuid,
+          invoice_id: `invented-${index}`,
+          invoice_info: {
+            status: "paid",
+            amount_usd: Number(order.priceAmount) / 100,
+          },
+        }),
+      );
+      expect(response.status).toBe(503);
+      expect(order.paymentStatus).toBe("pending");
+    }
+    expect(esimOrderCallCount()).toBe(0);
+  } finally {
+    lookup.mockRestore();
   }
-  expect(esimOrderCallCount()).toBe(2);
 });
 
 test("AUDIT: Cardlink failure callback signature remains valid after changing status to SUCCESS", async () => {

@@ -22,13 +22,15 @@ describe("orderEsimAccessPackage", () => {
     const result = await orderEsimAccessPackage({
       transactionId: "T-1",
       packageCode: "PKG-1",
+      amount: 500,
     });
 
     expect(result).toEqual({ orderNo: "EA-1", transactionId: "T-1" });
     expect(esimAccessPost.mock.calls[0]?.[0]).toBe("/esim/order");
     expect(esimAccessPost.mock.calls[0]?.[1]).toEqual({
       transactionId: "T-1",
-      packageInfoList: [{ packageCode: "PKG-1", count: 1 }],
+      amount: 500,
+      packageInfoList: [{ packageCode: "PKG-1", count: 1, price: 500 }],
     });
   });
 
@@ -36,7 +38,11 @@ describe("orderEsimAccessPackage", () => {
     esimAccessPost.mockResolvedValueOnce({ success: true, obj: {} });
 
     expect(
-      orderEsimAccessPackage({ transactionId: "T-1", packageCode: "PKG-1" }),
+      orderEsimAccessPackage({
+        transactionId: "T-1",
+        packageCode: "PKG-1",
+        amount: 500,
+      }),
     ).rejects.toThrow("eSIM Access order did not return orderNo");
   });
 });

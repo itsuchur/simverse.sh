@@ -2,6 +2,7 @@ import "server-only";
 
 import { orderStatus, paymentStatus } from "~/lib/order-status";
 import { db, isUniqueConstraintError } from "~/server/db";
+import { assertSupplierCapacity } from "~/server/orders/supplier-capacity";
 
 /**
  * A pending draft (and its provider invoice) is reused for this long. After
@@ -107,16 +108,26 @@ export async function createPendingInvoice(
   create: () => Promise<{ url: string; id?: string }>,
 ): Promise<string | null> {
   const claim = crypto.randomUUID();
-  const claimed = await db.order.updateMany({
-    where: {
-      id: orderId,
-      status: orderStatus.created,
-      paymentStatus: paymentStatus.pending,
-      paymentInvoiceUrl: null,
-      paymentInvoiceClaim: null,
+  const claimed = await db.$transaction(
+    async (tx) => {
+      // One shared account across providers and app instances. Commit the claim
+      // (our durable reservation) before making any payment-provider request.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73501942)`;
+      const claimed = await tx.order.updateMany({
+        where: {
+          id: orderId,
+          status: orderStatus.created,
+          paymentStatus: paymentStatus.pending,
+          paymentInvoiceUrl: null,
+          paymentInvoiceClaim: null,
+        },
+        data: { paymentInvoiceClaim: claim },
+      });
+      if (claimed.count) await assertSupplierCapacity(tx, orderId);
+      return claimed;
     },
-    data: { paymentInvoiceClaim: claim },
-  });
+    { timeout: 40_000, maxWait: 5_000 },
+  );
   if (!claimed.count) {
     const current = await db.order.findUniqueOrThrow({
       where: { id: orderId },
