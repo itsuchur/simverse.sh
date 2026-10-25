@@ -140,6 +140,8 @@ model Order {
   paymentProvider     String  @map("payment_provider")
   /// Provider checkout link minted for this draft; reused so one draft never has two live invoices.
   paymentInvoiceUrl   String? @map("payment_invoice_url")
+  paymentInvoiceId    String? @map("payment_invoice_id")
+  paymentNextCheckAt  DateTime @default(now()) @map("payment_next_check_at") @db.Timestamptz(3)
   paymentInvoiceClaim String? @map("payment_invoice_claim") @db.Uuid
   paymentChargeId     String? @map("payment_charge_id")
   paymentStatus       String  @default("pending") @map("payment_status")
@@ -188,6 +190,7 @@ model Order {
   @@unique([resellerCode, resellerOrderId], map: "uq_reseller_order")
   @@index([userId], map: "idx_orders_user_id")
   @@index([status], map: "idx_orders_status")
+  @@index([paymentStatus, paymentNextCheckAt], map: "idx_orders_payment_recovery")
   @@index([resellerCode], map: "idx_orders_reseller_code")
   @@index([createdAt(sort: Desc)], map: "idx_orders_created_at")
   @@index([esimIccid], map: "idx_orders_esim_iccid")

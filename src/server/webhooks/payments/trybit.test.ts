@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { handleTrybitWebhook } from "~/server/webhooks/payments/trybit";
 import { fakeDb } from "~/test/fake-db";
@@ -10,6 +10,10 @@ import {
   signTrybitToken,
   stubEsimAccess,
 } from "~/test/mocks";
+
+const originalFetch = globalThis.fetch;
+const invoiceFetch = mock(async (_input: unknown, _init?: RequestInit): Promise<Response> => { throw new Error("Unexpected HTTP request"); });
+afterEach(() => { globalThis.fetch = originalFetch; });
 
 function postJson(payload: unknown): Request {
   return new Request("http://localhost/api/webhooks/payments/trybit", {
@@ -34,7 +38,7 @@ function seedPendingTrybitOrder() {
 }
 
 describe("handleTrybitWebhook", () => {
-  beforeEach(resetTestState);
+  beforeEach(() => { resetTestState(); invoiceFetch.mockReset(); invoiceFetch.mockImplementation(async () => { throw new Error("Unexpected HTTP request"); }); globalThis.fetch = invoiceFetch as unknown as typeof fetch; });
 
   test("paid invoice fulfills the order end to end", async () => {
     const order = seedPendingTrybitOrder();
@@ -67,6 +71,49 @@ describe("handleTrybitWebhook", () => {
     expect(fakeDb.webhookLogs[0]?.source).toBe("trybit");
   });
 
+  test("form success verifies the invoice and delivers once", async () => {
+    const order = seedPendingTrybitOrder();
+    stubEsimAccess({ profiles: [PROFILE] });
+    invoiceFetch.mockImplementation(async () => Response.json({ status: "success", result: [{ uuid: "INV-form", order_id: order.orderUuid, status: "paid", amount_usd: 10.99 }] }));
+    const callback = () => new Request("http://localhost/api/webhooks/payments/trybit", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ status: "success", invoice_id: "form", order_id: order.orderUuid, token: signTrybitToken() }),
+    });
+    expect((await handleTrybitWebhook(callback())).status).toBe(200);
+    expect((await handleTrybitWebhook(callback())).status).toBe(200);
+    expect(order.status).toBe("issued");
+    expect(esimOrderCallCount()).toBe(1);
+    expect(JSON.parse(invoiceFetch.mock.calls[0]![1]!.body as string)).toEqual({ uuids: ["INV-form"] });
+  });
+
+  test("incomplete JSON recovers its amount from the merchant API", async () => {
+    const order = seedPendingTrybitOrder();
+    stubEsimAccess({ profiles: [PROFILE] });
+    invoiceFetch.mockImplementation(async () => Response.json({ status: "success", result: [{ uuid: "INV-json", order_id: order.orderUuid, status: "overpaid", amount_usd: 10.99 }] }));
+    const response = await handleTrybitWebhook(postJson({ invoice_id: "json", order_id: order.orderUuid, token: signTrybitToken(), invoice_info: { status: "paid" } }));
+    expect(response.status).toBe(200);
+    expect(order.status).toBe("issued");
+  });
+
+  test("outer success cannot override an unpaid authoritative invoice", async () => {
+    const order = seedPendingTrybitOrder();
+    invoiceFetch.mockImplementation(async () => Response.json({ status: "success", result: [{ uuid: "INV-unpaid", order_id: order.orderUuid, status: "partial", amount_usd: 10.99 }] }));
+    const response = await handleTrybitWebhook(postJson({ status: "success", invoice_id: "unpaid", order_id: order.orderUuid, token: signTrybitToken() }));
+    expect(response.status).toBe(200);
+    expect(order.paymentStatus).toBe("pending");
+    expect(esimOrderCallCount()).toBe(0);
+  });
+
+  test("an invoice for another order is rejected during verification", async () => {
+    const order = seedPendingTrybitOrder();
+    invoiceFetch.mockImplementation(async () => Response.json({ status: "success", result: [{ uuid: "INV-other", order_id: crypto.randomUUID(), status: "paid", amount_usd: 10.99 }] }));
+    const response = await handleTrybitWebhook(postJson({ invoice_id: "other", order_id: order.orderUuid, token: signTrybitToken() }));
+    expect(response.status).toBe(503);
+    expect(order.paymentStatus).toBe("pending");
+    expect(esimOrderCallCount()).toBe(0);
+  });
+
   test("invoice_status success with fiat USD amount also fulfills", async () => {
     const order = seedPendingTrybitOrder();
     stubEsimAccess({ profiles: [PROFILE] });
@@ -90,7 +137,7 @@ describe("handleTrybitWebhook", () => {
     expect(order.paymentChargeId).toBe("INV-456");
   });
 
-  test("paid invoice without a usable amount is ignored", async () => {
+  test("incomplete paid invoice requests retry when verification is unavailable", async () => {
     const order = seedPendingTrybitOrder();
 
     const response = await handleTrybitWebhook(
@@ -106,7 +153,7 @@ describe("handleTrybitWebhook", () => {
       }),
     );
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(order.paymentStatus).toBe("pending");
     expect(esimOrderCallCount()).toBe(0);
   });
@@ -166,9 +213,9 @@ describe("handleTrybitWebhook", () => {
     expect(order.failureReason).toBe("payment_failed");
   });
 
-  test("payload failing schema validation is acknowledged as a no-op", async () => {
+  test("malformed callbacks are rejected instead of silently acknowledged", async () => {
     const response = await handleTrybitWebhook(postJson({ invoice_id: "123" }));
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(400);
   });
 
   test("non-object JSON body returns 400", async () => {

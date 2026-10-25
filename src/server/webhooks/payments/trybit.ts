@@ -1,13 +1,15 @@
 import "server-only";
 
 import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
 
 import { withWebhookLogging } from "~/lib/webhook-logger";
 import {
   failTrybitPayment,
   fulfillTrybitPayment,
 } from "~/server/orders/fulfill";
-import { verifyTrybitPostbackToken } from "~/server/payments/trybit";
+import { getTrybitInvoice, verifyTrybitPostbackToken } from "~/server/payments/trybit";
+import { applyVerifiedTrybitInvoice } from "~/server/orders/payment-reconciliation";
 
 const PAID_INVOICE_STATUSES = new Set(["paid", "overpaid"]);
 
@@ -27,7 +29,7 @@ const postbackSchema = z.object({
   invoice_id: z.string().min(1),
   order_id: z.string().min(1),
   token: z.string().min(1),
-  invoice_info: invoiceInfoSchema,
+  invoice_info: z.unknown().optional(),
 });
 
 function invoiceUuid(invoiceId: string, uuid: string | undefined) {
@@ -60,14 +62,14 @@ export const handleTrybitWebhook = withWebhookLogging(
 
     const parsed = postbackSchema.safeParse(payload);
     if (!parsed.success) {
-      return Response.json({ message: "Postback received" });
+      return Response.json({ error: "Invalid postback" }, { status: 400 });
     }
 
     const {
       invoice_id,
       order_id: orderUuid,
       token,
-      invoice_info,
+      invoice_info: rawInfo,
     } = parsed.data;
 
     if (!verifyTrybitPostbackToken(token)) {
@@ -76,6 +78,22 @@ export const handleTrybitWebhook = withWebhookLogging(
 
     const unavailable = await persist();
     if (unavailable) return unavailable;
+
+    const info = invoiceInfoSchema.safeParse(rawInfo);
+    const invoice_info = info.success ? info.data : undefined;
+    // Form callbacks omit invoice_info. Never infer payment from the unsigned
+    // outer status/amount; fetch the invoice from the authenticated merchant API.
+    if (!invoice_info || (!invoice_info.status && !invoice_info.invoice_status) ||
+      ((PAID_INVOICE_STATUSES.has(invoice_info.status ?? "") || invoice_info.invoice_status === "success") && usdAmount(invoice_info) === null)) {
+      try {
+        const invoice = await getTrybitInvoice(invoice_id);
+        await applyVerifiedTrybitInvoice(orderUuid, invoice);
+        return Response.json({ message: "Postback received" });
+      } catch (error) {
+        Sentry.captureException(error, { tags: { component: "trybit", reason: "invoice_verification_failed" }, extra: { orderUuid } });
+        return Response.json({ error: "Invoice verification unavailable" }, { status: 503 });
+      }
+    }
 
     const invoiceStatus = invoice_info?.status;
     const invoiceResult = invoice_info?.invoice_status;

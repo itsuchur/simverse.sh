@@ -51,6 +51,8 @@ export type FakeOrder = {
   paymentProvider: string;
   buyerIp: string | null;
   paymentInvoiceUrl: string | null;
+  paymentInvoiceId: string | null;
+  paymentNextCheckAt: Date;
   paymentInvoiceClaim: string | null;
   cartRevision: string | null;
   paymentStatus: string;
@@ -155,6 +157,8 @@ function orderDefaults(): Omit<
     paymentProvider: "trybit",
     buyerIp: null,
     paymentInvoiceUrl: null,
+    paymentInvoiceId: null,
+    paymentNextCheckAt: new Date(0),
     paymentInvoiceClaim: null,
     cartRevision: null,
     paymentStatus: "pending",

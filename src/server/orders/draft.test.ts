@@ -99,14 +99,14 @@ describe("findOrCreatePendingOrder", () => {
 describe("createPendingInvoice", () => {
   test("only one concurrent request calls the provider", async () => {
     const order = fakeDb.seedOrder();
-    let finish!: (url: string) => void;
+    let finish!: (invoice: { url: string; id?: string }) => void;
     let started!: () => void;
     const entered = new Promise<void>((resolve) => {
       started = resolve;
     });
     const first = createPendingInvoice(order.id, () => {
       started();
-      return new Promise<string>((resolve) => {
+      return new Promise<{ url: string; id?: string }>((resolve) => {
         finish = resolve;
       });
     });
@@ -115,7 +115,8 @@ describe("createPendingInvoice", () => {
       throw new Error("must not call provider");
     });
     expect(second).toBeNull();
-    finish("https://pay.example/a");
+    finish({ url: "https://pay.example/a", id: "INV-a" });
+    expect(order.paymentInvoiceId).toBeNull();
     expect(await first).toBe("https://pay.example/a");
     expect(
       await createPendingInvoice(order.id, async () => {
@@ -123,6 +124,7 @@ describe("createPendingInvoice", () => {
       }),
     ).toBe("https://pay.example/a");
     expect(order.paymentStatus).toBe("pending");
+    expect(order.paymentInvoiceId).toBe("INV-a");
   });
 
   test("a failed owning request closes its draft", async () => {
@@ -134,7 +136,7 @@ describe("createPendingInvoice", () => {
     ).toEqual(new Error("provider timeout"));
     expect(order.paymentStatus).toBe("failed");
     expect(
-      await createPendingInvoice(order.id, async () => "unreachable").catch(
+      await createPendingInvoice(order.id, async () => ({ url: "unreachable" })).catch(
         (error: unknown) => error,
       ),
     ).toEqual(new Error("invoice_closed"));
@@ -145,10 +147,11 @@ describe("createPendingInvoice", () => {
     expect(
       await createPendingInvoice(order.id, async () => {
         await failPendingInvoice(order.id, "expired");
-        return "https://pay.example/late";
+        return { url: "https://pay.example/late", id: "INV-late" };
       }).catch((error: unknown) => error),
     ).toEqual(new Error("invoice_closed"));
     expect(order.paymentInvoiceUrl).toBeNull();
+    expect(order.paymentInvoiceId).toBe("INV-late");
   });
 
   test("a replaced cart does not reuse the old cart revision", async () => {

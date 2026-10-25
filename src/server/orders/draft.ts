@@ -104,7 +104,7 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
  * retired with the draft TTL, never stolen while its outcome is unknown. */
 export async function createPendingInvoice(
   orderId: bigint,
-  create: () => Promise<string>,
+  create: () => Promise<{ url: string; id?: string }>,
 ): Promise<string | null> {
   const claim = crypto.randomUUID();
   const claimed = await db.order.updateMany({
@@ -130,7 +130,15 @@ export async function createPendingInvoice(
     return current.paymentInvoiceUrl;
   }
   try {
-    const url = await create();
+    const { url, id } = await create();
+    // Keep the provider ID even if a callback or draft expiry won the race.
+    // Such invoices can still be paid and must remain reconcilable.
+    if (id) {
+      await db.order.updateMany({
+        where: { id: orderId, paymentInvoiceClaim: claim },
+        data: { paymentInvoiceId: id },
+      });
+    }
     const attached = await db.order.updateMany({
       where: {
         id: orderId,

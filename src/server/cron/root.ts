@@ -1,4 +1,5 @@
 import { recoverPendingOrders } from "~/server/orders/fulfill";
+import { reconcilePendingPayments } from "~/server/orders/payment-reconciliation";
 import { Cron } from "croner";
 
 import {
@@ -131,3 +132,13 @@ async function recoverOrders() {
 }
 new Cron("* * * * *", { protect: true }, recoverOrders);
 void recoverOrders();
+
+async function recoverPayments() {
+  try {
+    await reconcilePendingPayments();
+  } catch (error) {
+    console.error("[cron] payment reconciliation failed", error);
+  }
+}
+new Cron("* * * * *", { protect: true }, recoverPayments);
+void recoverPayments();

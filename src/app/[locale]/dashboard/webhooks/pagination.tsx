@@ -5,11 +5,13 @@ import { webhookLogsHref, type WebhookSourceFilter } from "./source-tabs";
 
 export function WebhookPagination({
   source,
+  query = "",
   page,
   pageCount,
   total,
 }: {
   source: WebhookSourceFilter;
+  query?: string;
   page: number;
   pageCount: number;
   total: number;
@@ -26,7 +28,7 @@ export function WebhookPagination({
       <div className="flex gap-2">
         {page > 1 ? (
           <Button
-            render={<Link href={webhookLogsHref(source, page - 1)} />}
+            render={<Link href={webhookLogsHref(source, page - 1, query)} />}
             variant="outline"
             size="lg"
             className="h-10 flex-1 px-4 text-base sm:flex-none"
@@ -45,7 +47,7 @@ export function WebhookPagination({
         )}
         {page < pageCount ? (
           <Button
-            render={<Link href={webhookLogsHref(source, page + 1)} />}
+            render={<Link href={webhookLogsHref(source, page + 1, query)} />}
             variant="outline"
             size="lg"
             className="h-10 flex-1 px-4 text-base sm:flex-none"

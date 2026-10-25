@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         returnUrl: `${origin}/api/checkout/platega/return?status=success`,
         failedUrl: `${origin}/api/checkout/platega/return?status=fail`,
       });
-      return transaction.redirect;
+      return { url: transaction.redirect };
     });
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {

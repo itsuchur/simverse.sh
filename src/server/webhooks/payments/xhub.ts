@@ -108,7 +108,7 @@ export const handleXhubWebhook = withWebhookLogging(
       actual_amount_rub: actualAmountRub,
     } = parsed.data;
 
-    if (status === "paid") {
+    if (status === "paid" || status === "settled") {
       await fulfillXhubPayment({
         orderUuid,
         paymentId,

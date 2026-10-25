@@ -176,6 +176,7 @@ export async function createXhubPayment(input: {
       "Idempotency-Key": input.orderUuid,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
   });
 
   const payload = (await response
@@ -191,4 +192,49 @@ export async function createXhubPayment(input: {
     id: payload.id,
     paymentUrl: payload.payment_url,
   };
+}
+
+const paymentStateSchema = z.object({
+  id: z.string().min(1),
+  external_id: z.string().nullable(),
+  status: z.string(),
+  amount_requested: z.string(),
+  amount_received: z.string().nullable(),
+});
+
+export type XhubPaymentState = z.infer<typeof paymentStateSchema>;
+
+async function xhubPaymentQuery(path: string): Promise<unknown> {
+  if (!xhubConfigured()) throw new Error("xhub_not_configured");
+  const response = await fetch(`${XHUB_API_BASE}${path}`, {
+    headers: { "X-Api-Key": env.XHUB_API_KEY!, "X-Api-Secret": env.XHUB_API_SECRET! },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`X-Hub payment lookup failed: HTTP ${response.status}`);
+  return response.json();
+}
+
+export async function getXhubPayment(id: string): Promise<XhubPaymentState> {
+  const payment = paymentStateSchema.parse(await xhubPaymentQuery(`/payments/${encodeURIComponent(id)}`));
+  if (payment.id.replace(/^pay_/, "") !== id.replace(/^pay_/, "")) throw new Error("X-Hub payment ID mismatch");
+  return payment;
+}
+
+export async function findXhubPayment(orderUuid: string, createdAt: Date) {
+  for (let page = 1; page <= 100; page++) {
+    const params = new URLSearchParams({
+      from: new Date(createdAt.getTime() - 86_400_000).toISOString(),
+      to: new Date(createdAt.getTime() + 86_400_000).toISOString(),
+      per_page: "100", page: String(page),
+    });
+    const response = z.object({
+      data: z.array(z.object({ id: z.string(), external_id: z.string().nullable() })),
+      pagination: z.object({ total_pages: z.number().int().nonnegative() }),
+    }).parse(await xhubPaymentQuery(`/payments?${params}`));
+    const matches = response.data.filter((row) => row.external_id === orderUuid);
+    if (matches.length > 1) throw new Error("Multiple X-Hub payments for one order; manual reconciliation required");
+    if (matches[0]) return getXhubPayment(matches[0].id);
+    if (page >= response.pagination.total_pages) return null;
+  }
+  throw new Error("X-Hub payment discovery exceeded pagination limit");
 }

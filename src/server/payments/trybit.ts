@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { env } from "~/env";
+import { z } from "zod";
 
 const TRYBIT_API_BASE = "https://api.trybit.com/v2";
 
@@ -122,6 +123,7 @@ export async function createTrybitInvoice(input: {
       currency: "USD",
       order_id: input.orderId,
     }),
+    signal: AbortSignal.timeout(10_000),
   });
 
   const body = (await response.json()) as TrybitCreateResponse;
@@ -137,4 +139,62 @@ export async function createTrybitInvoice(input: {
   }
 
   return { uuid: body.result.uuid, link: body.result.link };
+}
+
+const invoiceStatusSchema = z.object({
+  uuid: z.string().min(1),
+  order_id: z.string().nullable(),
+  status: z.string(),
+  invoice_status: z.string().optional(),
+  amount_usd: z.coerce.number().finite().nonnegative().optional(),
+  amount_in_fiat: z.coerce.number().finite().nonnegative().optional(),
+  fiat_currency: z.string().optional(),
+});
+
+export type TrybitInvoiceStatus = z.infer<typeof invoiceStatusSchema>;
+
+async function queryTrybitInvoices(path: string, body: unknown) {
+  if (!trybitConfigured()) throw new Error("trybit_not_configured");
+  const response = await fetch(`${TRYBIT_API_BASE}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Token ${env.TRYBIT_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`Trybit invoice lookup failed: HTTP ${response.status}`);
+  return z.object({
+    status: z.literal("success"),
+    result: z.array(invoiceStatusSchema),
+    all_count: z.number().int().nonnegative().optional(),
+  }).parse(await response.json());
+}
+
+export function normalizeTrybitInvoiceId(id: string) {
+  return id.startsWith("INV-") ? id : `INV-${id}`;
+}
+
+export async function getTrybitInvoice(id: string): Promise<TrybitInvoiceStatus> {
+  const uuid = normalizeTrybitInvoiceId(id);
+  const response = await queryTrybitInvoices("/invoice/merchant/info", { uuids: [uuid] });
+  const invoice = response.result.find((row) => row.uuid === uuid);
+  if (!invoice) throw new Error("Trybit invoice lookup returned no matching invoice");
+  return invoice;
+}
+
+/** Recover provider IDs lost during invoice creation, including pre-migration drafts. */
+export async function findTrybitInvoice(orderUuid: string, createdAt: Date) {
+  const day = (offset: number) => {
+    const d = new Date(createdAt.getTime() + offset * 86_400_000);
+    return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
+  };
+  for (let offset = 0; offset < 10_000; offset += 100) {
+    const response = await queryTrybitInvoices("/invoice/merchant/list", {
+      start: day(-1), end: day(1), offset, limit: 100,
+    });
+    const matches = response.result.filter((row) => row.order_id === orderUuid);
+    if (matches.length > 1) throw new Error("Multiple Trybit invoices for one order; manual reconciliation required");
+    if (matches[0]) return matches[0];
+    if (response.result.length < 100 || (response.all_count !== undefined && offset + 100 >= response.all_count)) return null;
+  }
+  throw new Error("Trybit invoice discovery exceeded pagination limit");
 }

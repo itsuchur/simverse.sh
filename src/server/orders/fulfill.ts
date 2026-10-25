@@ -759,7 +759,7 @@ export async function fulfillTrybitPayment(input: {
     chargeId: input.invoiceUuid,
     validate: (order) => {
       const cents = usdNumberToCents(input.amountUsd);
-      if (cents === null || cents !== order.priceAmount) {
+      if (order.currency !== "USD" || cents === null || cents !== order.priceAmount) {
         Sentry.captureMessage("Trybit webhook amount mismatch", {
           level: "error",
           tags: { component: "trybit", reason: "amount_mismatch" },

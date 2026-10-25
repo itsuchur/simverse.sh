@@ -133,7 +133,7 @@ export async function POST(request: Request) {
         failUrl: `${origin}/api/checkout/cardlink/return?status=fail`,
         returnUrl: miniappPublicUrl(origin, "/checkout"),
       });
-      return bill.linkPageUrl;
+      return { url: bill.linkPageUrl };
     });
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {

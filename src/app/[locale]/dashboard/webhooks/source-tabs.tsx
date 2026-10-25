@@ -29,19 +29,20 @@ export function isWebhookSourceFilter(
   return (WEBHOOK_SOURCES as readonly string[]).includes(value);
 }
 
-export function webhookLogsHref(source: WebhookSourceFilter, page = 1) {
+export function webhookLogsHref(source: WebhookSourceFilter, page = 1, query = "") {
   const params = new URLSearchParams();
+  if (query) params.set("q", query);
   if (source !== "all") {
     params.set("source", source);
   }
   if (page > 1) {
     params.set("page", String(page));
   }
-  const query = params.toString();
-  return query ? `/dashboard/webhooks?${query}` : "/dashboard/webhooks";
+  const search = params.toString();
+  return search ? `/dashboard/webhooks?${search}` : "/dashboard/webhooks";
 }
 
-export function WebhookSourceTabs({ source }: { source: WebhookSourceFilter }) {
+export function WebhookSourceTabs({ source, query = "" }: { source: WebhookSourceFilter; query?: string }) {
   return (
     <nav
       aria-label="Webhook source"
@@ -52,7 +53,7 @@ export function WebhookSourceTabs({ source }: { source: WebhookSourceFilter }) {
         return (
           <Link
             key={value}
-            href={webhookLogsHref(value)}
+            href={webhookLogsHref(value, 1, query)}
             aria-current={active ? "page" : undefined}
             className={cn(
               "shrink-0 rounded-md px-3 py-2 text-sm font-medium md:py-1.5",

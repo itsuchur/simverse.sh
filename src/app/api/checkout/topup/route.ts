@@ -151,13 +151,13 @@ export async function POST(request: Request) {
           successUrl: `${miniappOrigin()}/api/checkout/xhub/return?status=success`,
           clientIp: buyerIp,
         });
-        return payment.paymentUrl;
+        return { url: payment.paymentUrl, id: payment.id };
       }
       const invoice = await createTrybitInvoice({
         amount: cents / 100,
         orderId: order.orderUuid,
       });
-      return invoice.link;
+      return { url: invoice.link, id: invoice.uuid };
     });
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {

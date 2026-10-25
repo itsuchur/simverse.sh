@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         payload: order.orderUuid,
         amountStars: stars,
         label: plan.name,
-      }),
+      }).then((url) => ({ url })),
     );
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {

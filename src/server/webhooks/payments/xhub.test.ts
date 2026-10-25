@@ -108,6 +108,17 @@ describe("handleXhubWebhook", () => {
     expect(fakeDb.webhookLogs).toHaveLength(0);
   });
 
+  test("settled callback recovers a missing paid callback without double delivery", async () => {
+    const order = seedPendingOrder();
+    stubEsimAccess({ orderNo: "EA-XHUB", profiles: [PROFILE] });
+    expect((await handleXhubWebhook(callback(payload(order.orderUuid, { status: "settled" })))).status).toBe(200);
+    expect(order.status).toBe("issued");
+    const issuedAt = order.issuedAt;
+    await handleXhubWebhook(callback(payload(order.orderUuid)));
+    expect(order.issuedAt).toEqual(issuedAt);
+    expect(order.paymentChargeId).toBe(PAYMENT_ID);
+  });
+
   test("cancelled webhook fails a pending order", async () => {
     const order = seedPendingOrder();
 

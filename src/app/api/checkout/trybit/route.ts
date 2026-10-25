@@ -118,7 +118,7 @@ export async function POST(request: Request) {
         amount: cents / 100,
         orderId: order.orderUuid,
       });
-      return invoice.link;
+      return { url: invoice.link, id: invoice.uuid };
     });
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {

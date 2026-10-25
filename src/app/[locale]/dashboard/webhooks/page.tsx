@@ -1,16 +1,19 @@
-import { db } from "~/server/db";
+import { searchWebhookLogs } from "~/server/dashboard/webhook-search";
+import { requireDashboardSession } from "~/server/dashboard/access";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { Link } from "~/i18n/navigation";
 
 import { WebhookPagination } from "./pagination";
 import {
   isWebhookSourceFilter,
   WebhookSourceTabs,
+  webhookLogsHref,
   type WebhookSourceFilter,
 } from "./source-tabs";
 import { WebhookLogCard } from "./webhook-log-card";
 
 export const dynamic = "force-dynamic";
-
-const PAGE_SIZE = 20;
 
 const SENSITIVE_HEADER = /secret|token|authorization|cookie|api-key|apikey/i;
 
@@ -58,23 +61,15 @@ export default async function DashboardWebhooksPage({
   searchParams: Promise<{
     page?: string | string[];
     source?: string | string[];
+    q?: string | string[];
   }>;
 }) {
+  await requireDashboardSession();
   const params = await searchParams;
   const source = parseSource(params.source);
   const requestedPage = parsePage(params.page);
-  const where = source === "all" ? {} : { source };
-
-  const total = await db.webhookLog.count({ where });
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(requestedPage, pageCount);
-
-  const logs = await db.webhookLog.findMany({
-    where,
-    take: PAGE_SIZE,
-    skip: (page - 1) * PAGE_SIZE,
-    orderBy: { receivedAt: "desc" },
-  });
+  const query = (firstParam(params.q) ?? "").trim().slice(0, 200);
+  const { total, pageCount, page, logs } = await searchWebhookLogs(source, query, requestedPage);
 
   const showSource = source === "all";
 
@@ -89,13 +84,22 @@ export default async function DashboardWebhooksPage({
   return (
     <main className="space-y-6">
       <h1 className="text-3xl font-semibold tracking-tight">Webhooks</h1>
+      <form method="get" className="flex flex-wrap items-end gap-2">
+        {source !== "all" && <input type="hidden" name="source" value={source} />}
+        <div className="min-w-60 flex-1 space-y-2">
+          <label htmlFor="webhook-search" className="text-sm font-medium">Search webhooks</label>
+          <Input key={query} id="webhook-search" name="q" type="search" defaultValue={query} maxLength={200} placeholder="Order ID, payment ID, ICCID, status, or payload text" />
+        </div>
+        <Button type="submit">Search</Button>
+        {query && <Link href={webhookLogsHref(source)} className="px-3 py-2 text-sm underline">Clear</Link>}
+      </form>
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
-        <WebhookSourceTabs source={source} />
+        <WebhookSourceTabs source={source} query={query} />
         <div className="min-w-0 flex-1 space-y-4">
           <div className="space-y-3 md:hidden">
             {records.length === 0 ? (
               <p className="text-muted-foreground py-8 text-center">
-                No webhook logs yet.
+                {query ? "No webhooks match your search." : "No webhook logs yet."}
               </p>
             ) : (
               records.map((log) => (
@@ -127,7 +131,7 @@ export default async function DashboardWebhooksPage({
                       className="text-muted-foreground px-5 py-8"
                       colSpan={showSource ? 4 : 3}
                     >
-                      No webhook logs yet.
+                      {query ? "No webhooks match your search." : "No webhook logs yet."}
                     </td>
                   </tr>
                 ) : (
@@ -167,6 +171,7 @@ export default async function DashboardWebhooksPage({
           </div>
           <WebhookPagination
             source={source}
+            query={query}
             page={page}
             pageCount={pageCount}
             total={total}

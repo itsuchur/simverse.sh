@@ -136,7 +136,7 @@ export async function POST(request: Request) {
         successUrl: `${origin}/api/checkout/xhub/return?status=success`,
         clientIp: buyerIp,
       });
-      return payment.paymentUrl;
+      return { url: payment.paymentUrl, id: payment.id };
     });
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {
