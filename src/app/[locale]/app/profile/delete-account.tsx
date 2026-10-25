@@ -73,18 +73,7 @@ export function DeleteAccount() {
             {t("deleteConfirmDescription")}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <p className="text-muted-foreground text-xs">
-          {t.rich("deleteFinePrint", {
-            support: (chunks) => (
-              <a
-                href="mailto:support@simverse.sh"
-                className="underline underline-offset-3"
-              >
-                {chunks}
-              </a>
-            ),
-          })}
-        </p>
+        <p className="text-muted-foreground text-xs">{t("deleteFinePrint")}</p>
         {failed ? (
           <p className="text-destructive text-sm">{t("deleteFailed")}</p>
         ) : null}

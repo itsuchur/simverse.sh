@@ -189,7 +189,7 @@
     "deleteAccount": "Delete Account",
     "deleteConfirmTitle": "Delete your account?",
     "deleteConfirmDescription": "You will be signed out and your account will be deleted.",
-    "deleteFinePrint": "Your data may be kept for up to a month in case you change your mind. If you wish immediate deletion, contact customer support at <support>support@simverse.sh</support>.",
+    "deleteFinePrint": "Your data may be kept for up to 7 months in case you change your mind.",
     "deleteConfirm": "Confirm",
     "deleteCancel": "Cancel",
     "deleteFailed": "Couldn't delete your account. Please try again."
