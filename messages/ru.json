@@ -8,10 +8,8 @@
     "cta": "Открыть simverse",
     "screenshotAlt": "Мини-приложение Simverse в Telegram",
     "faqHeading": "Частые вопросы",
-    "paymentMirAlt": "Мир",
-    "paymentVisaAlt": "Visa",
-    "paymentMcAlt": "Mastercard",
-    "paymentSbpAlt": "СБП"
+    "paymentSbpAlt": "СБП",
+    "paymentUsdtAlt": "USDT"
   },
   "Nav": {
     "ariaLabel": "Основная навигация",

@@ -8,10 +8,8 @@
     "cta": "Launch simverse",
     "screenshotAlt": "Simverse Telegram mini app",
     "faqHeading": "Frequently Asked Questions",
-    "paymentMirAlt": "Mir",
-    "paymentVisaAlt": "Visa",
-    "paymentMcAlt": "Mastercard",
-    "paymentSbpAlt": "SBP"
+    "paymentSbpAlt": "SBP",
+    "paymentUsdtAlt": "USDT"
   },
   "Nav": {
     "ariaLabel": "Main",

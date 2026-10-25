@@ -7,37 +7,27 @@ import { MarketingFooter } from "./_components/marketing-footer";
 import { buttonVariants } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 
-const PAYMENT_METHODS = [
-  // Square files pad the wordmark, so a taller box matches the other marks.
-  {
-    src: "/MIR.svg",
-    altKey: "paymentMirAlt",
-    width: 512,
-    height: 512,
-    className: "h-[5.5rem]",
-  },
-  {
-    src: "/VISA.svg",
-    altKey: "paymentVisaAlt",
-    width: 512,
-    height: 512,
-    className: "h-[4.625rem]",
-  },
-  {
-    src: "/MC.svg",
-    altKey: "paymentMcAlt",
-    width: 116,
-    height: 91,
-    className: "h-8",
-  },
-  {
-    src: "/SBP.svg",
-    altKey: "paymentSbpAlt",
-    width: 239,
-    height: 120,
-    className: "h-8",
-  },
-] as const;
+const USDT_METHOD = {
+  src: "/USDT.svg",
+  altKey: "paymentUsdtAlt",
+  width: 32,
+  height: 32,
+  className: "h-8",
+} as const;
+
+const PAYMENT_METHODS = {
+  en: [USDT_METHOD],
+  ru: [
+    {
+      src: "/SBP.svg",
+      altKey: "paymentSbpAlt",
+      width: 239,
+      height: 120,
+      className: "h-8",
+    },
+    USDT_METHOD,
+  ],
+} as const;
 
 export default async function Home() {
   const t = await getTranslations("HomePage");
@@ -94,27 +84,25 @@ export default async function Home() {
             ))}
           </div>
         </section>
-        {locale === "ru" ? (
-          <section className="mt-16 w-full max-w-2xl sm:mt-20">
-            <ul className="flex flex-wrap items-center justify-center gap-6">
-              {PAYMENT_METHODS.map((method) => (
-                <li key={method.src}>
-                  <Image
-                    src={method.src}
-                    alt={t(method.altKey)}
-                    width={method.width}
-                    height={method.height}
-                    unoptimized
-                    className={cn(
-                      method.className,
-                      "w-auto shrink-0 object-contain",
-                    )}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+        <section className="mt-16 w-full max-w-2xl sm:mt-20">
+          <ul className="flex flex-wrap items-center justify-center gap-6">
+            {PAYMENT_METHODS[locale].map((method) => (
+              <li key={method.src}>
+                <Image
+                  src={method.src}
+                  alt={t(method.altKey)}
+                  width={method.width}
+                  height={method.height}
+                  unoptimized
+                  className={cn(
+                    method.className,
+                    "w-auto shrink-0 object-contain",
+                  )}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       </main>
       <MarketingFooter />
     </div>
