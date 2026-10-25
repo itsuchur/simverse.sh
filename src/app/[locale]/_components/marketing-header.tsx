@@ -44,13 +44,18 @@ export async function MarketingHeader() {
           </a>
         ))}
       </nav>
-      <Image
-        src="/logo-sim-pari.svg"
-        alt="Simverse"
-        width={368}
-        height={192}
-        className="h-auto w-18 min-[400px]:w-28 sm:w-40 lg:w-64 dark:invert"
-      />
+      <a
+        href={`https://simverse.sh/${locale}`}
+        className="focus-visible:outline-ring block w-18 rounded-sm outline-offset-4 focus-visible:outline-2 min-[400px]:w-28 sm:w-40 lg:w-64"
+      >
+        <Image
+          src="/logo-sim-pari.svg"
+          alt="Simverse"
+          width={368}
+          height={192}
+          className="h-auto w-full dark:invert"
+        />
+      </a>
       <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
         <a
           href={`https://blog.simverse.sh/${locale}`}
