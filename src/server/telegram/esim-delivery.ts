@@ -6,6 +6,7 @@ import {
   esimProvisioningUrl,
   lpaCardData,
 } from "~/lib/esim-provisioning";
+import { miniappPublicUrl } from "~/lib/miniapp-path";
 import { db } from "~/server/db";
 import {
   sendMessage,
@@ -16,6 +17,7 @@ import {
   welcomeLocale,
   type WelcomeLocale,
 } from "~/server/telegram/start-welcome";
+import { miniappOrigin } from "~/server/urls";
 
 function escapeHtml(value: string): string {
   return value
@@ -80,8 +82,14 @@ const COPY: Record<
     manualOnly: string;
     smdpLabel: string;
     activationLabel: string;
+    useInstallButtons: string;
     installIphone: string;
     installAndroid: string;
+    myEsims: string;
+    installGuide: string;
+    installGuideUrl: string;
+    saveDataGuide: string;
+    saveDataGuideUrl: string;
   }
 > = {
   en: {
@@ -90,8 +98,14 @@ const COPY: Record<
     manualOnly: "Enter details manually:",
     smdpLabel: "SM-DP+ Address",
     activationLabel: "Activation Code",
+    useInstallButtons: "Use the buttons below to install the eSIM.",
     installIphone: "Install on iPhone",
     installAndroid: "Install on Android",
+    myEsims: "My eSIMs",
+    installGuide: "How to install an eSIM?",
+    installGuideUrl: "https://blog.simverse.sh/how-to-install-an-e-sim",
+    saveDataGuide: "How to Save Mobile Data",
+    saveDataGuideUrl: "https://blog.simverse.sh/how-to-save-mobile-data",
   },
   ru: {
     ready: "Ваша eSIM готова!",
@@ -99,10 +113,21 @@ const COPY: Record<
     manualOnly: "Введите данные вручную:",
     smdpLabel: "Адрес SM-DP+",
     activationLabel: "Код активации",
+    useInstallButtons: "Используйте кнопки ниже, чтобы установить eSIM.",
     installIphone: "Установить на iPhone",
     installAndroid: "Установить на Android",
+    myEsims: "Мои eSIM",
+    installGuide: "Как установить eSIM?",
+    installGuideUrl: "https://blog.simverse.sh/ru/kak-ustanovit-e-sim",
+    saveDataGuide: "Как уменьшить расход данных в поездке",
+    saveDataGuideUrl:
+      "https://blog.simverse.sh/ru/kak-umenshit-rashod-mobilnyh-dannyh-v-poezdke",
   },
 };
+
+function guideLink(label: string, url: string): string {
+  return `<a href="${url}">${escapeHtml(label)}</a>`;
+}
 
 export function esimDeliveryMessage(input: {
   preferredLanguage?: string | null;
@@ -150,6 +175,11 @@ export function esimDeliveryMessage(input: {
     "",
     `${copy.activationLabel}:`,
     `<code>${escapeHtml(manual.activationCode)}</code>`,
+    "",
+    copy.useInstallButtons,
+    "",
+    guideLink(copy.installGuide, copy.installGuideUrl),
+    guideLink(copy.saveDataGuide, copy.saveDataGuideUrl),
   ].join("\n");
 
   return {
@@ -167,6 +197,14 @@ export function esimDeliveryMessage(input: {
           {
             text: copy.installAndroid,
             url: esimProvisioningUrl("android", cardData),
+          },
+        ],
+        [
+          {
+            text: copy.myEsims,
+            web_app: {
+              url: miniappPublicUrl(miniappOrigin(), "/myesim"),
+            },
           },
         ],
       ],
@@ -246,6 +284,7 @@ export async function notifyBuyerEsimDelivery(orderId: bigint): Promise<void> {
       text: message.text,
       parseMode: "HTML",
       replyMarkup: message.replyMarkup,
+      disableLinkPreview: true,
     });
   } catch (error) {
     Sentry.captureException(error, {

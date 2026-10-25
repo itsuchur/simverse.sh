@@ -78,12 +78,16 @@ export async function sendMessage(input: {
   text: string;
   parseMode?: "HTML";
   replyMarkup?: InlineKeyboardMarkup;
+  disableLinkPreview?: boolean;
 }) {
   return botMethod<{ message_id: number }>("sendMessage", {
     chat_id: input.chatId,
     text: input.text,
     ...(input.parseMode ? { parse_mode: input.parseMode } : {}),
     ...(input.replyMarkup ? { reply_markup: input.replyMarkup } : {}),
+    ...(input.disableLinkPreview
+      ? { link_preview_options: { is_disabled: true } }
+      : {}),
   });
 }
 
