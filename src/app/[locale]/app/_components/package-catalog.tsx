@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
-import { Globe, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
@@ -452,12 +452,7 @@ function RegionGroupsPanel({
       {
         id: "global",
         label,
-        title: (
-          <>
-            <Globe className="size-7 shrink-0" aria-hidden />
-            <span className="min-w-0">{label}</span>
-          </>
-        ),
+        title: <span>{label}</span>,
         packages: globalPackages,
       },
       ...regional,

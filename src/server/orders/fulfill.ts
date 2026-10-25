@@ -28,8 +28,10 @@ import { captureServerEvent } from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
 import {
   processPendingRefund,
+  requestIssueFailedRefund,
   requestTopupRefund,
 } from "~/server/orders/topup-refund";
+import { confirmInsufficientBalanceFailure } from "~/server/suppliers/esimaccess/balance-check";
 import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
 
 export {
@@ -321,6 +323,25 @@ export async function placeSupplierOrder(order: OrderRow) {
       orderUuid: order.orderUuid,
       properties: { packageCode: order.resellerPlanId },
     });
+
+    if (error instanceof EsimAccessApiError && error.code === "200007") {
+      const current = await db.order.findUnique({ where: { id: order.id } });
+      if (
+        current &&
+        (await confirmInsufficientBalanceFailure({
+          resellerOrderId: current.resellerOrderId,
+          esimIccid: current.esimIccid,
+          costAmount: current.costAmount,
+          topupOfOrderId: current.topupOfOrderId,
+        }))
+      ) {
+        await requestIssueFailedRefund(order.id);
+        return;
+      }
+      // Balance recovered or check uncertain: leave ordering/paid for recovery.
+      return;
+    }
+
     await db.order.updateMany({
       where: {
         id: order.id,

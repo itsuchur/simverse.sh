@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
-import { checkBalance } from "./balance-check";
+import {
+  checkBalance,
+  confirmInsufficientBalanceFailure,
+} from "./balance-check";
 import { esimAccessPost, resetTestState } from "~/test/mocks";
 
 let clock = Date.now();
@@ -37,4 +40,48 @@ test("failed supplier requests are not cached", async () => {
   esimAccessPost.mockResolvedValue({ success: true, obj: { balance: 80_000 } });
   expect(await checkBalance()).toBe(80_000);
   expect(esimAccessPost).toHaveBeenCalledTimes(2);
+});
+
+test("confirmInsufficientBalanceFailure requires a fresh low balance and no supplier ids", async () => {
+  esimAccessPost.mockResolvedValue({ success: true, obj: { balance: 100 } });
+  expect(
+    await confirmInsufficientBalanceFailure({
+      resellerOrderId: null,
+      esimIccid: null,
+      costAmount: 500n,
+      topupOfOrderId: null,
+    }),
+  ).toBe(true);
+  expect(esimAccessPost.mock.calls.some((call) => call[0] === "/balance/query")).toBe(
+    true,
+  );
+
+  expect(
+    await confirmInsufficientBalanceFailure({
+      resellerOrderId: "EA-1",
+      esimIccid: null,
+      costAmount: 500n,
+      topupOfOrderId: null,
+    }),
+  ).toBe(false);
+
+  esimAccessPost.mockResolvedValue({ success: true, obj: { balance: 900 } });
+  expect(
+    await confirmInsufficientBalanceFailure({
+      resellerOrderId: null,
+      esimIccid: null,
+      costAmount: 500n,
+      topupOfOrderId: null,
+    }),
+  ).toBe(false);
+
+  esimAccessPost.mockRejectedValueOnce(new Error("Supplier unavailable"));
+  expect(
+    await confirmInsufficientBalanceFailure({
+      resellerOrderId: null,
+      esimIccid: null,
+      costAmount: 500n,
+      topupOfOrderId: null,
+    }),
+  ).toBe(false);
 });

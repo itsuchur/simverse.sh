@@ -14,3 +14,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Choose the simplest implementation that fully meets the outlined requirements.
 - The package manager and the runtime is bun.
 - Prefer established, well-maintained libraries over custom implementations.
+- A push to `main` deploys production. See `AUTO-DEPLOY.md`. Finish the local commits, then push once. Two pushes close together each start a deploy.
+
+# Guardrails 
+
+- Apply https://github.com/mokevnin/dev-quality-gates to this repository.
+- Read and follow https://raw.githubusercontent.com/mokevnin/dev-quality-gates/main/docs/adopt.md.
+- Show me the plan before you change anything.

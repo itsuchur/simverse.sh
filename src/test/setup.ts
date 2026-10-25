@@ -15,6 +15,8 @@ import {
   esimAccessPost,
   sentryCaptureException,
   sentryCaptureMessage,
+  telegramSendMessage,
+  telegramSendPhoto,
 } from "./mocks";
 
 process.env.SKIP_ENV_VALIDATION = "1";
@@ -73,4 +75,13 @@ void mock.module("../server/cart", () => ({
 void mock.module("../server/suppliers/esimaccess/client", () => ({
   ESIMACCESS_API_BASE: "https://api.esimaccess.example",
   esimAccessPost,
+}));
+
+void mock.module("../server/telegram/bot-api", () => ({
+  sendMessage: telegramSendMessage,
+  sendPhoto: telegramSendPhoto,
+  answerPreCheckoutQuery: async () => undefined,
+  verifyTelegramWebhookSecret: (header: string | null) =>
+    header === process.env.TELEGRAM_WEBHOOK_SECRET,
+  createInvoiceLink: async () => "https://t.me/$invoice",
 }));

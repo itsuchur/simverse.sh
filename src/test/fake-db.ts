@@ -400,14 +400,12 @@ class FakeDb {
       return { ...record };
     }
     const user = this.users.get(record.userId);
-    // A `select` of the buyer is the delivery notification. Keep its telegram
-    // id empty so order tests do not call Telegram.
     return {
       ...record,
       user: {
-        telegramId: args.select?.user ? null : (user?.telegramId ?? null),
-        languageCode: null,
-        preferredLanguage: null,
+        telegramId: user?.telegramId ?? null,
+        languageCode: user?.languageCode ?? null,
+        preferredLanguage: user?.preferredLanguage ?? null,
         dataUsageNotifications: true,
         isBanned: false,
         isDeleted: false,

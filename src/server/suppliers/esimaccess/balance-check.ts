@@ -39,3 +39,25 @@ export async function checkBalance(): Promise<number> {
     });
   return inFlight;
 }
+
+/**
+ * Re-check the supplier before auto-refunding a failed new-eSIM issue.
+ * Uses a fresh balance read (not the short-lived checkout cache). Returns
+ * false on any uncertainty so the order can stay eligible for recovery.
+ */
+export async function confirmInsufficientBalanceFailure(input: {
+  resellerOrderId: string | null;
+  esimIccid: string | null;
+  costAmount: bigint | null;
+  topupOfOrderId: bigint | null;
+}): Promise<boolean> {
+  if (input.topupOfOrderId !== null) return false;
+  if (input.resellerOrderId || input.esimIccid) return false;
+  if (input.costAmount === null || input.costAmount <= 0n) return false;
+  try {
+    const balance = await fetchBalance();
+    return BigInt(balance) < input.costAmount;
+  } catch {
+    return false;
+  }
+}

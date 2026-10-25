@@ -16,6 +16,7 @@ import {
   resetTestState,
   esimAccessPost,
   sentryCaptureException,
+  telegramSendMessage,
 } from "~/test/mocks";
 import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
 
@@ -348,5 +349,102 @@ describe("unfulfillable paid top-ups", () => {
     await syncXhubRefund({ paymentId: PAYMENT, refundId: "other-refund" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(child.status).toBe("refund_pending");
+  });
+
+  test("refund completion notifies the buyer once about the failed top-up", async () => {
+    const { child } = seedTopup();
+    stubRefund();
+    await payXhub(child.orderUuid);
+    stubRefund("completed");
+    await handleXhubWebhook(webhook("refund.completed"));
+    expect(telegramSendMessage).toHaveBeenCalledTimes(1);
+    expect(telegramSendMessage.mock.calls[0]?.[0]).toMatchObject({
+      chatId: 42,
+      text: expect.stringContaining("top-up"),
+    });
+    await handleXhubWebhook(webhook("refund.completed"));
+    expect(telegramSendMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("unfulfillable paid eSIM purchases", () => {
+  function seedPurchase() {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42", languageCode: "en" });
+    return fakeDb.seedOrder({
+      paymentProvider: "xhub",
+      currency: "RUB",
+      priceAmount: 50000n,
+      costAmount: 70000n,
+      resellerPlanId: "CKH491",
+    });
+  }
+
+  test("confirmed insufficient balance auto-refunds and notifies the buyer once", async () => {
+    const order = seedPurchase();
+    esimAccessPost.mockImplementation(async (path: string) => {
+      if (path === "/esim/order") {
+        throw new EsimAccessApiError("200007", "Balance insufficient");
+      }
+      if (path === "/balance/query") {
+        return { success: true, obj: { balance: 100 } };
+      }
+      throw new Error(`unexpected path ${path}`);
+    });
+    const fetchMock = stubRefund();
+    await payXhub(order.orderUuid);
+    expect(order.status).toBe("refund_pending");
+    expect(order.failureReason).toBe("supplier_balance_insufficient");
+    expect(fakeDb.refundForOrder(order.id)?.reason).toContain(
+      "insufficient merchant balance",
+    );
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.x-hub.online/api/v1/refunds");
+    expect(JSON.parse(init?.body as string)).toMatchObject({
+      payment_id: PAYMENT,
+      external_id: order.orderUuid,
+      reason: expect.stringContaining("insufficient merchant balance"),
+    });
+
+    stubRefund("completed");
+    await handleXhubWebhook(webhook("refund.completed"));
+    expect(order.status).toBe("refunded");
+    expect(telegramSendMessage).toHaveBeenCalledTimes(1);
+    expect(telegramSendMessage.mock.calls[0]?.[0]).toMatchObject({
+      chatId: 42,
+      text: expect.stringContaining("eSIM"),
+    });
+    await handleXhubWebhook(webhook("refund.completed"));
+    expect(telegramSendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  test("insufficient balance with recovered funds does not refund or fail", async () => {
+    const order = seedPurchase();
+    esimAccessPost.mockImplementation(async (path: string) => {
+      if (path === "/esim/order") {
+        throw new EsimAccessApiError("200007", "Balance insufficient");
+      }
+      if (path === "/balance/query") {
+        return { success: true, obj: { balance: 900_000 } };
+      }
+      throw new Error(`unexpected path ${path}`);
+    });
+    const fetchMock = stubRefund();
+    await payXhub(order.orderUuid);
+    expect(order.status).toBe("ordering");
+    expect(order.failureReason).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fakeDb.refundForOrder(order.id)).toBeNull();
+  });
+
+  test("non-balance supplier errors still fail without refund", async () => {
+    const order = seedPurchase();
+    esimAccessPost.mockRejectedValueOnce(
+      new EsimAccessApiError("400001", "Invalid parameters"),
+    );
+    const fetchMock = stubRefund();
+    await payXhub(order.orderUuid);
+    expect(order.status).toBe("failed");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fakeDb.refundForOrder(order.id)).toBeNull();
   });
 });

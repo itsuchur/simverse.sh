@@ -14,6 +14,12 @@ import {
   type XhubRefund,
 } from "~/server/payments/xhub";
 import { ensureRefund, type RefundOrder } from "~/server/refunds/store";
+import { notifyBuyerRefundNotice } from "~/server/telegram/refund-notice";
+
+const TOPUP_REFUND_REASON =
+  "Top-up cannot be fulfilled because the parent eSIM is unavailable.";
+const ISSUE_FAILED_REFUND_REASON =
+  "Provider could not issue eSIM (insufficient merchant balance).";
 
 function bareId(id: string) {
   return id.replace(/^(pay_|ref_)/, "");
@@ -79,7 +85,7 @@ export async function applyXhubRefund(
     throw new Error(
       "X-Hub refund amount or currency mismatch; reconcile manually",
     );
-  const failed = await db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const current = await tx.order.update({
       where: { id: order.id },
       data: { id: order.id },
@@ -98,19 +104,20 @@ export async function applyXhubRefund(
       current.paymentStatus !== paymentStatus.paid &&
       current.paymentStatus !== paymentStatus.refunded
     )
-      return;
+      return { failed: false, justCompleted: false };
     if (
       refund.status === refundStatus.reversed &&
       response.status !== "reversed"
     )
-      return;
+      return { failed: false, justCompleted: false };
     if (
       refund.status === refundStatus.completed &&
       response.status !== "completed" &&
       response.status !== "reversed"
     )
-      return;
+      return { failed: false, justCompleted: false };
     if (response.status === "completed") {
+      const justCompleted = refund.status !== refundStatus.completed;
       await tx.refund.update({
         where: { id: refund.id },
         data: {
@@ -130,6 +137,7 @@ export async function applyXhubRefund(
           failureReason: null,
         },
       });
+      return { failed: false, justCompleted };
     } else if (
       ["rejected", "failed", "cancelled", "reversed"].includes(response.status)
     ) {
@@ -154,10 +162,12 @@ export async function applyXhubRefund(
           failureReason: "topup_refund_" + response.status,
         },
       });
-      return (
-        refund.status !== refundStatus.failed &&
-        refund.status !== refundStatus.reversed
-      );
+      return {
+        failed:
+          refund.status !== refundStatus.failed &&
+          refund.status !== refundStatus.reversed,
+        justCompleted: false,
+      };
     } else if (
       refund.status !== refundStatus.completed &&
       refund.status !== refundStatus.reversed
@@ -172,12 +182,16 @@ export async function applyXhubRefund(
         },
       });
     }
+    return { failed: false, justCompleted: false };
   });
-  if (failed) {
+  if (result.failed) {
     await refundFailed(
       order,
       new Error("X-Hub refund " + response.status + "; manual refund required"),
     );
+  }
+  if (result.justCompleted) {
+    await notifyBuyerRefundNotice(order.id);
   }
 }
 
@@ -188,10 +202,14 @@ export async function processPendingRefund(orderId: bigint) {
     order.paymentStatus !== paymentStatus.paid
   )
     return;
+  const existing = await db.refund.findUnique({ where: { orderId: order.id } });
   const refund = await ensureRefund(order, {
     source: "automatic",
     reason:
-      "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
+      existing?.reason ??
+      (order.topupOfOrderId !== null
+        ? TOPUP_REFUND_REASON
+        : ISSUE_FAILED_REFUND_REASON),
   });
   try {
     if (order.paymentProvider === TRYBIT_PAYMENT_PROVIDER)
@@ -246,8 +264,7 @@ export async function requestTopupRefund(
         order,
         {
           source: "automatic",
-          reason:
-            "Top-up cannot be fulfilled because the parent eSIM is unavailable.",
+          reason: TOPUP_REFUND_REASON,
         },
         tx,
       );
@@ -272,6 +289,40 @@ export async function requestTopupRefund(
     );
     return;
   }
+  await processPendingRefund(orderId);
+}
+
+/** Auto-refund a new eSIM purchase after confirmed supplier balance failure. */
+export async function requestIssueFailedRefund(orderId: bigint) {
+  const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
+  const claimed = await db.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        topupOfOrderId: null,
+        resellerOrderId: null,
+        esimIccid: null,
+        status: { in: [orderStatus.ordering, orderStatus.paid] },
+        paymentStatus: paymentStatus.paid,
+      },
+      data: {
+        status: orderStatus.refundPending,
+        failureReason: "supplier_balance_insufficient",
+      },
+    });
+    if (result.count) {
+      await ensureRefund(
+        order,
+        {
+          source: "automatic",
+          reason: ISSUE_FAILED_REFUND_REASON,
+        },
+        tx,
+      );
+    }
+    return result.count;
+  });
+  if (!claimed) return;
   await processPendingRefund(orderId);
 }
 

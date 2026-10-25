@@ -53,6 +53,26 @@ const defaultEsimAccessImpl = async (
 
 export const esimAccessPost = mock(defaultEsimAccessImpl);
 
+export const telegramSendMessage = mock(
+  async (_input: {
+    chatId: number;
+    text: string;
+    parseMode?: string;
+    replyMarkup?: unknown;
+    disableLinkPreview?: boolean;
+  }) => ({ message_id: 1 }),
+);
+
+export const telegramSendPhoto = mock(
+  async (_input: {
+    chatId: number;
+    photo: string;
+    caption?: string;
+    parseMode?: string;
+    replyMarkup?: unknown;
+  }) => ({ message_id: 1 }),
+);
+
 /** Stubs the supplier API: /esim/order returns orderNo, /esim/query profiles. */
 export function stubEsimAccess(input?: {
   orderNo?: string;
@@ -112,4 +132,8 @@ export function resetTestState() {
   getCartSnapshot.mockImplementation(async () => null);
   esimAccessPost.mockClear();
   esimAccessPost.mockImplementation(defaultEsimAccessImpl);
+  telegramSendMessage.mockClear();
+  telegramSendMessage.mockImplementation(async () => ({ message_id: 1 }));
+  telegramSendPhoto.mockClear();
+  telegramSendPhoto.mockImplementation(async () => ({ message_id: 1 }));
 }
