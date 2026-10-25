@@ -149,6 +149,36 @@ services:
       - traefik.http.routers.strapi.tls.domains[0].main=simverse.sh
       - traefik.http.routers.strapi.tls.domains[0].sans=*.simverse.sh
 
+  wiki:
+    image: requarks/wiki:2.5.317
+    container_name: wiki
+    restart: unless-stopped
+    init: true
+    mem_limit: 1g
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: "${WIKI_DB_USER:-wiki}"
+      DB_PASS: "${WIKI_DB_PASSWORD}"
+      DB_NAME: "${WIKI_DB_NAME:-wiki}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.http.services.wiki.loadbalancer.server.port=3000
+      - "traefik.http.routers.wiki.rule=Host(`kb.simverse.sh`)"
+      - traefik.http.routers.wiki.entrypoints=websecure
+      - traefik.http.routers.wiki.service=wiki
+      - traefik.http.routers.wiki.tls.certresolver=letsencrypt
+      - traefik.http.routers.wiki.tls.domains[0].main=simverse.sh
+      - traefik.http.routers.wiki.tls.domains[0].sans=*.simverse.sh
+
   poller:
     build:
       context: .
@@ -228,6 +258,9 @@ services:
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_DB: "${POSTGRES_DB}"
+      WIKI_DB_USER: "${WIKI_DB_USER:-wiki}"
+      WIKI_DB_PASSWORD: "${WIKI_DB_PASSWORD}"
+      WIKI_DB_NAME: "${WIKI_DB_NAME:-wiki}"
     volumes:
       - postgres_data:/var/lib/postgresql
       - pg_dumps:/dumps
@@ -242,7 +275,7 @@ services:
     labels:
       # Runs inside this container right before the backup archive step,
       # dumping a fresh consistent snapshot instead of taring the live data dir.
-      - docker-volume-backup.exec-pre=sh -c 'pg_dump -U ${POSTGRES_USER} -d ${POSTGRES_DB} -F c -f /dumps/${POSTGRES_DB}-$$(date +%Y%m%d-%H%M%S).dump && pg_dump -U ${POSTGRES_USER} -d strapi -F c -f /dumps/strapi-$$(date +%Y%m%d-%H%M%S).dump && find /dumps -name "*.dump" -mtime +7 -delete'
+      - docker-volume-backup.exec-pre=sh -c 'pg_dump -U ${POSTGRES_USER} -d ${POSTGRES_DB} -F c -f /dumps/${POSTGRES_DB}-$$(date +%Y%m%d-%H%M%S).dump && pg_dump -U ${POSTGRES_USER} -d strapi -F c -f /dumps/strapi-$$(date +%Y%m%d-%H%M%S).dump && pg_dump -U ${POSTGRES_USER} -d wiki -F c -f /dumps/wiki-$$(date +%Y%m%d-%H%M%S).dump && find /dumps -name "*.dump" -mtime +7 -delete'
 
   backup:
     image: offen/docker-volume-backup:v2.49.2

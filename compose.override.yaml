@@ -83,6 +83,25 @@ services:
       postgres:
         condition: service_healthy
 
+  wiki:
+    image: requarks/wiki:2.5.317
+    container_name: wiki
+    restart: unless-stopped
+    init: true
+    mem_limit: 1g
+    ports:
+      - "3001:3000"
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: "${WIKI_DB_USER:-wiki}"
+      DB_PASS: "${WIKI_DB_PASSWORD:-wiki}"
+      DB_NAME: "${WIKI_DB_NAME:-wiki}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   poller:
     build:
       context: .
@@ -130,6 +149,9 @@ services:
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_DB: "${POSTGRES_DB}"
+      WIKI_DB_USER: "${WIKI_DB_USER:-wiki}"
+      WIKI_DB_PASSWORD: "${WIKI_DB_PASSWORD:-wiki}"
+      WIKI_DB_NAME: "${WIKI_DB_NAME:-wiki}"
     ports:
       - "5432:5432"
     volumes:

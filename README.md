@@ -10,9 +10,10 @@ commands from the clone directory that contains that file.
 
 - **`app`** — Next.js standalone on port 3000, attached to the host Traefik network `traefik-public`
 - **`strapi`** — CMS admin/API on port 1337 at `cms.simverse.sh`
+- **`wiki`** — Wiki.js on port 3000 at `kb.simverse.sh` (`mem_limit` 1g; dedicated Postgres role/DB)
 - **`poller`** — daily midnight eSIM Access catalog sync into Redis
 - **`mcp`** — FastMCP HTTP on port 4000 (`internal` + `egress` only; other containers use `http://mcp:4000`)
-- **Postgres 18** — databases `app` and `strapi`
+- **Postgres 18** — databases `app`, `strapi`, and `wiki`
 - **Redis 8** — RedisJSON catalog documents, RediSearch, carts (`redis:8` loads modules via its entrypoint)
 - **`offen/docker-volume-backup`** — daily dumps to S3
 
@@ -26,6 +27,7 @@ TLS and HTTP→HTTPS are provided by the host Traefik stack, not this compose fi
 | `https://api.simverse.sh` | Webhooks and other route handlers (`/webhooks/...` publicly; Traefik prefixes `/api` for Next.js). Same-origin `/api` stays on the two UI hosts. |
 | `https://blog.simverse.sh` | Public blog (pretty-rooted: `/` is the post list, `/[slug]` is an article) |
 | `https://cms.simverse.sh` | Strapi admin (`/admin`), REST API (`/api`), and media (`/uploads`) |
+| `https://kb.simverse.sh` | Wiki.js (behind Cloudflare Access, same as dashboard/cms) |
 
 Internal Compose services can call the app at `http://app:3000/api/...` on the
 `internal` network. Internet callers (Telegram, eSIM Access, Trybit, Cardlink)
@@ -53,6 +55,7 @@ and set production values. Origins have **no trailing slash**. Use strong
 | `TELEGRAM_WEBHOOK_SECRET` | ≥ 16 chars; `A-Z a-z 0-9 _ -` only. `openssl rand -hex 24` |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Passed into the Postgres container. |
 | `DATABASE_URL` | Compose: `postgresql://USER:PASSWORD@postgres:5432/DB` |
+| `WIKI_DB_USER`, `WIKI_DB_PASSWORD`, `WIKI_DB_NAME` | Dedicated Wiki.js Postgres role and database (defaults: `wiki`). Production must use a strong `WIKI_DB_PASSWORD` (`openssl rand -hex 24`). |
 | `REDIS_PASSWORD` | Redis `--requirepass`. |
 | `REDIS_URL` | Compose: `redis://:PASSWORD@redis:6379` |
 | `ESIMACCESS_ACCESS_CODE` | eSIM Access API. |
@@ -76,6 +79,7 @@ What Compose injects:
 
 - **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, `BLOG_URL`, `STRAPI_URL`, `STRAPI_API_TOKEN`, Telegram, eSIM Access, Trybit, Cardlink, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`strapi`:** Postgres `DATABASE_*` (database name `strapi`), `PUBLIC_URL` from `STRAPI_PUBLIC_URL`, `APP_KEYS` / JWT / encryption secrets from `STRAPI_*`.
+- **`wiki`:** `DB_*` from `WIKI_DB_*` (Postgres host `postgres`). Traefik host `kb.simverse.sh`.
 - **`poller`:** same runtime env as **`app`**, plus `OPENROUTER_KEY`. Order recovery imports the app env schema, so production validation needs those secrets even though the worker is not the web app.
 - **`mcp`:** `MCP_HOST`, `MCP_PORT`, `REDIS_URL`, `OPENROUTER_API_KEY` (from `OPENROUTER_KEY`), `OPENROUTER_MODEL`. Not published; reach it at `http://mcp:4000` on `internal`.
 
@@ -99,6 +103,14 @@ docker compose -f compose.prod.yaml exec postgres \
 ```
 
 Then open `https://cms.simverse.sh/admin` and create the first admin user. Publish Articles in **en** and **ru**.
+
+If the Postgres volume already existed before Wiki.js was added, create the dedicated role and database once (after `WIKI_DB_*` are set in `.env` and postgres has been recreated/restarted so those env vars are present):
+
+```bash
+docker compose -f compose.prod.yaml exec postgres sh /docker-entrypoint-initdb.d/init-wiki-db.sh
+```
+
+Then open `https://kb.simverse.sh` (Cloudflare Access) and complete the Wiki.js first-run admin setup.
 
 ## 3. Start or update the stack
 
@@ -160,7 +172,7 @@ docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f poller
 ```
 
-- Open `https://dashboard.simverse.sh`, `https://miniapp.simverse.sh`, `https://blog.simverse.sh`, and `https://cms.simverse.sh/admin`.
+- Open `https://dashboard.simverse.sh`, `https://miniapp.simverse.sh`, `https://blog.simverse.sh`, `https://cms.simverse.sh/admin`, and `https://kb.simverse.sh`.
 - Poller logs a catalog sync on start, then daily at midnight (`[cron] synced … packages to RedisJSON catalog generation …`).
 - Sign in at `https://dashboard.simverse.sh` as `support@simverse.sh`.
 
@@ -173,7 +185,7 @@ docker compose -f compose.prod.yaml exec postgres \
 
 ## 6. Backups and rollback
 
-- Before each archive, Postgres runs `pg_dump -F c` for both `app` (`POSTGRES_DB`) and `strapi` into the `pg_dumps` volume and deletes dumps older than 7 days.
+- Before each archive, Postgres runs `pg_dump -F c` for `app` (`POSTGRES_DB`), `strapi`, and `wiki` into the `pg_dumps` volume and deletes dumps older than 7 days.
 - The backup service runs daily at 03:00, uploads `pg-backup-*.tar.gz` to S3, and retains archives for 14 days.
 
 Rollback: check out the previous git SHA, run `docker compose -f compose.prod.yaml up -d --build`. Reverse a Prisma migration only if you explicitly choose to; do not treat that as the default rollback.
