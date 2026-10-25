@@ -23,10 +23,11 @@ describe("welcomeLocale", () => {
 describe("startWelcome", () => {
   test("returns English copy and Open the App web_app button by default", () => {
     const welcome = startWelcome("en");
-    expect(welcome.text).toContain("Welcome to Simverse!");
+    expect(welcome.text).toContain("We sell travel eSIMs");
     expect(welcome.text).toContain("Pay with USDT.");
     expect(welcome.text).toContain("150 countries");
     expect(welcome.text).toContain("registered business");
+    expect(welcome.text).not.toContain("Welcome to Simverse");
     expect(welcome.text).not.toContain("Добро пожаловать");
     expect(welcome.replyMarkup.inline_keyboard[0]?.[0]).toEqual({
       text: "Open the App",
@@ -36,10 +37,11 @@ describe("startWelcome", () => {
 
   test("returns Russian copy and Открыть приложение for ru language codes", () => {
     const welcome = startWelcome("ru-RU");
-    expect(welcome.text).toContain("Добро пожаловать в Simverse!");
+    expect(welcome.text).toContain("Мы продаём travel eSIM");
     expect(welcome.text).toContain("Оплата: СБП или USDT.");
     expect(welcome.text).toContain("150 странах");
     expect(welcome.text).toContain("зарегистрированный бизнес");
+    expect(welcome.text).not.toContain("Добро пожаловать");
     expect(welcome.replyMarkup.inline_keyboard[0]?.[0]?.text).toBe(
       "Открыть приложение",
     );

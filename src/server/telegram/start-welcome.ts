@@ -22,8 +22,6 @@ export function welcomeLocale(
 const COPY = {
   en: {
     text: [
-      "Welcome to Simverse!",
-      "",
       "We sell travel eSIMs you can install in minutes — coverage in about 150 countries at affordable prices.",
       "",
       "Pay with USDT.",
@@ -36,8 +34,6 @@ const COPY = {
   },
   ru: {
     text: [
-      "Добро пожаловать в Simverse!",
-      "",
       "Мы продаём travel eSIM, которые устанавливаются за минуты — покрытие примерно в 150 странах по доступным ценам.",
       "",
       "Оплата: СБП или USDT.",

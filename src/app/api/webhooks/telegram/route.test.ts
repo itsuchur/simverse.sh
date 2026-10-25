@@ -102,7 +102,8 @@ describe("telegram webhook /start", () => {
       text: expected.text,
       replyMarkup: expected.replyMarkup,
     });
-    expect(expected.text).toContain("Welcome to Simverse!");
+    expect(expected.text).toContain("We sell travel eSIMs");
+    expect(expected.text).not.toContain("Welcome to Simverse");
     expect(fakeDb.webhookLogs).toHaveLength(1);
     expect(fakeDb.webhookLogs[0]?.source).toBe("telegram");
   });
@@ -124,7 +125,8 @@ describe("telegram webhook /start", () => {
       text: expected.text,
       replyMarkup: expected.replyMarkup,
     });
-    expect(expected.text).toContain("Добро пожаловать");
+    expect(expected.text).toContain("Мы продаём travel eSIM");
+    expect(expected.text).not.toContain("Добро пожаловать");
   });
 
   test("prefers preferredLanguage over Telegram language_code", async () => {
