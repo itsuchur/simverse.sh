@@ -10,6 +10,7 @@ import { miniappPathForRequest } from "~/server/miniapp-path";
 import { isSalesActive } from "~/server/sales";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { getEsimAccessPackageByCode } from "~/server/suppliers/esimaccess/packages";
+import { extractCoverage } from "~/server/suppliers/esimaccess/coverage";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,10 @@ export default async function CheckoutPage({
         plan={plan}
         cartRevision={cart.revision}
         supportTopUpType={catalog?.pkg.supportTopUpType}
+        networkCoverage={extractCoverage(
+          catalog?.pkg.locationNetworkList,
+          plan.country,
+        )}
       />
     );
   }

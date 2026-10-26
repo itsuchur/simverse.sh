@@ -58,7 +58,6 @@
     "unlimitedSpeedKbps": "{speed} Кбит/с",
     "countriesCount": "{count} стран",
     "supportedCountries": "Поддерживаемые страны",
-    "coverageVaries": "Сети могут отличаться в зависимости от тарифа. Выберите тариф, чтобы увидеть его покрытие.",
     "networksUnavailable": "Информация о сетях недоступна",
     "noMatchingPlans": "Нет подходящих тарифов",
     "noMatchingDescription": "Попробуйте изменить запрос.",

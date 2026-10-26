@@ -4,7 +4,9 @@ import { useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types";
 
-function uniqueCountries(packages: CatalogPackage[]): string[] {
+type CoveragePackage = Pick<CatalogPackage, "location" | "coverage">;
+
+function uniqueCountries(packages: CoveragePackage[]): string[] {
   const seen = new Set<string>();
   const codes: string[] = [];
   for (const pkg of packages) {
@@ -32,9 +34,11 @@ function countryDisplayName(countryCode: string, locale: string) {
 export function CoverageList({
   packages,
   locale,
+  showCountry = true,
 }: {
-  packages: CatalogPackage[];
+  packages: CoveragePackage[];
   locale: string;
+  showCountry?: boolean;
 }) {
   const t = useTranslations("Catalog");
   const countries = uniqueCountries(packages)
@@ -60,24 +64,32 @@ export function CoverageList({
             key={code}
             className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 py-4 first:pt-0 last:pb-0"
           >
-            <div className="flex min-w-0 items-center gap-3 font-medium">
-              <ReactCountryFlag
-                countryCode={code}
-                svg
-                className="shrink-0 rounded-sm"
-                style={{ width: "2rem", height: "1.5rem" }}
-                aria-hidden
-              />
-              <span>{name}</span>
-            </div>
+            {showCountry && (
+              <div className="flex min-w-0 items-center gap-3 font-medium">
+                <ReactCountryFlag
+                  countryCode={code}
+                  svg
+                  className="shrink-0 rounded-sm"
+                  style={{ width: "2rem", height: "1.5rem" }}
+                  aria-hidden
+                />
+                <span>{name}</span>
+              </div>
+            )}
             {operators.size ? (
-              <ul className="ml-auto space-y-2">
+              <ul
+                className={
+                  showCountry ? "ml-auto space-y-2" : "w-full space-y-2"
+                }
+              >
                 {[...operators].map(([operator, types]) => (
                   <li
                     key={operator}
-                    className="text-muted-foreground flex items-center justify-end gap-2 text-sm"
+                    className={`text-muted-foreground flex items-center gap-2 text-sm ${showCountry ? "justify-end" : "justify-between"}`}
                   >
-                    <span className="text-right">{operator}</span>
+                    <span className={showCountry ? "text-right" : undefined}>
+                      {operator}
+                    </span>
                     <span className="flex shrink-0 gap-1">
                       {[...types].sort().map((type) => (
                         <span
@@ -99,7 +111,9 @@ export function CoverageList({
                 ))}
               </ul>
             ) : (
-              <span className="text-muted-foreground ml-auto text-right text-sm">
+              <span
+                className={`text-muted-foreground text-sm ${showCountry ? "ml-auto text-right" : ""}`}
+              >
                 {t("networksUnavailable")}
               </span>
             )}

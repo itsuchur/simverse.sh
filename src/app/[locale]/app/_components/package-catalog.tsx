@@ -243,12 +243,11 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
                 </Dialog>
               </>
             ) : (
-              <CoverageList packages={coveragePackages} locale={locale} />
-            )}
-            {!selectedPkg && group.packages.length > 1 && (
-              <p className="text-muted-foreground text-sm">
-                {t("coverageVaries")}
-              </p>
+              <CoverageList
+                packages={coveragePackages}
+                locale={locale}
+                showCountry={false}
+              />
             )}
 
             <p className="text-base font-medium">{t("choosePackage")}</p>

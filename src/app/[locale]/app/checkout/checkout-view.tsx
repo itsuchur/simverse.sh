@@ -14,6 +14,8 @@ import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 import { openExternalLink } from "~/lib/telegram-webapp";
 import { useMiniappPath } from "~/lib/use-miniapp-path";
+import { CoverageList } from "../_components/coverage-list";
+import type { CatalogCoverage } from "~/server/suppliers/esimaccess/catalog-types";
 
 async function checkoutHeaders() {
   const headers: Record<string, string> = {};
@@ -129,10 +131,12 @@ export function CheckoutView({
   plan,
   cartRevision,
   supportTopUpType,
+  networkCoverage,
 }: {
   plan: CartPlan;
   cartRevision: string;
   supportTopUpType: number | undefined;
+  networkCoverage: CatalogCoverage[];
 }) {
   const t = useTranslations("Checkout");
   const tCatalog = useTranslations("Catalog");
@@ -304,6 +308,26 @@ export function CheckoutView({
           </dd>
         </div>
       </dl>
+
+      {plan.country.split(",").filter(Boolean).length > 1 ? (
+        <details className="border-border rounded-xl border p-4">
+          <summary className="cursor-pointer font-medium">
+            {tCatalog("supportedCountries")}
+          </summary>
+          <div className="mt-4">
+            <CoverageList
+              packages={[{ location: plan.country, coverage: networkCoverage }]}
+              locale={locale}
+            />
+          </div>
+        </details>
+      ) : (
+        <CoverageList
+          packages={[{ location: plan.country, coverage: networkCoverage }]}
+          locale={locale}
+          showCountry={false}
+        />
+      )}
 
       <div className="mt-auto flex flex-col gap-3">
         {payError ? (

@@ -58,7 +58,6 @@
     "unlimitedSpeedKbps": "{speed} Kbps",
     "countriesCount": "{count} Countries",
     "supportedCountries": "Supported countries",
-    "coverageVaries": "Networks may vary by plan. Select a plan to see its coverage.",
     "networksUnavailable": "Network details unavailable",
     "noMatchingPlans": "No matching plans",
     "noMatchingDescription": "Try a different search.",
