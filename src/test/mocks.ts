@@ -7,6 +7,11 @@ import type { CartPlan } from "~/lib/cart-plan";
 import { mock } from "bun:test";
 import { createHmac } from "node:crypto";
 
+import {
+  esimFulfillmentCapture,
+  type EsimFulfillmentRecord,
+} from "~/lib/posthog/fulfillment";
+
 import { fakeDb } from "./fake-db";
 
 export const sentryCaptureMessage = mock(
@@ -24,6 +29,10 @@ export const captureServerEvent = mock(
     properties?: Record<string, unknown>;
   }) => undefined,
 );
+
+export function recordEsimFulfillment(input: EsimFulfillmentRecord) {
+  captureServerEvent(esimFulfillmentCapture(input));
+}
 
 export function capturedEvents(): string[] {
   return captureServerEvent.mock.calls.map((call) => call[0].event);

@@ -104,7 +104,10 @@ try {
   void mock.module("~/server/db", () => isolatedDb);
   void mock.module("../src/server/db", () => isolatedDb);
   void mock.module("@sentry/nextjs", () => ({ captureException: (error: unknown) => { throw error; }, captureMessage: () => undefined }));
-  void mock.module("../src/lib/posthog/server", () => ({ captureServerEvent: () => undefined }));
+  void mock.module("../src/lib/posthog/server", () => ({
+    captureServerEvent: () => undefined,
+    recordEsimFulfillment: () => undefined,
+  }));
   const originalFetch = globalThis.fetch;
   let lookups = 0;
   globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {

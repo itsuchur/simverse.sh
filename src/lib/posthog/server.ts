@@ -3,6 +3,10 @@ import "server-only";
 import { PostHog } from "posthog-node";
 
 import { env } from "~/env";
+import {
+  esimFulfillmentCapture,
+  type EsimFulfillmentRecord,
+} from "~/lib/posthog/fulfillment";
 
 let client: PostHog | null | undefined;
 
@@ -50,4 +54,9 @@ export function captureServerEvent(input: {
     },
   });
   void posthog.flush().catch(() => undefined);
+}
+
+/** Record a terminal fulfillment outcome. `$insert_id` is the event plus order. */
+export function recordEsimFulfillment(input: EsimFulfillmentRecord) {
+  captureServerEvent(esimFulfillmentCapture(input));
 }

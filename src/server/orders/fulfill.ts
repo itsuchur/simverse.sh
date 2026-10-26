@@ -26,7 +26,7 @@ import {
 } from "~/lib/order-status";
 import { projectEsimSnapshot } from "~/lib/esim-lifecycle";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
-import { captureServerEvent } from "~/lib/posthog/server";
+import { captureServerEvent, recordEsimFulfillment } from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
 import {
   processPendingRefund,
@@ -146,14 +146,59 @@ async function applyProfile(
     return;
   }
 
-  captureServerEvent({
-    event: "esim_issued",
+  await notifyBuyerEsimDelivery(orderId);
+  recordEsimFulfillment({
+    outcome: "issued",
+    kind: "issue",
     distinctId: updated.user.telegramId,
     orderUuid: updated.orderUuid,
-    properties: { packageCode: updated.resellerPlanId },
+    packageCode: updated.resellerPlanId,
   });
+}
 
-  await notifyBuyerEsimDelivery(orderId);
+async function recordFulfillmentForUser(input: {
+  userId: string;
+  orderUuid: string;
+  packageCode: string;
+  outcome: "issued" | "failed";
+  kind: "issue" | "topup";
+  failureReason?: string;
+}) {
+  const user = await db.user.findUnique({
+    where: { id: input.userId },
+    select: { telegramId: true },
+  });
+  recordEsimFulfillment({
+    outcome: input.outcome,
+    kind: input.kind,
+    distinctId: user?.telegramId,
+    orderUuid: input.orderUuid,
+    packageCode: input.packageCode,
+    failureReason: input.failureReason,
+  });
+}
+
+async function refundUnfulfilledTopup(
+  order: {
+    id: bigint;
+    userId: string;
+    orderUuid: string;
+    resellerPlanId: string;
+  },
+  uncertainSupplierOutcome: boolean,
+) {
+  const claimed = await requestTopupRefund(order.id, uncertainSupplierOutcome);
+  if (!claimed) return;
+  await recordFulfillmentForUser({
+    userId: order.userId,
+    orderUuid: order.orderUuid,
+    packageCode: order.resellerPlanId,
+    outcome: "failed",
+    kind: "topup",
+    failureReason: uncertainSupplierOutcome
+      ? "topup_outcome_unknown"
+      : "topup_parent_unavailable",
+  });
 }
 
 function captureOrderPaid(input: {
@@ -317,16 +362,6 @@ export async function placeSupplierOrder(order: OrderRow) {
       tags: { component: "esimaccess", reason: "order_failed" },
       extra: { orderUuid: order.orderUuid, packageCode: order.resellerPlanId },
     });
-    const user = await db.user.findUnique({
-      where: { id: order.userId },
-      select: { telegramId: true },
-    });
-    captureServerEvent({
-      event: "esim_issue_failed",
-      distinctId: user?.telegramId,
-      orderUuid: order.orderUuid,
-      properties: { packageCode: order.resellerPlanId },
-    });
 
     if (error instanceof EsimAccessApiError && error.code === "200007") {
       const current = await db.order.findUnique({ where: { id: order.id } });
@@ -339,14 +374,25 @@ export async function placeSupplierOrder(order: OrderRow) {
           topupOfOrderId: current.topupOfOrderId,
         }))
       ) {
-        await requestIssueFailedRefund(order.id);
+        if (await requestIssueFailedRefund(order.id)) {
+          await recordFulfillmentForUser({
+            userId: order.userId,
+            orderUuid: order.orderUuid,
+            packageCode: order.resellerPlanId,
+            outcome: "failed",
+            kind: "issue",
+            failureReason: "supplier_balance_insufficient",
+          });
+        }
         return;
       }
       // Balance recovered or check uncertain: leave ordering/paid for recovery.
       return;
     }
 
-    await db.order.updateMany({
+    const failureReason =
+      error instanceof Error ? error.message : "order_failed";
+    const failed = await db.order.updateMany({
       where: {
         id: order.id,
         resellerOrderId: null,
@@ -355,9 +401,19 @@ export async function placeSupplierOrder(order: OrderRow) {
       },
       data: {
         status: orderStatus.failed,
-        failureReason: error instanceof Error ? error.message : "order_failed",
+        failureReason,
       },
     });
+    if (failed.count > 0) {
+      await recordFulfillmentForUser({
+        userId: order.userId,
+        orderUuid: order.orderUuid,
+        packageCode: order.resellerPlanId,
+        outcome: "failed",
+        kind: "issue",
+        failureReason,
+      });
+    }
   }
 }
 
@@ -387,7 +443,7 @@ async function placeSupplierTopup(order: {
       where: { id: order.topupOfOrderId },
     });
     if (parent?.userId !== order.userId || !parent.esimIccid) {
-      await requestTopupRefund(order.id, order.status !== orderStatus.paid);
+      await refundUnfulfilledTopup(order, order.status !== orderStatus.paid);
       return;
     }
 
@@ -423,7 +479,7 @@ async function placeSupplierTopup(order: {
       (parentStatus != null && TOPUP_BLOCKED_STATUSES.has(parentStatus)) ||
       (expiredAt !== undefined && expiredAt <= Date.now())
     ) {
-      await requestTopupRefund(order.id, order.status !== orderStatus.paid);
+      await refundUnfulfilledTopup(order, order.status !== orderStatus.paid);
       return;
     }
     if (order.costAmount === null) {
@@ -462,7 +518,7 @@ async function placeSupplierTopup(order: {
       await db.order.update({ where: { id: parent.id }, data: patch });
     }
 
-    await db.order.updateMany({
+    const issued = await db.order.updateMany({
       where: {
         id: order.id,
         resellerOrderId: null,
@@ -476,11 +532,20 @@ async function placeSupplierTopup(order: {
         resellerRawResponse: result,
       },
     });
+    if (issued.count > 0) {
+      await recordFulfillmentForUser({
+        userId: order.userId,
+        orderUuid: order.orderUuid,
+        packageCode: order.resellerPlanId,
+        outcome: "issued",
+        kind: "topup",
+      });
+    }
   } catch (error) {
     if (error instanceof EsimAccessApiError && error.code === "200002") {
       // The profile can expire after our query, while the top-up is in flight.
       // On a retry, an earlier unknown outcome still needs reconciliation.
-      await requestTopupRefund(order.id, order.status !== orderStatus.paid);
+      await refundUnfulfilledTopup(order, order.status !== orderStatus.paid);
       return;
     }
     Sentry.captureException(error, {
@@ -488,17 +553,9 @@ async function placeSupplierTopup(order: {
       tags: { component: "esimaccess", reason: "topup_failed" },
       extra: { orderUuid: order.orderUuid, packageCode: order.resellerPlanId },
     });
-    const user = await db.user.findUnique({
-      where: { id: order.userId },
-      select: { telegramId: true },
-    });
-    captureServerEvent({
-      event: "esim_issue_failed",
-      distinctId: user?.telegramId,
-      orderUuid: order.orderUuid,
-      properties: { packageCode: order.resellerPlanId },
-    });
-    await db.order.updateMany({
+    const failureReason =
+      error instanceof Error ? error.message : "topup_failed";
+    const failed = await db.order.updateMany({
       where: {
         id: order.id,
         resellerOrderId: null,
@@ -507,9 +564,19 @@ async function placeSupplierTopup(order: {
       },
       data: {
         status: orderStatus.failed,
-        failureReason: error instanceof Error ? error.message : "topup_failed",
+        failureReason,
       },
     });
+    if (failed.count > 0) {
+      await recordFulfillmentForUser({
+        userId: order.userId,
+        orderUuid: order.orderUuid,
+        packageCode: order.resellerPlanId,
+        outcome: "failed",
+        kind: "topup",
+        failureReason,
+      });
+    }
   }
 }
 

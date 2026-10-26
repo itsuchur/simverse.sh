@@ -247,7 +247,7 @@ export async function processPendingRefund(orderId: bigint) {
 export async function requestTopupRefund(
   orderId: bigint,
   uncertainSupplierOutcome = false,
-) {
+): Promise<boolean> {
   const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
   const claimed = await db.$transaction(async (tx) => {
     const result = await tx.order.updateMany({
@@ -286,7 +286,7 @@ export async function requestTopupRefund(
     }
     return result.count;
   });
-  if (!claimed) return;
+  if (!claimed) return false;
   if (uncertainSupplierOutcome) {
     await refundFailed(
       order,
@@ -294,13 +294,16 @@ export async function requestTopupRefund(
         "Automatic refund requires manual reconciliation: a previous supplier top-up may have succeeded",
       ),
     );
-    return;
+    return true;
   }
   await processPendingRefund(orderId);
+  return true;
 }
 
 /** Auto-refund a new eSIM purchase after confirmed supplier balance failure. */
-export async function requestIssueFailedRefund(orderId: bigint) {
+export async function requestIssueFailedRefund(
+  orderId: bigint,
+): Promise<boolean> {
   const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
   const claimed = await db.$transaction(async (tx) => {
     const result = await tx.order.updateMany({
@@ -329,8 +332,9 @@ export async function requestIssueFailedRefund(orderId: bigint) {
     }
     return result.count;
   });
-  if (!claimed) return;
+  if (!claimed) return false;
   await processPendingRefund(orderId);
+  return true;
 }
 
 /** Reconcile authoritative REST state, including reversals and late completion. */

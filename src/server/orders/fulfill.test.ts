@@ -528,6 +528,7 @@ describe("top-up fulfillment", () => {
     expect(parent.dataTotalBytes).toBe(5000n);
     expect(parent.dataUsedBytes).toBe(1000n);
     expect(parent.expiresAt?.toISOString()).toBe("2026-08-24T17:01:37.000Z");
+    expect(capturedEvents()).toEqual(["esim_topup_issued"]);
     expect(capturedEvents()).not.toContain("esim_issued");
   });
 
@@ -591,6 +592,7 @@ describe("top-up fulfillment", () => {
       periodNum: 7,
     });
     expect(child.status).toBe("issued");
+    expect(capturedEvents()).toEqual(["esim_topup_issued"]);
   });
 
   test("marks the top-up failed without touching the parent", async () => {

@@ -13,6 +13,7 @@ import {
   clearCart,
   getCartSnapshot,
   esimAccessPost,
+  recordEsimFulfillment,
   sentryCaptureException,
   sentryCaptureMessage,
   telegramSendMessage,
@@ -65,6 +66,7 @@ void mock.module("@sentry/nextjs", () => ({
 
 void mock.module("../lib/posthog/server", () => ({
   captureServerEvent,
+  recordEsimFulfillment,
 }));
 
 void mock.module("../server/cart", () => ({
