@@ -111,6 +111,24 @@ describe("queryEsimAccessProfiles", () => {
     });
   });
 
+  test("collects top-up transaction ids from the profile and its packages", async () => {
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        esimList: [
+          {
+            iccid: "890",
+            transactionId: "base-order",
+            packageList: [{ packageCode: "TOPUP_CKH491", transactionId: "topup-1" }],
+          },
+        ],
+      },
+    });
+
+    const profiles = await queryEsimAccessProfiles("EA-1");
+    expect(profiles[0]?.transactionIds).toEqual(["base-order", "topup-1"]);
+  });
+
   test("returns an empty list when the supplier has no profiles yet", async () => {
     esimAccessPost.mockResolvedValueOnce({ success: true, obj: {} });
     expect(await queryEsimAccessProfiles("EA-1")).toEqual([]);

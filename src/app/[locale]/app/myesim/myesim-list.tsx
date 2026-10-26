@@ -306,7 +306,9 @@ function OrderCard({
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {order.paymentStatus === paymentStatus.refunded ||
+        {order.status === orderStatus.refundRequired ? (
+          <p className="text-destructive text-base">{t("paymentReview")}</p>
+        ) : order.paymentStatus === paymentStatus.refunded ||
         order.paymentStatus === paymentStatus.chargeback ? (
           <p className="text-muted-foreground text-base">{t("reversed")}</p>
         ) : order.paymentStatus === paymentStatus.pending ? (

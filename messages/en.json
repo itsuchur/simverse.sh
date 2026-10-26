@@ -110,6 +110,7 @@
     "title": "My eSIMs",
     "description": "Your installed and purchased eSIMs will appear here.",
     "preparing": "Preparing your eSIM…",
+    "paymentReview": "This payment needs a manual review. Contact support via the Telegram bot.",
     "failed": "We couldn't issue this eSIM. Contact support via the Telegram bot.",
     "qrAlt": "eSIM QR code",
     "install": "Install eSIM",

@@ -301,8 +301,10 @@ describe("handleTrybitWebhook", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(order.paymentStatus).toBe("pending");
-    expect(order.status).toBe("created");
+    expect(order.paymentStatus).toBe("paid");
+    expect(order.status).toBe("refund_required");
+    expect(order.failureReason).toBe("amount_mismatch");
+    expect(esimOrderCallCount()).toBe(0);
     expect(sentryCaptureMessage.mock.calls[0]?.[0]).toBe(
       "Trybit webhook amount mismatch",
     );

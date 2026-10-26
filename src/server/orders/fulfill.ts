@@ -1,4 +1,4 @@
-import { recordCompletedRefund } from "~/server/refunds/store";
+import { ensureRefund, recordCompletedRefund } from "~/server/refunds/store";
 import "server-only";
 
 import { hasEsimCredentials } from "~/lib/esim-provisioning";
@@ -10,6 +10,7 @@ import { db, isUniqueConstraintError } from "~/server/db";
 import {
   orderEsimAccessPackage,
   queryEsimAccessProfiles,
+  queryEsimAccessProfilesByIccid,
   topUpEsimAccessProfile,
   type EsimAccessProfile,
 } from "~/server/suppliers/esimaccess/order";
@@ -31,10 +32,12 @@ import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
 import {
   processPendingRefund,
   requestIssueFailedRefund,
+  requestTopupBalanceRefund,
   requestTopupRefund,
 } from "~/server/orders/topup-refund";
 import { confirmInsufficientBalanceFailure } from "~/server/suppliers/esimaccess/balance-check";
 import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
+import { refundStatus } from "~/lib/refund-status";
 
 export {
   CARDLINK_PAYMENT_PROVIDER,
@@ -198,6 +201,95 @@ async function refundUnfulfilledTopup(
     failureReason: uncertainSupplierOutcome
       ? "topup_outcome_unknown"
       : "topup_parent_unavailable",
+  });
+}
+
+const AMOUNT_MISMATCH_REASON =
+  "Captured payment amount does not match the order. Manual refund required.";
+
+/** Money was captured, but not for this order's price. A person refunds it. */
+export async function holdCapturedPaymentMismatch(input: {
+  provider: string;
+  orderUuid: string;
+  chargeId: string;
+}) {
+  const held = await db.order.updateMany({
+    where: {
+      orderUuid: input.orderUuid,
+      paymentProvider: input.provider,
+      paymentChargeId: null,
+      paymentStatus: { in: [paymentStatus.pending, paymentStatus.failed] },
+      status: { in: [orderStatus.created, orderStatus.failed] },
+    },
+    data: {
+      paymentStatus: paymentStatus.paid,
+      paymentChargeId: input.chargeId,
+      paidAt: new Date(),
+      status: orderStatus.refundRequired,
+      failureReason: "amount_mismatch",
+    },
+  });
+  if (!held.count) return;
+
+  const order = await db.order.findUnique({
+    where: { orderUuid: input.orderUuid },
+    include: { user: { select: { telegramId: true } } },
+  });
+  if (!order) return;
+
+  const refund = await ensureRefund(order, {
+    source: "automatic",
+    reason: AMOUNT_MISMATCH_REASON,
+  });
+  await db.refund.update({
+    where: { id: refund.id },
+    data: {
+      status: refundStatus.manualReview,
+      failureCode: "amount_mismatch",
+    },
+  });
+
+  const telegramId = order.user.telegramId;
+  if (typeof telegramId === "string" && telegramId.length > 0) {
+    try {
+      await clearCartIfRevisionMatches(telegramId, order.cartRevision);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { component: "cart", reason: "clear_failed" },
+      });
+    }
+  }
+}
+
+async function completeAppliedTopup(order: {
+  id: bigint;
+  userId: string;
+  orderUuid: string;
+  resellerPlanId: string;
+}) {
+  const issued = await db.order.updateMany({
+    where: {
+      id: order.id,
+      topupOfOrderId: { not: null },
+      paymentStatus: paymentStatus.paid,
+      esimIccid: null,
+      status: {
+        in: [orderStatus.paid, orderStatus.ordering, orderStatus.failed],
+      },
+    },
+    data: {
+      status: orderStatus.issued,
+      failureReason: null,
+      issuedAt: new Date(),
+    },
+  });
+  if (!issued.count) return;
+  await recordFulfillmentForUser({
+    userId: order.userId,
+    orderUuid: order.orderUuid,
+    packageCode: order.resellerPlanId,
+    outcome: "issued",
+    kind: "topup",
   });
 }
 
@@ -470,6 +562,41 @@ async function placeSupplierTopup(order: {
         where: { id: parent.id },
         data: snapshot,
       });
+      if (profile.transactionIds?.includes(order.orderUuid)) {
+        await completeAppliedTopup(order);
+        return;
+      }
+    } else if (order.status !== orderStatus.paid && parent.esimIccid) {
+      // A lost top-up response leaves no supplier order id. The profile query
+      // is the record that this transaction was already applied. A failed
+      // lookup must not hide a later expiry refund.
+      const parentIccid = parent.esimIccid;
+      try {
+        const profiles = await queryEsimAccessProfilesByIccid(parentIccid);
+        const profile = profiles.find((row) => row.iccid === parentIccid);
+        if (profile?.transactionIds?.includes(order.orderUuid)) {
+          const snapshot = projectEsimSnapshot(parent, {
+            source: "query",
+            observedAt: new Date(),
+            esimStatus: profile.esimStatus,
+            smdpStatus: profile.smdpStatus,
+            activateTime: profile.activateTime,
+            expiredTime: profile.expiredTime,
+            totalVolume: profile.totalVolume,
+            orderUsage: profile.orderUsage,
+          });
+          if (Object.keys(snapshot).length > 0) {
+            await db.order.update({ where: { id: parent.id }, data: snapshot });
+          }
+          await completeAppliedTopup(order);
+          return;
+        }
+      } catch (error) {
+        Sentry.captureException(error, {
+          tags: { component: "esimaccess", reason: "topup_replay_query_failed" },
+          extra: { orderUuid: order.orderUuid },
+        });
+      }
     }
     const parentStatus = parent?.esimStatus;
     const expiredAt = parent?.expiresAt?.getTime();
@@ -546,6 +673,32 @@ async function placeSupplierTopup(order: {
       // The profile can expire after our query, while the top-up is in flight.
       // On a retry, an earlier unknown outcome still needs reconciliation.
       await refundUnfulfilledTopup(order, order.status !== orderStatus.paid);
+      return;
+    }
+    if (error instanceof EsimAccessApiError && error.code === "200007") {
+      const current = await db.order.findUnique({ where: { id: order.id } });
+      if (
+        current &&
+        (await confirmInsufficientBalanceFailure({
+          resellerOrderId: current.resellerOrderId,
+          esimIccid: current.esimIccid,
+          costAmount: current.costAmount,
+          topupOfOrderId: current.topupOfOrderId,
+        }))
+      ) {
+        if (await requestTopupBalanceRefund(order.id)) {
+          await recordFulfillmentForUser({
+            userId: order.userId,
+            orderUuid: order.orderUuid,
+            packageCode: order.resellerPlanId,
+            outcome: "failed",
+            kind: "topup",
+            failureReason: "supplier_balance_insufficient",
+          });
+        }
+        return;
+      }
+      // Balance recovered or check uncertain: leave ordering/paid for recovery.
       return;
     }
     Sentry.captureException(error, {
@@ -664,6 +817,7 @@ async function fulfillPayment(input: {
   );
   if (alreadyCharged) {
     if (alreadyCharged.paymentStatus !== paymentStatus.paid) return;
+    if (alreadyCharged.status === orderStatus.refundRequired) return;
     await continueFulfillment(alreadyCharged, input.provider);
     return;
   }
@@ -682,6 +836,7 @@ async function fulfillPayment(input: {
   const telegramId = input.telegramId ?? order.user.telegramId;
 
   if (order.paymentStatus === paymentStatus.paid) {
+    if (order.status === orderStatus.refundRequired) return;
     if (order.paymentChargeId === input.chargeId) {
       await continueFulfillment(order, input.provider);
       return;
@@ -847,26 +1002,34 @@ export async function fulfillTrybitPayment(input: {
   invoiceUuid: string;
   amountUsd: number;
 }) {
+  const order = await db.order.findUnique({
+    where: { orderUuid: input.orderUuid },
+  });
+  if (order?.paymentProvider !== TRYBIT_PAYMENT_PROVIDER) return;
+  if (order.paymentStatus !== paymentStatus.paid) {
+    const cents = usdNumberToCents(input.amountUsd);
+    if (order.currency !== "USD" || cents === null || cents !== order.priceAmount) {
+      Sentry.captureMessage("Trybit webhook amount mismatch", {
+        level: "error",
+        tags: { component: "trybit", reason: "amount_mismatch" },
+        extra: {
+          orderUuid: input.orderUuid,
+          expected: order.priceAmount.toString(),
+          received: input.amountUsd,
+        },
+      });
+      await holdCapturedPaymentMismatch({
+        provider: TRYBIT_PAYMENT_PROVIDER,
+        orderUuid: input.orderUuid,
+        chargeId: input.invoiceUuid,
+      });
+      return;
+    }
+  }
   await fulfillPayment({
     provider: TRYBIT_PAYMENT_PROVIDER,
     orderUuid: input.orderUuid,
     chargeId: input.invoiceUuid,
-    validate: (order) => {
-      const cents = usdNumberToCents(input.amountUsd);
-      if (order.currency !== "USD" || cents === null || cents !== order.priceAmount) {
-        Sentry.captureMessage("Trybit webhook amount mismatch", {
-          level: "error",
-          tags: { component: "trybit", reason: "amount_mismatch" },
-          extra: {
-            orderUuid: input.orderUuid,
-            expected: order.priceAmount.toString(),
-            received: input.amountUsd,
-          },
-        });
-        return false;
-      }
-      return true;
-    },
   });
 }
 
@@ -1062,39 +1225,44 @@ export async function fulfillXhubPayment(input: {
   paymentId: string;
   amountRub: string;
 }) {
+  const order = await db.order.findUnique({
+    where: { orderUuid: input.orderUuid },
+  });
+  if (order?.paymentProvider !== XHUB_PAYMENT_PROVIDER) return;
+  if (order.paymentStatus !== paymentStatus.paid) {
+    const kopecks = usdAmountToCents(input.amountRub);
+    if (order.currency !== "RUB" || kopecks === null || kopecks !== order.priceAmount) {
+      Sentry.captureMessage(
+        order.currency !== "RUB"
+          ? "X-Hub webhook currency mismatch"
+          : "X-Hub webhook amount mismatch",
+        {
+          level: "error",
+          tags: {
+            component: "xhub",
+            reason: order.currency !== "RUB" ? "currency_mismatch" : "amount_mismatch",
+          },
+          extra: {
+            orderUuid: input.orderUuid,
+            expected: order.currency === "RUB"
+              ? order.priceAmount.toString()
+              : order.currency,
+            received: order.currency === "RUB" ? input.amountRub : "RUB",
+          },
+        },
+      );
+      await holdCapturedPaymentMismatch({
+        provider: XHUB_PAYMENT_PROVIDER,
+        orderUuid: input.orderUuid,
+        chargeId: input.paymentId,
+      });
+      return;
+    }
+  }
   await fulfillPayment({
     provider: XHUB_PAYMENT_PROVIDER,
     orderUuid: input.orderUuid,
     chargeId: input.paymentId,
-    validate: (order) => {
-      if (order.currency !== "RUB") {
-        Sentry.captureMessage("X-Hub webhook currency mismatch", {
-          level: "error",
-          tags: { component: "xhub", reason: "currency_mismatch" },
-          extra: {
-            orderUuid: input.orderUuid,
-            expected: order.currency,
-            received: "RUB",
-          },
-        });
-        return false;
-      }
-
-      const kopecks = usdAmountToCents(input.amountRub);
-      if (kopecks === null || kopecks !== order.priceAmount) {
-        Sentry.captureMessage("X-Hub webhook amount mismatch", {
-          level: "error",
-          tags: { component: "xhub", reason: "amount_mismatch" },
-          extra: {
-            orderUuid: input.orderUuid,
-            expected: order.priceAmount.toString(),
-            received: input.amountRub,
-          },
-        });
-        return false;
-      }
-      return true;
-    },
   });
 }
 
@@ -1228,6 +1396,9 @@ export async function recoverPendingOrders(userId?: string) {
       OR: [
         {
           topupOfOrderId: null,
+          // refund_required is a manual hold. It cannot be claimed, and leaving
+          // it in this oldest-first batch crowds out orders that can still issue.
+          status: { not: orderStatus.refundRequired },
           OR: [
             { status: { not: orderStatus.issued } },
             { esimIccid: null },
@@ -1310,6 +1481,20 @@ export async function attachGotResource(input: {
   orderNo: string | null;
   transactionId: string | null;
 }) {
+  if (input.transactionId) {
+    try {
+      const child = await db.order.findUnique({
+        where: { orderUuid: input.transactionId },
+      });
+      if (child?.topupOfOrderId) {
+        await completeAppliedTopup(child);
+        return;
+      }
+    } catch {
+      // transactionId is not our UUID; fall through to the parent lookup.
+    }
+  }
+
   const order = await findOrderForResource(input);
 
   if (!order) {

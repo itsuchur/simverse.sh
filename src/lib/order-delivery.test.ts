@@ -16,6 +16,16 @@ test("keeps refreshing through delayed payment and partial provisioning", () => 
   expect(needsDeliveryRefresh(order)).toBe(false);
 });
 
+test("a payment held for review no longer polls for delivery", () => {
+  expect(
+    needsDeliveryRefresh({
+      paymentStatus: "paid",
+      status: "refund_required",
+      esimIccid: null,
+    }),
+  ).toBe(false);
+});
+
 test("a reversed payment no longer waits for delivery", () => {
   for (const paymentStatus of ["refunded", "chargeback", "failed"]) {
     expect(needsDeliveryRefresh({ paymentStatus, esimIccid: null })).toBe(

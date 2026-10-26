@@ -1,10 +1,11 @@
 import { createHmac } from "node:crypto";
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { handleXhubWebhook } from "~/server/webhooks/payments/xhub";
 import { fakeDb } from "~/test/fake-db";
 import {
+  esimOrderCallCount,
   resetTestState,
   sentryCaptureMessage,
   stubEsimAccess,
@@ -78,12 +79,39 @@ function payload(
   };
 }
 
+const originalFetch = globalThis.fetch;
+const paymentFetch = mock(async (): Promise<Response> => {
+  throw new Error("Unexpected HTTP request");
+});
+
+function xhubApi(orderUuid: string, extra: Record<string, unknown> = {}) {
+  return Response.json({
+    id: PAYMENT_ID,
+    external_id: orderUuid,
+    status: "paid",
+    amount_requested: "500.00",
+    amount_received: "500.00",
+    ...extra,
+  });
+}
+
 describe("handleXhubWebhook", () => {
-  beforeEach(resetTestState);
+  beforeEach(() => {
+    resetTestState();
+    paymentFetch.mockReset();
+    paymentFetch.mockImplementation(async () => {
+      throw new Error("Unexpected HTTP request");
+    });
+    globalThis.fetch = paymentFetch as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
 
   test("paid webhook fulfills the order", async () => {
     const order = seedPendingOrder();
     stubEsimAccess({ orderNo: "EA-XHUB", profiles: [PROFILE] });
+    paymentFetch.mockResolvedValue(xhubApi(order.orderUuid));
 
     const response = await handleXhubWebhook(
       callback(payload(order.orderUuid)),
@@ -111,6 +139,7 @@ describe("handleXhubWebhook", () => {
   test("settled callback recovers a missing paid callback without double delivery", async () => {
     const order = seedPendingOrder();
     stubEsimAccess({ orderNo: "EA-XHUB", profiles: [PROFILE] });
+    paymentFetch.mockResolvedValue(xhubApi(order.orderUuid, { status: "settled" }));
     expect((await handleXhubWebhook(callback(payload(order.orderUuid, { status: "settled" })))).status).toBe(200);
     expect(order.status).toBe("issued");
     const issuedAt = order.issuedAt;
@@ -121,6 +150,7 @@ describe("handleXhubWebhook", () => {
 
   test("cancelled webhook fails a pending order", async () => {
     const order = seedPendingOrder();
+    paymentFetch.mockResolvedValue(xhubApi(order.orderUuid, { status: "cancelled" }));
 
     const response = await handleXhubWebhook(
       callback(payload(order.orderUuid, { status: "cancelled" })),
@@ -133,6 +163,7 @@ describe("handleXhubWebhook", () => {
 
   test("failed webhook fails a pending order", async () => {
     const order = seedPendingOrder();
+    paymentFetch.mockResolvedValue(xhubApi(order.orderUuid, { status: "failed" }));
 
     const response = await handleXhubWebhook(
       callback(payload(order.orderUuid, { status: "failed" })),
@@ -143,27 +174,108 @@ describe("handleXhubWebhook", () => {
     expect(order.status).toBe("failed");
   });
 
-  test("amount mismatch keeps the order pending and alerts", async () => {
+  test("a captured amount that does not match the API is held for review", async () => {
     const order = seedPendingOrder();
+    paymentFetch.mockImplementation(async () =>
+      xhubApi(order.orderUuid, {
+        amount_requested: "499.00",
+        amount_received: "499.00",
+      }),
+    );
 
     const response = await handleXhubWebhook(
       callback(
         payload(order.orderUuid, {
-          amount_rub: "499.00",
-          actual_amount_rub: "499.00",
+          amount_rub: "500.00",
+          actual_amount_rub: "500.00",
         }),
       ),
     );
 
     expect(response.status).toBe(200);
-    expect(order.paymentStatus).toBe("pending");
+    expect(order.paymentStatus).toBe("paid");
+    expect(order.status).toBe("refund_required");
+    expect(order.failureReason).toBe("amount_mismatch");
+    expect(order.paymentChargeId).toBe(PAYMENT_ID);
+    expect(fakeDb.refundForOrder(order.id)?.status).toBe("manual_review");
+    expect(esimOrderCallCount()).toBe(0);
     expect(sentryCaptureMessage.mock.calls[0]?.[0]).toBe(
       "X-Hub webhook amount mismatch",
     );
+    expect((await handleXhubWebhook(callback(payload(order.orderUuid)))).status).toBe(200);
+    expect(order.status).toBe("refund_required");
+    expect(esimOrderCallCount()).toBe(0);
+  });
+
+  test("the webhook body cannot override a matching API amount", async () => {
+    const order = seedPendingOrder();
+    stubEsimAccess({ orderNo: "EA-XHUB", profiles: [PROFILE] });
+    paymentFetch.mockResolvedValue(xhubApi(order.orderUuid));
+
+    const response = await handleXhubWebhook(
+      callback(
+        payload(order.orderUuid, {
+          amount_rub: "1.00",
+          actual_amount_rub: "1.00",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(order.status).toBe("issued");
+  });
+
+  test("expired API status fails a pending order even when the body says paid", async () => {
+    const order = seedPendingOrder();
+    paymentFetch.mockResolvedValue(
+      xhubApi(order.orderUuid, { status: "expired", amount_received: null }),
+    );
+
+    const response = await handleXhubWebhook(
+      callback(payload(order.orderUuid, { status: "paid" })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(order.paymentStatus).toBe("failed");
+    expect(order.status).toBe("failed");
+    expect(esimOrderCallCount()).toBe(0);
+  });
+
+  test("amount_mismatch without a received amount is not fulfilled from the request", async () => {
+    const order = seedPendingOrder();
+    paymentFetch.mockResolvedValue(
+      xhubApi(order.orderUuid, {
+        status: "amount_mismatch",
+        amount_received: null,
+      }),
+    );
+
+    const response = await handleXhubWebhook(callback(payload(order.orderUuid)));
+
+    expect(response.status).toBe(200);
+    expect(order.status).toBe("refund_required");
+    expect(esimOrderCallCount()).toBe(0);
+    expect(sentryCaptureMessage.mock.calls[0]?.[0]).toBe(
+      "X-Hub payment amount_mismatch without a received amount",
+    );
+  });
+
+  test("payment lookup failure asks X-Hub to retry", async () => {
+    const order = seedPendingOrder();
+    paymentFetch.mockRejectedValue(new Error("down"));
+
+    const response = await handleXhubWebhook(callback(payload(order.orderUuid)));
+
+    expect(response.status).toBe(503);
+    expect(order.paymentStatus).toBe("pending");
+    expect(esimOrderCallCount()).toBe(0);
   });
 
   test("processing webhook is a no-op", async () => {
     const order = seedPendingOrder();
+    paymentFetch.mockResolvedValue(
+      xhubApi(order.orderUuid, { status: "processing", amount_received: null }),
+    );
 
     const response = await handleXhubWebhook(
       callback(payload(order.orderUuid, { status: "processing" })),
@@ -183,6 +295,9 @@ describe("handleXhubWebhook", () => {
       paymentChargeId: PAYMENT_ID,
     });
 
+    paymentFetch.mockResolvedValue(
+      xhubApi(order.orderUuid, { status: "refunded" }),
+    );
     const response = await handleXhubWebhook(
       callback(
         payload(order.orderUuid, {

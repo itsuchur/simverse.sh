@@ -52,6 +52,14 @@ test("confirmInsufficientBalanceFailure requires a fresh low balance and no supp
       topupOfOrderId: null,
     }),
   ).toBe(true);
+  expect(
+    await confirmInsufficientBalanceFailure({
+      resellerOrderId: null,
+      esimIccid: null,
+      costAmount: 500n,
+      topupOfOrderId: 1n,
+    }),
+  ).toBe(true);
   expect(esimAccessPost.mock.calls.some((call) => call[0] === "/balance/query")).toBe(
     true,
   );

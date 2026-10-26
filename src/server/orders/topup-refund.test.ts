@@ -259,8 +259,12 @@ describe("unfulfillable paid top-ups", () => {
     expect(child.status).toBe("refund_required");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(
-      (sentryCaptureException.mock.calls[0]?.[0] as Error).message,
-    ).toContain("previous supplier top-up may have succeeded");
+      sentryCaptureException.mock.calls.some((call) =>
+        (call[0] as Error).message.includes(
+          "previous supplier top-up may have succeeded",
+        ),
+      ),
+    ).toBe(true);
   });
 
   test("fresh supplier expiry takes priority over an expired local snapshot", async () => {
@@ -378,6 +382,33 @@ describe("unfulfillable paid eSIM purchases", () => {
       resellerPlanId: "CKH491",
     });
   }
+
+  test("confirmed top-up balance failure auto-refunds", async () => {
+    const { parent, child } = seedTopup();
+    parent.expiresAt = new Date(Date.now() + 86_400_000);
+    esimAccessPost.mockImplementation(async (path: string) => {
+      if (path === "/esim/topup") {
+        throw new EsimAccessApiError("200007", "Balance insufficient");
+      }
+      if (path === "/balance/query") {
+        return { success: true, obj: { balance: 1 } };
+      }
+      throw new Error(`unexpected path ${path}`);
+    });
+    const fetchMock = stubRefund();
+    await payXhub(child.orderUuid);
+    expect(child.status).toBe("refund_pending");
+    expect(child.failureReason).toBe("supplier_balance_insufficient");
+    expect(fakeDb.refundForOrder(child.id)?.reason).toContain(
+      "insufficient merchant balance",
+    );
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.x-hub.online/api/v1/refunds",
+    );
+    expect(esimAccessPost.mock.calls.some((call) => call[0] === "/esim/order")).toBe(
+      false,
+    );
+  });
 
   test("confirmed insufficient balance auto-refunds and notifies the buyer once", async () => {
     const order = seedPurchase();

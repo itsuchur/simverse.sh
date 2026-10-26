@@ -23,6 +23,8 @@ const TOPUP_REFUND_REASON =
   "Top-up cannot be fulfilled because the parent eSIM is unavailable.";
 const ISSUE_FAILED_REFUND_REASON =
   "Provider could not issue eSIM (insufficient merchant balance).";
+const TOPUP_BALANCE_REFUND_REASON =
+  "Provider could not top up eSIM (insufficient merchant balance).";
 
 function bareId(id: string) {
   return id.replace(/^(pay_|ref_)/, "");
@@ -296,6 +298,43 @@ export async function requestTopupRefund(
     );
     return true;
   }
+  await processPendingRefund(orderId);
+  return true;
+}
+
+/** Auto-refund a paid top-up after confirmed supplier balance failure. */
+export async function requestTopupBalanceRefund(
+  orderId: bigint,
+): Promise<boolean> {
+  const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
+  const claimed = await db.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        topupOfOrderId: { not: null },
+        resellerOrderId: null,
+        esimIccid: null,
+        status: { in: [orderStatus.ordering, orderStatus.paid] },
+        paymentStatus: paymentStatus.paid,
+      },
+      data: {
+        status: orderStatus.refundPending,
+        failureReason: "supplier_balance_insufficient",
+      },
+    });
+    if (result.count) {
+      await ensureRefund(
+        order,
+        {
+          source: "automatic",
+          reason: TOPUP_BALANCE_REFUND_REASON,
+        },
+        tx,
+      );
+    }
+    return result.count;
+  });
+  if (!claimed) return false;
   await processPendingRefund(orderId);
   return true;
 }

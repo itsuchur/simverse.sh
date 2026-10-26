@@ -175,7 +175,7 @@ describe("fulfillStarsPayment", () => {
 });
 
 describe("payment validation", () => {
-  test("Trybit amount mismatch keeps the order pending", async () => {
+  test("Trybit amount mismatch holds the captured payment for review", async () => {
     fakeDb.seedUser({ id: "user-1", telegramId: "42" });
     const order = fakeDb.seedOrder({ priceAmount: 1099n });
 
@@ -185,7 +185,11 @@ describe("payment validation", () => {
       amountUsd: 5,
     });
 
-    expect(order.paymentStatus).toBe("pending");
+    expect(order.paymentStatus).toBe("paid");
+    expect(order.status).toBe("refund_required");
+    expect(order.failureReason).toBe("amount_mismatch");
+    expect(order.paymentChargeId).toBe("INV-1");
+    expect(fakeDb.refundForOrder(order.id)?.status).toBe("manual_review");
     expect(sentryCaptureMessage.mock.calls[0]?.[0]).toBe(
       "Trybit webhook amount mismatch",
     );
@@ -623,6 +627,80 @@ describe("top-up fulfillment", () => {
     expect(parent.dataUsedBytes).toBe(100n);
   });
 
+  test("a retry skips top-up when the supplier profile already has the transaction", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      resellerOrderId: "EA-PARENT",
+      esimIccid: "89000000000000000010",
+      esimStatus: "IN_USE",
+    });
+    const child = fakeDb.seedOrder({
+      status: "failed",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      resellerPlanId: "TOPUP_CKH491",
+      costAmount: 70000n,
+      updatedAt: new Date(0),
+      failureReason: "supplier down",
+    });
+    esimAccessPost.mockImplementation(async (path: string) => {
+      if (path === "/esim/query") {
+        return {
+          success: true,
+          obj: {
+            esimList: [
+              {
+                iccid: parent.esimIccid,
+                esimTranNo: "tran-parent",
+                transactionId: "base-order",
+                packageList: [{ transactionId: child.orderUuid }],
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`unexpected path ${path}`);
+    });
+
+    await placeSupplierOrder(child);
+
+    expect(esimAccessPost.mock.calls.map((call) => call[0])).toEqual([
+      "/esim/query",
+    ]);
+    expect(child.status).toBe("issued");
+    expect(capturedEvents()).toEqual(["esim_topup_issued"]);
+  });
+
+  test("a supplier resource webhook completes the top-up without a second purchase", async () => {
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      resellerOrderId: "EA-PARENT",
+      esimIccid: "89000000000000000010",
+      esimActivationCode: "LPA:1$rsp.example.com$K",
+      esimSmdpAddress: "rsp.example.com",
+    });
+    const child = fakeDb.seedOrder({
+      status: "ordering",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      resellerPlanId: "TOPUP_CKH491",
+      costAmount: 70000n,
+    });
+
+    await attachGotResource({
+      orderNo: "EA-TOPUP",
+      transactionId: child.orderUuid,
+    });
+
+    expect(child.status).toBe("issued");
+    expect(parent.resellerOrderId).toBe("EA-PARENT");
+    expect(esimAccessPost).not.toHaveBeenCalled();
+    expect(capturedEvents()).toEqual(["esim_topup_issued"]);
+  });
+
   test("an issued top-up is not ordered again", async () => {
     const parent = fakeDb.seedOrder({
       status: "issued",
@@ -669,6 +747,30 @@ describe("top-up fulfillment", () => {
     expect(child.esimIccid).toBeNull();
     expect(child.esimStatus).toBeNull();
   });
+});
+
+test("manual refund reviews do not crowd out eSIM recovery", async () => {
+  fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+  for (let index = 0; index < 100; index += 1) {
+    fakeDb.seedOrder({
+      paymentStatus: "paid",
+      status: "refund_required",
+      failureReason: "amount_mismatch",
+      updatedAt: new Date(0),
+    });
+  }
+  const ready = fakeDb.seedOrder({
+    paymentStatus: "paid",
+    status: "paid",
+    updatedAt: new Date(),
+  });
+  stubEsimAccess({ orderNo: "EA-READY", profiles: [PROFILE] });
+
+  await recoverPendingOrders();
+
+  expect(ready.status).toBe("issued");
+  expect(ready.resellerOrderId).toBe("EA-READY");
+  expect(esimOrderCallCount()).toBe(1);
 });
 
 describe("placeSupplierOrder claiming", () => {

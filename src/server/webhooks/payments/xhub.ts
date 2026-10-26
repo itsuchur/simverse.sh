@@ -1,14 +1,11 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 
 import { withWebhookLogging } from "~/lib/webhook-logger";
-import {
-  failXhubPayment,
-  fulfillXhubPayment,
-  markXhubRefunded,
-} from "~/server/orders/fulfill";
-import { verifyXhubWebhookSignature } from "~/server/payments/xhub";
+import { applyVerifiedXhubPayment } from "~/server/orders/payment-reconciliation";
+import { getXhubPayment, verifyXhubWebhookSignature } from "~/server/payments/xhub";
 import { syncXhubRefund } from "~/server/orders/topup-refund";
 
 const refundEventSchema = z.object({
@@ -41,14 +38,6 @@ const paymentStatusChangedSchema = z.object({
   actual_amount_rub: z.string().nullable().optional(),
   payment_method: z.enum(["sbp", "card", "recurring"]).optional(),
 });
-
-function rubStringToKopecks(amount: string) {
-  const value = Number(amount);
-  if (!Number.isFinite(value)) {
-    return null;
-  }
-  return BigInt(Math.round(value * 100));
-}
 
 export const handleXhubWebhook = withWebhookLogging(
   "xhub",
@@ -100,31 +89,18 @@ export const handleXhubWebhook = withWebhookLogging(
       return Response.json({ error: "Invalid body" }, { status: 400 });
     }
 
-    const {
-      payment_id: paymentId,
-      external_id: orderUuid,
-      status,
-      amount_rub: amountRub,
-      actual_amount_rub: actualAmountRub,
-    } = parsed.data;
-
-    if (status === "paid" || status === "settled") {
-      await fulfillXhubPayment({
-        orderUuid,
-        paymentId,
-        amountRub: actualAmountRub ?? amountRub,
+    try {
+      const payment = await getXhubPayment(parsed.data.payment_id);
+      await applyVerifiedXhubPayment(parsed.data.external_id, payment);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { component: "xhub", reason: "payment_verification_failed" },
+        extra: { orderUuid: parsed.data.external_id },
       });
-    } else if (status === "failed" || status === "cancelled") {
-      await failXhubPayment(orderUuid);
-    } else if (status === "refunded") {
-      const refundedAmount = rubStringToKopecks(actualAmountRub ?? amountRub);
-      if (refundedAmount !== null) {
-        await markXhubRefunded({
-          orderUuid,
-          paymentId,
-          refundedAmount,
-        });
-      }
+      return Response.json(
+        { error: "Payment verification unavailable" },
+        { status: 503 },
+      );
     }
 
     return Response.json({ ok: true });

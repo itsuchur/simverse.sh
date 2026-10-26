@@ -19,6 +19,8 @@ export type EsimAccessProfile = {
   expiredTime?: string | null;
   totalVolume?: number;
   orderUsage?: number;
+  /** Supplier transaction ids already applied to this profile, including top-ups. */
+  transactionIds?: string[];
 };
 
 const UNUSED_ESIM_STATUSES = new Set(["GOT_RESOURCE", "NOT_ACTIVE"]);
@@ -70,6 +72,28 @@ function smdpFromActivationCode(ac: string | undefined): string | undefined {
   return undefined;
 }
 
+function collectTransactionIds(
+  value: unknown,
+  found: string[],
+  seen: Set<object>,
+) {
+  if (!value || typeof value !== "object") return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    for (const item of value) collectTransactionIds(item, found, seen);
+    return;
+  }
+  const row = value as Record<string, unknown>;
+  const id = asString(row.transactionId);
+  if (id && !found.includes(id)) found.push(id);
+  for (const nested of Object.values(row)) {
+    if (nested && typeof nested === "object") {
+      collectTransactionIds(nested, found, seen);
+    }
+  }
+}
+
 function mapProfile(raw: unknown): EsimAccessProfile | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
@@ -81,6 +105,8 @@ function mapProfile(raw: unknown): EsimAccessProfile | null {
   const expiredTime = asProviderTime(row.expiredTime);
   const totalVolume = asFiniteNumber(row.totalVolume);
   const orderUsage = asFiniteNumber(row.orderUsage);
+  const transactionIds: string[] = [];
+  collectTransactionIds(row, transactionIds, new Set());
   return {
     iccid,
     esimTranNo: asString(row.esimTranNo),
@@ -93,6 +119,7 @@ function mapProfile(raw: unknown): EsimAccessProfile | null {
     ...(expiredTime !== undefined ? { expiredTime } : {}),
     ...(totalVolume !== undefined ? { totalVolume } : {}),
     ...(orderUsage !== undefined ? { orderUsage } : {}),
+    ...(transactionIds.length > 0 ? { transactionIds } : {}),
   };
 }
 
@@ -123,17 +150,30 @@ export async function orderEsimAccessPackage(input: {
   };
 }
 
-export async function queryEsimAccessProfiles(
-  orderNo: string,
-): Promise<EsimAccessProfile[]> {
+async function queryEsimProfiles(filter: {
+  orderNo?: string;
+  iccid?: string;
+}): Promise<EsimAccessProfile[]> {
   const envelope = await esimAccessPost<QueryResponse>("/esim/query", {
-    orderNo,
+    ...(filter.orderNo ? { orderNo: filter.orderNo } : { iccid: filter.iccid }),
     pager: { pageNum: 1, pageSize: 10 },
   });
 
   return (envelope.obj?.esimList ?? [])
     .map(mapProfile)
     .filter((profile): profile is EsimAccessProfile => profile !== null);
+}
+
+export function queryEsimAccessProfiles(
+  orderNo: string,
+): Promise<EsimAccessProfile[]> {
+  return queryEsimProfiles({ orderNo });
+}
+
+export function queryEsimAccessProfilesByIccid(
+  iccid: string,
+): Promise<EsimAccessProfile[]> {
+  return queryEsimProfiles({ iccid });
 }
 
 export async function cancelEsimAccessProfile(esimTranNo: string) {

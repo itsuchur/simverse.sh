@@ -5,15 +5,74 @@ import { fulfillUnitpayPayment } from "./fulfill";
 
 import * as Sentry from "@sentry/nextjs";
 import { db } from "~/server/db";
-import { failTrybitPayment, failXhubPayment, fulfillTrybitPayment, fulfillXhubPayment } from "./fulfill";
+import { failTrybitPayment, failXhubPayment, fulfillTrybitPayment, fulfillXhubPayment, holdCapturedPaymentMismatch, markXhubRefunded } from "./fulfill";
 import { findTrybitInvoice, getTrybitInvoice, normalizeTrybitInvoiceId, trybitConfigured, type TrybitInvoiceStatus } from "~/server/payments/trybit";
-import { findXhubPayment, getXhubPayment, xhubConfigured } from "~/server/payments/xhub";
+import { findXhubPayment, getXhubPayment, xhubConfigured, type XhubPaymentState } from "~/server/payments/xhub";
+import { XHUB_PAYMENT_PROVIDER } from "~/lib/order-status";
 
 /** An abandoned Trybit checkout leaves My eSIMs once this long. A later payment still fulfills. */
 export const TRYBIT_UNPAID_TTL_MS = 12 * 60 * 60 * 1000;
 
 function unpaidTrybitExpired(createdAt: Date, now: Date) {
   return now.getTime() - createdAt.getTime() >= TRYBIT_UNPAID_TTL_MS;
+}
+
+function bareXhubId(id: string) {
+  return id.replace(/^pay_/, "");
+}
+
+function rubStringToKopecks(amount: string) {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return null;
+  return BigInt(Math.round(value * 100));
+}
+
+/** Trust the X-Hub payment record, not the webhook body that pointed at it. */
+export async function applyVerifiedXhubPayment(orderUuid: string, payment: XhubPaymentState) {
+  if (payment.external_id !== orderUuid) throw new Error("X-Hub payment order mismatch");
+  const order = await db.order.findUnique({ where: { orderUuid } });
+  if (order?.paymentProvider !== XHUB_PAYMENT_PROVIDER) return;
+  if (order.paymentInvoiceId && bareXhubId(order.paymentInvoiceId) !== bareXhubId(payment.id)) {
+    throw new Error("X-Hub payment ID mismatch");
+  }
+  await db.order.updateMany({
+    where: { id: order.id, paymentInvoiceId: null },
+    data: { paymentInvoiceId: payment.id },
+  });
+
+  if (payment.status === "paid" || payment.status === "settled") {
+    await fulfillXhubPayment({
+      orderUuid,
+      paymentId: payment.id,
+      amountRub: payment.amount_received ?? payment.amount_requested,
+    });
+  } else if (payment.status === "amount_mismatch") {
+    if (!payment.amount_received) {
+      Sentry.captureMessage("X-Hub payment amount_mismatch without a received amount", {
+        level: "error",
+        tags: { component: "xhub", reason: "amount_mismatch" },
+        extra: { orderUuid, paymentId: payment.id },
+      });
+      await holdCapturedPaymentMismatch({
+        provider: XHUB_PAYMENT_PROVIDER,
+        orderUuid,
+        chargeId: payment.id,
+      });
+      return;
+    }
+    await fulfillXhubPayment({
+      orderUuid,
+      paymentId: payment.id,
+      amountRub: payment.amount_received,
+    });
+  } else if (["failed", "cancelled", "expired"].includes(payment.status)) {
+    await failXhubPayment(orderUuid);
+  } else if (payment.status === "refunded") {
+    const refundedAmount = rubStringToKopecks(payment.amount_received ?? payment.amount_requested);
+    if (refundedAmount !== null) {
+      await markXhubRefunded({ orderUuid, paymentId: payment.id, refundedAmount });
+    }
+  }
 }
 
 export async function applyVerifiedTrybitInvoice(orderUuid: string, invoice: TrybitInvoiceStatus) {
@@ -96,13 +155,7 @@ export async function reconcilePendingPayments() {
           ? await getXhubPayment(order.paymentInvoiceId)
           : await findXhubPayment(order.orderUuid, order.createdAt);
         if (!payment) continue;
-        if (payment.external_id !== order.orderUuid) throw new Error("X-Hub payment order mismatch");
-        await db.order.updateMany({ where: { id: order.id, paymentInvoiceId: null }, data: { paymentInvoiceId: payment.id } });
-        if (payment.status === "paid" || payment.status === "settled") {
-          await fulfillXhubPayment({ orderUuid: order.orderUuid, paymentId: payment.id, amountRub: payment.amount_received ?? payment.amount_requested });
-        } else if (["failed", "cancelled", "expired"].includes(payment.status)) {
-          await failXhubPayment(order.orderUuid);
-        }
+        await applyVerifiedXhubPayment(order.orderUuid, payment);
       }
     } catch (error) {
       Sentry.captureException(error, {

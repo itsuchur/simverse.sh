@@ -129,15 +129,31 @@ test("invoice belonging to a different order cannot fulfill", async () => {
   expect(sentryCaptureException).toHaveBeenCalledTimes(1);
 });
 
-test("wrong amount and partial payment never buy a supplier package", async () => {
+test("wrong captured amount is held for manual refund and never buys a package", async () => {
   const order = seed();
   http.mockImplementation(async () => trybit(order.orderUuid, { amount_usd: 4 }));
   await reconcilePendingPayments();
-  expect(order.paymentStatus).toBe("pending");
-  order.paymentNextCheckAt = new Date(0);
+  expect(order.paymentStatus).toBe("paid");
+  expect(order.status).toBe("refund_required");
+  expect(order.failureReason).toBe("amount_mismatch");
+  expect(fakeDb.refundForOrder(order.id)?.status).toBe("manual_review");
+  expect(esimOrderCallCount()).toBe(0);
+});
+
+test("partial payment never buys a supplier package", async () => {
+  const order = seed();
   http.mockImplementation(async () => trybit(order.orderUuid, { status: "partial" }));
   await reconcilePendingPayments();
   expect(order.paymentStatus).toBe("pending");
+  expect(esimOrderCallCount()).toBe(0);
+});
+
+test("X-Hub amount_mismatch is held from the received amount", async () => {
+  const order = seed("xhub");
+  http.mockImplementation(async () => xhub(order.orderUuid, { status: "amount_mismatch", amount_received: "4.00" }));
+  await reconcilePendingPayments();
+  expect(order.status).toBe("refund_required");
+  expect(order.paymentChargeId).toBe("pay-test");
   expect(esimOrderCallCount()).toBe(0);
 });
 

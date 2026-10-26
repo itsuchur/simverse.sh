@@ -88,7 +88,8 @@ type OrderQueryArgs = {
   where: Where;
   data?: Record<string, unknown>;
   include?: { user?: { select?: { telegramId?: boolean } } };
-  orderBy?: { createdAt?: "asc" | "desc" };
+  orderBy?: { createdAt?: "asc" | "desc"; updatedAt?: "asc" | "desc" };
+  take?: number;
 };
 
 function matchValue(actual: unknown, condition: unknown): boolean {
@@ -478,10 +479,25 @@ class FakeDb {
       const first = matches[0];
       return first ? this.withInclude(first, args) : null;
     },
-    findMany: async (args: OrderQueryArgs) =>
-      this.orders
-        .filter((order) => matchWhere(order, args.where))
-        .map((order) => ({ ...order })),
+    findMany: async (args: OrderQueryArgs) => {
+      const matches = this.orders.filter((order) =>
+        matchWhere(order, args.where),
+      );
+      if (args.orderBy?.updatedAt) {
+        const direction = args.orderBy.updatedAt === "desc" ? -1 : 1;
+        matches.sort((a, b) => {
+          const byTime =
+            direction * (a.updatedAt.getTime() - b.updatedAt.getTime());
+          if (byTime !== 0) return byTime;
+          if (a.id < b.id) return -1;
+          if (a.id > b.id) return 1;
+          return 0;
+        });
+      }
+      const limited =
+        typeof args.take === "number" ? matches.slice(0, args.take) : matches;
+      return limited.map((order) => ({ ...order }));
+    },
     update: async (args: OrderQueryArgs) => {
       const record = this.findByUniqueWhere(args.where);
       if (!record) {
