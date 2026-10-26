@@ -8,6 +8,7 @@ import {
 } from "~/lib/esim-provisioning";
 import { miniappPublicUrl } from "~/lib/miniapp-path";
 import { db } from "~/server/db";
+import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
 import {
   sendMessage,
   sendPhoto,
@@ -78,6 +79,8 @@ const COPY: Record<
   WelcomeLocale,
   {
     ready: string;
+    thanks: string;
+    unlimited: string;
     scanOrManual: string;
     manualOnly: string;
     smdpLabel: string;
@@ -94,6 +97,8 @@ const COPY: Record<
 > = {
   en: {
     ready: "Your eSIM is ready!",
+    thanks: "Thank you for buying an eSIM.",
+    unlimited: "Unlimited",
     scanOrManual: "Scan the QR code, or enter details manually:",
     manualOnly: "Enter details manually:",
     smdpLabel: "SM-DP+ Address",
@@ -109,6 +114,8 @@ const COPY: Record<
   },
   ru: {
     ready: "Ваша eSIM готова!",
+    thanks: "Спасибо за покупку eSIM.",
+    unlimited: "Безлимит",
     scanOrManual: "Отсканируйте QR-код или введите данные вручную:",
     manualOnly: "Введите данные вручную:",
     smdpLabel: "Адрес SM-DP+",
@@ -127,6 +134,26 @@ const COPY: Record<
 
 function guideLink(label: string, url: string): string {
   return `<a href="${url}">${escapeHtml(label)}</a>`;
+}
+
+/** Country (or package name) plus data and validity, shared with top-up notices. */
+export function esimPlanSummary(input: {
+  locale: WelcomeLocale;
+  packageName: string;
+  countryCode: string | null;
+  dataAmountMb: number | null;
+  validityDays: number;
+}): { title: string; planLine: string } {
+  const title =
+    input.countryCode && !input.countryCode.includes(",")
+      ? countryDisplayName(input.countryCode, input.locale)
+      : input.packageName;
+
+  const data = isFupPackageName(input.packageName)
+    ? COPY[input.locale].unlimited
+    : formatDataAmount(input.dataAmountMb);
+  const days = formatDays(input.validityDays, input.locale);
+  return { title, planLine: data ? `${data} · ${days}` : days };
 }
 
 export function esimDeliveryMessage(input: {
@@ -153,17 +180,17 @@ export function esimDeliveryMessage(input: {
   );
   const copy = COPY[locale];
 
-  const title =
-    input.countryCode && !input.countryCode.includes(",")
-      ? countryDisplayName(input.countryCode, locale)
-      : input.packageName;
-
-  const data = formatDataAmount(input.dataAmountMb);
-  const days = formatDays(input.validityDays, locale);
-  const planLine = data ? `${data} · ${days}` : days;
+  const { title, planLine } = esimPlanSummary({
+    locale,
+    packageName: input.packageName,
+    countryCode: input.countryCode,
+    dataAmountMb: input.dataAmountMb,
+    validityDays: input.validityDays,
+  });
 
   const text = [
     copy.ready,
+    copy.thanks,
     "",
     escapeHtml(title),
     escapeHtml(planLine),

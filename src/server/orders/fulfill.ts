@@ -29,6 +29,7 @@ import { projectEsimSnapshot } from "~/lib/esim-lifecycle";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
 import { captureServerEvent, recordEsimFulfillment } from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
+import { notifyBuyerTopupApplied } from "~/server/telegram/topup-notice";
 import {
   processPendingRefund,
   requestIssueFailedRefund,
@@ -284,6 +285,15 @@ async function completeAppliedTopup(order: {
     },
   });
   if (!issued.count) return;
+  await recordIssuedTopup(order);
+}
+
+async function recordIssuedTopup(order: {
+  id: bigint;
+  userId: string;
+  orderUuid: string;
+  resellerPlanId: string;
+}) {
   await recordFulfillmentForUser({
     userId: order.userId,
     orderUuid: order.orderUuid,
@@ -291,6 +301,7 @@ async function completeAppliedTopup(order: {
     outcome: "issued",
     kind: "topup",
   });
+  await notifyBuyerTopupApplied(order.id);
 }
 
 function captureOrderPaid(input: {
@@ -660,13 +671,7 @@ async function placeSupplierTopup(order: {
       },
     });
     if (issued.count > 0) {
-      await recordFulfillmentForUser({
-        userId: order.userId,
-        orderUuid: order.orderUuid,
-        packageCode: order.resellerPlanId,
-        outcome: "issued",
-        kind: "topup",
-      });
+      await recordIssuedTopup(order);
     }
   } catch (error) {
     if (error instanceof EsimAccessApiError && error.code === "200002") {

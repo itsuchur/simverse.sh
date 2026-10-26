@@ -28,6 +28,7 @@ import {
   sentryCaptureException,
   sentryCaptureMessage,
   stubEsimAccess,
+  telegramSendMessage,
 } from "~/test/mocks";
 
 const PROFILE = {
@@ -534,6 +535,13 @@ describe("top-up fulfillment", () => {
     expect(parent.expiresAt?.toISOString()).toBe("2026-08-24T17:01:37.000Z");
     expect(capturedEvents()).toEqual(["esim_topup_issued"]);
     expect(capturedEvents()).not.toContain("esim_issued");
+    expect(telegramSendMessage).toHaveBeenCalledTimes(1);
+    expect(telegramSendMessage.mock.calls[0]?.[0]).toMatchObject({
+      chatId: 42,
+      text: ["Your top-up is ready!", "", "United States", "1 GB · 7 days"].join(
+        "\n",
+      ),
+    });
   });
 
   test("prefers esimTranNo from the parent supplier order", async () => {
@@ -699,6 +707,81 @@ describe("top-up fulfillment", () => {
     expect(parent.resellerOrderId).toBe("EA-PARENT");
     expect(esimAccessPost).not.toHaveBeenCalled();
     expect(capturedEvents()).toEqual(["esim_topup_issued"]);
+  });
+
+  test("a failed top-up notice still leaves the top-up issued", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      esimIccid: "89000000000000000010",
+      esimStatus: "IN_USE",
+    });
+    const child = fakeDb.seedOrder({
+      status: "paid",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      resellerPlanId: "CN_1_Daily",
+      costAmount: 460000n,
+      topupPeriodDays: 5,
+    });
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: {
+        transactionId: child.orderUuid,
+        iccid: parent.esimIccid,
+        totalVolume: 5000,
+        orderUsage: 1000,
+      },
+    });
+    telegramSendMessage.mockRejectedValueOnce(new Error("telegram down"));
+
+    await placeSupplierOrder(child);
+
+    expect(child.status).toBe("issued");
+    expect(capturedEvents()).toEqual(["esim_topup_issued"]);
+    expect(sentryCaptureException.mock.calls[0]?.[1]).toMatchObject({
+      tags: { component: "telegram", reason: "topup_notice_failed" },
+    });
+  });
+
+  test("a supplier resource webhook notifies the buyer once", async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42", languageCode: "en" });
+    const parent = fakeDb.seedOrder({
+      status: "issued",
+      paymentStatus: "paid",
+      resellerOrderId: "EA-PARENT",
+      esimIccid: "89000000000000000010",
+      esimActivationCode: "LPA:1$rsp.example.com$K",
+      esimSmdpAddress: "rsp.example.com",
+    });
+    const child = fakeDb.seedOrder({
+      status: "ordering",
+      paymentStatus: "paid",
+      topupOfOrderId: parent.id,
+      packageName: "Japan 3GB/Day FUP1Mbps",
+      countryCode: "JP",
+      dataAmountMb: 3072,
+      validityDays: 7,
+      resellerPlanId: "TOPUP_CKH491",
+      costAmount: 70000n,
+    });
+
+    await attachGotResource({
+      orderNo: "EA-TOPUP",
+      transactionId: child.orderUuid,
+    });
+    await attachGotResource({
+      orderNo: "EA-TOPUP",
+      transactionId: child.orderUuid,
+    });
+
+    expect(child.status).toBe("issued");
+    expect(telegramSendMessage).toHaveBeenCalledTimes(1);
+    expect(telegramSendMessage.mock.calls[0]?.[0]).toMatchObject({
+      chatId: 42,
+      text: expect.stringContaining("Unlimited · 7 days") as unknown,
+    });
   });
 
   test("an issued top-up is not ordered again", async () => {
