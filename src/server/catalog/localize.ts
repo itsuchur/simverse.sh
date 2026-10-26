@@ -160,6 +160,7 @@ async function translateViaOpenRouter(
             "You translate names of travel eSIM data packages and their region labels " +
             "into natural Russian for a storefront. Reply with a single JSON object " +
             "mapping every input string to its Russian translation, nothing else. " +
+            'Translate "Global" as "Весь мир" and "mainland China" as "Континентальный Китай". ' +
             'Keep numbers, "+" signs and parentheses. Translate "areas" as "направлений", ' +
             '"countries" as "страны/стран" with correct declension. Examples: ' +
             '"Europe(30+ areas)" -> "Европа (30+ направлений)", ' +
