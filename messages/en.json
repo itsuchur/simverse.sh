@@ -118,6 +118,7 @@
     "guideDescription": "Use Install eSIM, or scan the QR code if the button does not open setup.",
     "guideIosTitle": "iPhone",
     "guideAndroidTitle": "Android",
+    "guideRoaming4": "Enable Data Roaming for your purchased eSIM. Before turning it on, make sure you've selected the purchased eSIM, not your main SIM card.",
     "guideIos1": "Tap Install eSIM and confirm when your iPhone asks to add the cellular plan.",
     "guideIos2": "Keep this screen open until setup finishes.",
     "guideIos3": "If nothing happens, go to Settings → Cellular → Add eSIM and scan the QR code.",

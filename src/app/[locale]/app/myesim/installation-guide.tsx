@@ -108,7 +108,12 @@ export function InstallationGuide({
                 <h3 className="text-sm font-medium">{t("guideIosTitle")}</h3>
               ) : null}
               <StepList
-                steps={[t("guideIos1"), t("guideIos2"), t("guideIos3")]}
+                steps={[
+                  t("guideIos1"),
+                  t("guideIos2"),
+                  t("guideIos3"),
+                  t("guideRoaming4"),
+                ]}
               />
               {cardData && platform === "unknown" ? (
                 <Button
@@ -135,6 +140,7 @@ export function InstallationGuide({
                   t("guideAndroid1"),
                   t("guideAndroid2"),
                   t("guideAndroid3"),
+                  t("guideRoaming4"),
                 ]}
               />
               {cardData && platform === "unknown" ? (
