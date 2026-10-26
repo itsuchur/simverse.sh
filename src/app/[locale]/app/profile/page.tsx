@@ -13,6 +13,7 @@ import { Acknowledgments } from "./acknowledgments";
 import { DeleteAccount } from "./delete-account";
 import { Preferences } from "./preferences";
 import { ProfileOptionCard, type ProfileOption } from "./profile-option-card";
+import { supportTelegramHref } from "./support-link";
 import { TransactionHistory } from "./transaction-history";
 import {
   Card,
@@ -25,8 +26,6 @@ import { marketingUrl } from "~/lib/marketing-url";
 import { getSession } from "~/server/better-auth/server";
 
 export const dynamic = "force-dynamic";
-
-const SUPPORT_URL = "https://t.me/simversesupport";
 
 export default async function AppProfile() {
   // The /app layout gates rendering, but pages showing user data must not
@@ -72,7 +71,7 @@ export default async function AppProfile() {
   const supportOption: ProfileOption = {
     label: t("contactSupport"),
     icon: MessageCircle,
-    telegramHref: SUPPORT_URL,
+    telegramHref: supportTelegramHref(user.telegramId),
   };
 
   return (
