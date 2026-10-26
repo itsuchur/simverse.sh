@@ -12,6 +12,7 @@ import { db } from "~/server/db";
 import { DRAFT_TTL_MS } from "~/server/orders/draft";
 import {
   ESIMACCESS_SUPPLIER,
+  exceedsEsimAccessProvisionCost,
   fetchEsimAccessTopupPackages,
   getEsimAccessPackageByCode,
   retailPriceToRub,
@@ -91,7 +92,8 @@ function packageOffer(
     raw.volume < 0 ||
     typeof raw.duration !== "number" ||
     !Number.isInteger(raw.duration) ||
-    raw.duration < 1
+    raw.duration < 1 ||
+    exceedsEsimAccessProvisionCost(raw.price)
   ) {
     return null;
   }
@@ -179,7 +181,14 @@ function dayPassQuote(
     durationDays,
     extendDays: days,
   });
-  return cost === null || retail === null ? null : { cost, retail };
+  if (
+    cost === null ||
+    retail === null ||
+    exceedsEsimAccessProvisionCost(cost)
+  ) {
+    return null;
+  }
+  return { cost, retail };
 }
 
 function dayPassOffers(

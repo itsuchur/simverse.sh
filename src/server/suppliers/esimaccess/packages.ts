@@ -9,6 +9,7 @@ import {
   getPackageExclusions,
   isPackageExcluded,
 } from "~/server/catalog/package-exclusions";
+import { exceedsScaledProvisionCost } from "~/server/catalog/provision-cost";
 import {
   readCatalogGeneration,
   readCatalogMeta,
@@ -203,6 +204,18 @@ export async function fetchUsdRubRate() {
   return { rate: payload.rate, date: payload.date };
 }
 
+/** True when supplier `price` (not retail or our markup) is $100 or more. */
+export function exceedsEsimAccessProvisionCost(scaledPrice: number): boolean {
+  return exceedsScaledProvisionCost(scaledPrice, ESIMACCESS_PRICE_SCALE);
+}
+
+/** Drops packages the provider charges $100 or more to provision. */
+export function omitEsimAccessProvisionCostCap<T extends { price: number }>(
+  packages: T[],
+): T[] {
+  return packages.filter((pkg) => !exceedsEsimAccessProvisionCost(pkg.price));
+}
+
 /** retailPrice is USD with scale 10000 = $1; returns whole dollars, ceiled, at least 1. */
 export function retailPriceToUsd(retailPrice: number): number {
   return Math.max(1, Math.ceil(retailPrice / ESIMACCESS_PRICE_SCALE));
@@ -303,7 +316,9 @@ export const getCachedEsimAccessPackages = cache(
     }
     return {
       ...meta,
-      packageList: filterExcludedPackages(packageList, exclusions),
+      packageList: omitEsimAccessProvisionCostCap(
+        filterExcludedPackages(packageList, exclusions),
+      ),
     };
   },
 );
@@ -313,7 +328,7 @@ export async function getEsimAccessPackageByCode(packageCode: string) {
     readCatalogMeta<EsimAccessCatalogMeta>(ESIMACCESS_SUPPLIER),
     readCatalogPackage<EsimAccessPackage>(ESIMACCESS_SUPPLIER, packageCode),
   ]);
-  if (!meta || !pkg) {
+  if (!meta || !pkg || exceedsEsimAccessProvisionCost(pkg.price)) {
     return null;
   }
   if (await isPackageExcluded(ESIMACCESS_SUPPLIER, pkg)) {

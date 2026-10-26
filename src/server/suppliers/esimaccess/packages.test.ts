@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { usdToStars } from "~/lib/usd-to-stars";
 import {
   ESIMACCESS_PRICE_SCALE,
+  omitEsimAccessProvisionCostCap,
   retailPriceToRub,
   retailPriceToStars,
   retailPriceToUsd,
@@ -83,5 +84,37 @@ describe("withPriceRub", () => {
     );
     expect(priced?.retailPrice).toBe(ESIMACCESS_PRICE_SCALE);
     expect(priced?.price).toBe(5_000);
+  });
+});
+
+describe("omitEsimAccessProvisionCostCap", () => {
+  test("drops supplier cost of $100 or more and ignores retail and markup", () => {
+    const cheap = withPriceRub(
+      [
+        samplePackage({
+          packageCode: "CHEAP",
+          price: 999_999,
+          retailPrice: 50_000_000,
+        }),
+      ],
+      80,
+      2,
+    );
+    const atCap = withPriceRub(
+      [
+        samplePackage({
+          packageCode: "AT_CAP",
+          price: 1_000_000,
+          retailPrice: 1,
+        }),
+      ],
+      80,
+      2,
+    );
+    const kept = omitEsimAccessProvisionCostCap([...cheap, ...atCap]);
+
+    expect(kept.map((pkg) => pkg.packageCode)).toEqual(["CHEAP"]);
+    expect(kept[0]?.price).toBe(999_999);
+    expect(kept[0]?.priceUsd).toBeGreaterThan(100);
   });
 });

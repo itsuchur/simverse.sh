@@ -7,6 +7,7 @@ import {
   buildSearchText,
   fetchEsimflyPackages,
   normalizeEsimflyPackages,
+  omitEsimflyProvisionCostCap,
   resolveLocation,
   toEsimflyPackage,
 } from "~/server/suppliers/esimfly/packages";
@@ -114,6 +115,27 @@ describe("toEsimflyPackage", () => {
     });
     expect(pkg.networkCarrier).toBeUndefined();
     expect("priceRub" in pkg).toBe(false);
+  });
+});
+
+describe("omitEsimflyProvisionCostCap", () => {
+  test("drops USD cost of $100 or more and keeps cheaper or non-USD plans", () => {
+    const packages = [
+      toEsimflyPackage(apiPackage({ package_code: "UNDER", cost: 99.99 }), [
+        "US",
+      ]),
+      toEsimflyPackage(apiPackage({ package_code: "AT_CAP", cost: 100 }), [
+        "US",
+      ]),
+      toEsimflyPackage(
+        apiPackage({ package_code: "EUR", cost: 150, currency: "EUR" }),
+        ["US"],
+      ),
+    ];
+
+    expect(
+      omitEsimflyProvisionCostCap(packages).map((pkg) => pkg.packageCode),
+    ).toEqual(["UNDER", "EUR"]);
   });
 });
 

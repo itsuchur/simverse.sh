@@ -15,6 +15,7 @@ import {
   ESIMACCESS_SUPPLIER,
   fetchEsimAccessPackages,
   fetchUsdRubRate,
+  omitEsimAccessProvisionCostCap,
   withPriceRub,
   writeEsimAccessCatalog,
 } from "~/server/suppliers/esimaccess/packages";
@@ -28,6 +29,7 @@ import {
   ESIMFLY_SUPPLIER,
   fetchEsimflyPackages,
   normalizeEsimflyPackages,
+  omitEsimflyProvisionCostCap,
   writeEsimflyCatalog,
 } from "~/server/suppliers/esimfly/packages";
 
@@ -40,8 +42,10 @@ async function syncEsimAccessPackages() {
   ]);
   const included = filterExcludedPackages(packages, exclusions);
   const preferred = preferCatalogPackages(included);
+  const provisionable = omitEsimAccessProvisionCostCap(preferred);
+  const aboveProvisionCost = preferred.length - provisionable.length;
   const packageList = await withRussianNames(
-    withPriceRub(preferred, fx.rate, priceModifier),
+    withPriceRub(provisionable, fx.rate, priceModifier),
   );
 
   const generation = await writeEsimAccessCatalog(
@@ -55,7 +59,7 @@ async function syncEsimAccessPackages() {
   );
 
   console.log(
-    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, USD/RUB ${fx.rate}, PRICE_MODIFIER ${priceModifier})`,
+    `[cron] synced ${packageList.length} of ${packages.length} eSIM Access packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, ${aboveProvisionCost} at or above the $100 provision cost, USD/RUB ${fx.rate}, PRICE_MODIFIER ${priceModifier})`,
   );
 }
 
@@ -78,7 +82,9 @@ async function syncEsimflyPackages() {
     );
   }
   const included = filterExcludedPackages(packages, exclusions);
-  const packageList = await withEsimflyRussianNames(included);
+  const provisionable = omitEsimflyProvisionCostCap(included);
+  const aboveProvisionCost = included.length - provisionable.length;
+  const packageList = await withEsimflyRussianNames(provisionable);
 
   const generation = await writeEsimflyCatalog(
     {
@@ -90,7 +96,7 @@ async function syncEsimflyPackages() {
   );
 
   console.log(
-    `[cron] synced ${packageList.length} of ${raw.length} eSIMfly packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, ${skipped.length} without resolvable location)`,
+    `[cron] synced ${packageList.length} of ${raw.length} eSIMfly packages to RedisJSON catalog generation ${generation} (${exclusions.packageCodes.size} codes and ${exclusions.countryCodes.size} countries excluded, ${aboveProvisionCost} at or above the $100 provision cost, ${skipped.length} without resolvable location)`,
   );
 }
 

@@ -6,6 +6,7 @@ import type {
   Package as EsimflyApiPackage,
 } from "@esimfly/sdk";
 
+import { exceedsUsdProvisionCost } from "~/server/catalog/provision-cost";
 import { writeCatalogGeneration } from "~/server/catalog/store";
 import { countryNameToIso } from "~/server/suppliers/esimfly/country-codes";
 
@@ -211,6 +212,16 @@ export function buildSearchText(pkg: EsimflyPackage): string {
   }
 
   return [...new Set(parts.filter(Boolean))].join(" ");
+}
+
+/** Drops USD packages the provider charges $100 or more to provision. */
+export function omitEsimflyProvisionCostCap(
+  packages: EsimflyPackage[],
+): EsimflyPackage[] {
+  return packages.filter((pkg) => {
+    if (pkg.currency.toUpperCase() !== "USD") return true;
+    return !exceedsUsdProvisionCost(pkg.cost);
+  });
 }
 
 /** Writes the catalog as one RedisJSON document per package (see store.ts). */

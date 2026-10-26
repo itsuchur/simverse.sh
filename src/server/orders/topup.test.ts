@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
+  exceedsEsimAccessProvisionCost,
   retailPriceToRub,
   retailPriceToStars,
   retailPriceToUsd,
@@ -19,6 +20,7 @@ const getEsimAccessPackageByCode = mock(
 
 void mock.module("~/server/suppliers/esimaccess/packages", () => ({
   ESIMACCESS_SUPPLIER: "esimaccess",
+  exceedsEsimAccessProvisionCost,
   fetchEsimAccessTopupPackages: async (iccid: string) => {
     const payload = await esimAccessPost("/package/list", {
       locationCode: "",
@@ -132,6 +134,50 @@ describe("listTopupOffers", () => {
     expect(offers.packages[2]?.priceUsd).toBe(15);
   });
 
+  test("omits a day-pass preset once its supplier provision cost reaches $100", async () => {
+    const parent = seedParent();
+    getEsimAccessPackageByCode.mockResolvedValue({
+      meta: { usdRubRate: 90 },
+      pkg: { ...DAY_PASS_PKG, price: 40_000, retailPrice: 5_000_000 },
+    });
+    esimAccessPost.mockResolvedValue({
+      success: true,
+      obj: {
+        packageList: [
+          { ...DAY_PASS_TOPUP, price: 40_000, retailPrice: 5_000_000 },
+        ],
+      },
+    });
+
+    const offers = await listTopupOffers({
+      userId: "user-1",
+      orderUuid: parent.orderUuid,
+    });
+
+    expect(offers).toMatchObject({ mode: "packages", action: "extend" });
+    if (offers === "not_found" || offers.mode !== "packages") {
+      throw new Error("expected packages");
+    }
+    expect(offers.packages.map((pkg) => pkg.days)).toEqual([1, 3, 7, 15]);
+    expect(offers.packages[0]?.priceUsd).toBeGreaterThan(100);
+    expect(
+      await prepareTopupPurchase({
+        userId: "user-1",
+        orderUuid: parent.orderUuid,
+        packageCode: "TR_1_Daily_Premium",
+        days: 1,
+      }),
+    ).toMatchObject({ supplierCost: 40_000 });
+    expect(
+      await prepareTopupPurchase({
+        userId: "user-1",
+        orderUuid: parent.orderUuid,
+        packageCode: "TR_1_Daily_Premium",
+        days: 30,
+      }),
+    ).toBe("invalid");
+  });
+
   test("Premium FUP plan does not fall back to a standard daily top-up", async () => {
     const parent = seedParent();
     getEsimAccessPackageByCode.mockResolvedValue({
@@ -183,6 +229,59 @@ describe("listTopupOffers", () => {
       action: "topup",
       packages: [{ packageCode: "TOPUP_CKH491" }],
     });
+  });
+
+  test("keeps a cheap supplier cost when retail is high and drops cost at $100", async () => {
+    const parent = seedParent({ resellerPlanId: DATA_PKG.packageCode });
+    getEsimAccessPackageByCode.mockResolvedValue({
+      meta: { usdRubRate: 90 },
+      pkg: DATA_PKG,
+    });
+    esimAccessPost.mockResolvedValue({
+      success: true,
+      obj: {
+        packageList: [
+          {
+            packageCode: "TOPUP_CHEAP",
+            name: "Europe 1GB 7Days",
+            price: 50_000,
+            retailPrice: 9_000_000,
+            volume: 1024 ** 3,
+            duration: 7,
+          },
+          {
+            packageCode: "TOPUP_AT_CAP",
+            name: "Europe 50GB 30Days",
+            price: 1_000_000,
+            retailPrice: 10_000,
+            volume: 50 * 1024 ** 3,
+            duration: 30,
+          },
+        ],
+      },
+    });
+
+    const offers = await listTopupOffers({
+      userId: "user-1",
+      orderUuid: parent.orderUuid,
+    });
+
+    expect(offers).toMatchObject({
+      mode: "packages",
+      action: "topup",
+      packages: [{ packageCode: "TOPUP_CHEAP" }],
+    });
+    if (offers === "not_found" || offers.mode !== "packages") {
+      throw new Error("expected packages");
+    }
+    expect(offers.packages[0]?.priceUsd).toBeGreaterThan(100);
+    expect(
+      await prepareTopupPurchase({
+        userId: "user-1",
+        orderUuid: parent.orderUuid,
+        packageCode: "TOPUP_AT_CAP",
+      }),
+    ).toBe("invalid");
   });
 });
 
