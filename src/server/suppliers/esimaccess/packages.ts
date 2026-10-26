@@ -3,6 +3,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
+import { extractCoverage } from "~/server/suppliers/esimaccess/coverage";
 import { usdToStars } from "~/lib/usd-to-stars";
 import {
   filterExcludedPackages,
@@ -134,6 +135,7 @@ function toCatalogPackage(pkg: EsimAccessPackage): CatalogPackage {
     priceStars: pkg.priceStars,
     currencyCode: pkg.currencyCode,
     networks: extractNetworks(pkg.locationNetworkList),
+    coverage: extractCoverage(pkg.locationNetworkList, pkg.location),
   };
 }
 

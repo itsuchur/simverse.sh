@@ -3,6 +3,11 @@ export type CatalogNetwork = {
   operatorName: string;
 };
 
+export type CatalogCoverage = {
+  countryCode: string;
+  operators: { operatorName: string; networkTypes: string[] }[];
+};
+
 /** Fields needed to render the store catalog. */
 export type CatalogPackage = {
   packageCode: string;
@@ -24,6 +29,7 @@ export type CatalogPackage = {
   currencyCode: string;
   /** Unique operators from the supplier locationNetworkList. */
   networks?: CatalogNetwork[];
+  coverage?: CatalogCoverage[];
 };
 
 export type PopularCountryPackages = {

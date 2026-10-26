@@ -36,6 +36,7 @@ import type {
   RegionPackages,
 } from "~/server/suppliers/esimaccess/catalog-types";
 import { api } from "~/trpc/react";
+import { CoverageList } from "./coverage-list";
 
 const tabValues = ["popular", "local", "regional"] as const;
 
@@ -83,19 +84,6 @@ function filterRegionGroups(
     .filter((group) => group.packages.length > 0);
 }
 
-function uniqueOperators(packages: CatalogPackage[]): string[] {
-  const seen = new Set<string>();
-  const names: string[] = [];
-  for (const pkg of packages) {
-    for (const network of pkg.networks ?? []) {
-      if (seen.has(network.operatorName)) continue;
-      seen.add(network.operatorName);
-      names.push(network.operatorName);
-    }
-  }
-  return names;
-}
-
 function uniqueCountries(packages: CatalogPackage[]): string[] {
   const seen = new Set<string>();
   const codes: string[] = [];
@@ -108,17 +96,6 @@ function uniqueCountries(packages: CatalogPackage[]): string[] {
     }
   }
   return codes;
-}
-
-function countryDisplayName(countryCode: string, locale: string) {
-  try {
-    return (
-      new Intl.DisplayNames([locale], { type: "region" }).of(countryCode) ??
-      countryCode
-    );
-  } catch {
-    return countryCode;
-  }
 }
 
 function groupPackagesByDuration(packages: CatalogPackage[]) {
@@ -189,19 +166,9 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
   const [countriesOpen, setCountriesOpen] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<CatalogPackage | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const countries = uniqueCountries(group.packages);
+  const coveragePackages = selectedPkg ? [selectedPkg] : group.packages;
+  const countries = uniqueCountries(coveragePackages);
   const isMultiCountry = countries.length > 1;
-  const countryNames = useMemo(
-    () =>
-      countries
-        .map((code) => ({
-          code,
-          name: countryDisplayName(code, locale),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, locale)),
-    [countries, locale],
-  );
-  const operators = uniqueOperators(group.packages);
   const durationGroups = groupPackagesByDuration(group.packages);
   const fromPrice = lowestCatalogPrice(group.packages, locale);
   const priceFormat = catalogNumberFormatOptions(locale);
@@ -267,22 +234,22 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
                       </DialogTitle>
                     </DialogHeader>
                     <div className="[max-height:calc(min(88vh,36rem)-5.75rem)] min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-6 pb-6 [-webkit-overflow-scrolling:touch]">
-                      <ul className="text-muted-foreground list-inside list-disc space-y-1 leading-7">
-                        {countryNames.map(({ code, name }) => (
-                          <li key={code}>{name}</li>
-                        ))}
-                      </ul>
+                      <CoverageList
+                        packages={coveragePackages}
+                        locale={locale}
+                      />
                     </div>
                   </DialogContent>
                 </Dialog>
               </>
-            ) : operators.length > 0 && operators.length <= 3 ? (
-              <ul className="text-muted-foreground list-inside list-disc space-y-1 leading-7">
-                {operators.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            ) : null}
+            ) : (
+              <CoverageList packages={coveragePackages} locale={locale} />
+            )}
+            {!selectedPkg && group.packages.length > 1 && (
+              <p className="text-muted-foreground text-sm">
+                {t("coverageVaries")}
+              </p>
+            )}
 
             <p className="text-base font-medium">{t("choosePackage")}</p>
 
