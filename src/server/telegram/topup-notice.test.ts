@@ -15,7 +15,7 @@ describe("topupAppliedMessage", () => {
     });
 
     expect(message.text).toBe(
-      ["Your top-up is ready!", "", "Spain", "1 GB · 7 days"].join("\n"),
+      ["Your top-up is successful!", "", "Spain", "1 GB · 7 days"].join("\n"),
     );
     expect(message.replyMarkup.inline_keyboard[0]?.[0]).toEqual({
       text: "My eSIMs",
@@ -32,7 +32,7 @@ describe("topupAppliedMessage", () => {
       validityDays: 7,
     });
 
-    expect(message.text).toContain("Пополнение готово!");
+    expect(message.text).toContain("eSIM успешно пополнена!");
     expect(message.text).toContain("Безлимит · 7 дней");
     expect(message.text).not.toContain("3 GB");
     expect(message.replyMarkup.inline_keyboard[0]?.[0]?.text).toBe("Мои eSIM");

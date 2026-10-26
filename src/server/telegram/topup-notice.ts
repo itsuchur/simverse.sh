@@ -17,11 +17,11 @@ import { miniappOrigin } from "~/server/urls";
 
 const COPY: Record<WelcomeLocale, { ready: string; myEsims: string }> = {
   en: {
-    ready: "Your top-up is ready!",
+    ready: "Your top-up is successful!",
     myEsims: "My eSIMs",
   },
   ru: {
-    ready: "Пополнение готово!",
+    ready: "eSIM успешно пополнена!",
     myEsims: "Мои eSIM",
   },
 };
