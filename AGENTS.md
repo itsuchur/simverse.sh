@@ -21,3 +21,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Apply https://github.com/mokevnin/dev-quality-gates to this repository.
 - Read and follow https://raw.githubusercontent.com/mokevnin/dev-quality-gates/main/docs/adopt.md.
 - Show me the plan before you change anything.
+# Validation
+
+- Run `bun run check` before completing changes (ESLint, TypeScript, and Bun tests; also enforced in CI).
+- Never edit generated Prisma clients or Next.js route types by hand.
+- Do not disable lint rules to pass checks; any narrow exception needs a reason and human agreement.

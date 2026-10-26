@@ -19,6 +19,7 @@ import {
   PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
+  UNITPAY_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -41,6 +42,7 @@ export {
   PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
+  UNITPAY_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -1328,4 +1330,23 @@ export async function applyEsimStatus(input: {
       ...(input.iccid && !order.esimIccid ? { esimIccid: input.iccid } : {}),
     },
   });
+}
+
+export async function fulfillUnitpayPayment(input: {
+  orderUuid: string;
+  paymentId: string;
+  amount: bigint;
+  currency: string;
+}) {
+  await fulfillPayment({
+    provider: UNITPAY_PAYMENT_PROVIDER,
+    orderUuid: input.orderUuid,
+    chargeId: input.paymentId,
+    validate: (order) =>
+      order.priceAmount === input.amount && order.currency === input.currency,
+  });
+}
+
+export async function failUnitpayPayment(orderUuid: string) {
+  await failPendingPayment(orderUuid, UNITPAY_PAYMENT_PROVIDER);
 }

@@ -1,9 +1,12 @@
-﻿import "server-only";
+import "server-only";
+
+import { processUnitpayRefund } from "~/server/refunds/unitpay";
 import * as Sentry from "@sentry/nextjs";
 import {
   orderStatus,
   paymentStatus,
   XHUB_PAYMENT_PROVIDER,
+  UNITPAY_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
 import { refundStatus } from "~/lib/refund-status";
@@ -212,6 +215,10 @@ export async function processPendingRefund(orderId: bigint) {
         : ISSUE_FAILED_REFUND_REASON),
   });
   try {
+    if (order.paymentProvider === UNITPAY_PAYMENT_PROVIDER) {
+      await processUnitpayRefund(order);
+      return;
+    }
     if (order.paymentProvider === TRYBIT_PAYMENT_PROVIDER)
       throw new Error(
         "Trybit automatic refund unavailable: manual refund needs a verified recipient wallet and payout credentials",

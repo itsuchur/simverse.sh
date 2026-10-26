@@ -360,7 +360,7 @@ describe("unfulfillable paid top-ups", () => {
     expect(telegramSendMessage).toHaveBeenCalledTimes(1);
     expect(telegramSendMessage.mock.calls[0]?.[0]).toMatchObject({
       chatId: 42,
-      text: expect.stringContaining("top-up"),
+      text: expect.stringContaining("top-up") as unknown,
     });
     await handleXhubWebhook(webhook("refund.completed"));
     expect(telegramSendMessage).toHaveBeenCalledTimes(1);
@@ -402,7 +402,7 @@ describe("unfulfillable paid eSIM purchases", () => {
     expect(JSON.parse(init?.body as string)).toMatchObject({
       payment_id: PAYMENT,
       external_id: order.orderUuid,
-      reason: expect.stringContaining("insufficient merchant balance"),
+      reason: expect.stringContaining("insufficient merchant balance") as unknown,
     });
 
     stubRefund("completed");
@@ -411,7 +411,7 @@ describe("unfulfillable paid eSIM purchases", () => {
     expect(telegramSendMessage).toHaveBeenCalledTimes(1);
     expect(telegramSendMessage.mock.calls[0]?.[0]).toMatchObject({
       chatId: 42,
-      text: expect.stringContaining("eSIM"),
+      text: expect.stringContaining("eSIM") as unknown,
     });
     await handleXhubWebhook(webhook("refund.completed"));
     expect(telegramSendMessage).toHaveBeenCalledTimes(1);

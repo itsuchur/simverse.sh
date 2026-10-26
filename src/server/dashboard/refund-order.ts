@@ -1,5 +1,7 @@
 import "server-only";
 
+import { processUnitpayRefund } from "~/server/refunds/unitpay";
+
 import { dashboardReasonSchema } from "~/lib/dashboard-reason";
 import { createXhubRefund, getXhubRefund } from "~/server/payments/xhub";
 import { applyXhubRefund } from "~/server/orders/topup-refund";
@@ -9,6 +11,7 @@ import { refundStatus } from "~/lib/refund-status";
 import {
   PLATEGA_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
+  UNITPAY_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
 } from "~/lib/order-status";
@@ -52,9 +55,11 @@ export async function refundDashboardOrder(
     throw new Error("Order not found");
   }
   if (
-    ![PLATEGA_PAYMENT_PROVIDER, XHUB_PAYMENT_PROVIDER].includes(
-      order.paymentProvider,
-    )
+    ![
+      PLATEGA_PAYMENT_PROVIDER,
+      XHUB_PAYMENT_PROVIDER,
+      UNITPAY_PAYMENT_PROVIDER,
+    ].includes(order.paymentProvider)
   ) {
     throw new Error("This payment provider does not support dashboard refunds");
   }
@@ -124,6 +129,11 @@ export async function refundDashboardOrder(
             : {}),
         },
       });
+    }
+
+    if (order.paymentProvider === UNITPAY_PAYMENT_PROVIDER) {
+      await processUnitpayRefund(order);
+      return { pending: false };
     }
 
     if (isXhub) {

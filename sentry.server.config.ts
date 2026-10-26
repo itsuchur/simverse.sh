@@ -3,8 +3,13 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { redactUnitpayTelemetry } from "./src/lib/unitpay-telemetry";
 
 Sentry.init({
+  beforeSend: redactUnitpayTelemetry,
+  beforeSendTransaction: redactUnitpayTelemetry,
+  beforeSendSpan: redactUnitpayTelemetry,
+  beforeBreadcrumb: redactUnitpayTelemetry,
   dsn: "https://86a03984f55a8270248c230149b1f214@o4508678555041792.ingest.de.sentry.io/4511881817423952",
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.

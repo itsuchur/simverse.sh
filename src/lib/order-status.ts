@@ -33,3 +33,5 @@ export const CARDLINK_PAYMENT_PROVIDER = "cardlink";
 export const CENT_PAYMENT_PROVIDER = "cent";
 export const PLATEGA_PAYMENT_PROVIDER = "platega";
 export const XHUB_PAYMENT_PROVIDER = "xhub";
+
+export const UNITPAY_PAYMENT_PROVIDER = "unitpay";

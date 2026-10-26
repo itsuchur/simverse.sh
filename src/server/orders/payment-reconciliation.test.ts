@@ -170,3 +170,33 @@ test("old invoices remain eligible, while refunded orders and untouched drafts a
   expect(http).toHaveBeenCalledTimes(1);
   expect(old.paymentNextCheckAt.getTime() - Date.now()).toBeGreaterThan(23 * 3600000);
 });
+
+
+test("missed Unitpay PAY is recovered from charged error_pay state once", async () => {
+  const order = seed("unitpay", { currency: "USD", paymentInvoiceId: "987" });
+  http.mockImplementation(async () => Response.json({ result: {
+    paymentId: "987", projectId: 123456, account: order.orderUuid,
+    orderSum: "5.00", orderCurrency: "USD", status: "error_pay", isPreauth: 0,
+    availableForRefund: "5.00", refunds: [],
+  } }));
+  await Promise.all([reconcilePendingPayments(), reconcilePendingPayments()]);
+  expect(order.status).toBe("issued");
+  expect(order.paymentChargeId).toBe("987");
+  expect(esimOrderCallCount()).toBe(1);
+  expect(http).toHaveBeenCalledTimes(1);
+});
+
+test("Unitpay preauthorization and mismatched payment cannot issue an eSIM", async () => {
+  const order = seed("unitpay", { currency: "USD", paymentInvoiceId: "987" });
+  for (const extra of [{ isPreauth: 1 }, { account: "other-order" }, { orderCurrency: "RUB" }, { paymentId: "988" }, { orderSum: "4.99" }]) {
+    order.paymentNextCheckAt = new Date(0);
+    http.mockImplementation(async () => Response.json({ result: {
+      paymentId: "987", projectId: 123456, account: order.orderUuid,
+      orderSum: "5.00", orderCurrency: "USD", status: "success", isPreauth: 0,
+      availableForRefund: "5.00", refunds: [], ...extra,
+    } }));
+    await reconcilePendingPayments();
+    expect(order.paymentStatus).toBe("pending");
+  }
+  expect(esimOrderCallCount()).toBe(0);
+});

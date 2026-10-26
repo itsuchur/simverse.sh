@@ -26,6 +26,7 @@ const { POST: trybit } = await import("~/app/api/checkout/trybit/route");
 const { POST: cardlink } = await import("~/app/api/checkout/cardlink/route");
 const { POST: cent } = await import("~/app/api/checkout/cent/route");
 const { POST: platega } = await import("~/app/api/checkout/platega/route");
+const { POST: unitpay } = await import("~/app/api/checkout/unitpay/route");
 const { POST: xhub } = await import("~/app/api/checkout/xhub/route");
 const { POST: topup } = await import("~/app/api/checkout/topup/route");
 
@@ -41,6 +42,7 @@ for (const [name, post] of [
   ["cardlink", cardlink],
   ["cent", cent],
   ["platega", platega],
+  ["unitpay", unitpay],
 ] as const) {
   describe(`${name} cart revision`, () => {
     test("rejects a stale displayed cart before invoicing or checking balance", async () => {
@@ -90,6 +92,7 @@ for (const [name, post] of [
   ["cardlink", cardlink],
   ["cent", cent],
   ["platega", platega],
+  ["unitpay", unitpay],
   ["xhub", xhub],
   ["topup", topup],
 ] as const) {
@@ -122,5 +125,69 @@ for (const [name, post] of [
     expect(limitRequest).toHaveBeenCalledWith("user-1", "checkout");
     expect(esimAccessPost).not.toHaveBeenCalled();
     expect(await fakeDb.order.findMany({ where: {} })).toHaveLength(0);
+  });
+}
+
+for (const [locale, currency, amount] of [
+  ["ru", "RUB", "999.00"],
+  ["en", "USD", "10.99"],
+] as const) {
+  test(`Unitpay ${locale} checkout persists its payment ID and reuses its invoice`, async () => {
+    fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+    const revision = crypto.randomUUID();
+    getCartSnapshot.mockResolvedValue({
+      revision,
+      plan: {
+        packageCode: "PKG-UNITPAY",
+        name: "Test eSIM",
+        country: "US",
+        data_gb: 1,
+        validity_days: 7,
+        price: 10.99,
+        price_rub: 999,
+        cost: 10000,
+        qty: 1,
+      } as never,
+    });
+    esimAccessPost.mockResolvedValue({
+      success: true,
+      obj: { balance: 1000000 },
+    });
+    const originalFetch = globalThis.fetch;
+    const http = mock(async (_url: unknown) =>
+      Response.json({
+        result: {
+          type: "redirect",
+          paymentId: 987,
+          redirectUrl: "https://unitpay.money/pay/test",
+        },
+      }),
+    );
+    globalThis.fetch = http as unknown as typeof fetch;
+    try {
+      const checkout = () =>
+        unitpay(
+          new Request("https://miniapp.simverse.sh/api/checkout/unitpay", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ cartRevision: revision, locale }),
+          }),
+        );
+      const first = await checkout();
+      expect(first.status).toBe(200);
+      const orders = await fakeDb.order.findMany({
+        where: { paymentProvider: "unitpay" },
+      });
+      expect(orders).toHaveLength(1);
+      expect(orders[0]?.paymentInvoiceId).toBe("987");
+      expect(orders[0]?.currency).toBe(currency);
+      const url = new URL(String(http.mock.calls[0]![0]));
+      expect(url.searchParams.get("sum")).toBe(amount);
+      expect(url.searchParams.get("account")).toBe(orders[0]!.orderUuid);
+      expect(await (await checkout()).json()).toEqual(await first.json());
+      expect(http).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 }
