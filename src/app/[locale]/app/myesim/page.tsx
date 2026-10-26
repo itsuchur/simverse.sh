@@ -46,6 +46,7 @@ export default async function AppMyESIms() {
   });
 
   const orders: MyEsimOrder[] = rows.map((row) => ({
+    id: row.id.toString(),
     orderUuid: row.orderUuid,
     packageName: row.packageName,
     countryCode: row.countryCode,

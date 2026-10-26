@@ -538,7 +538,7 @@ describe("top-up fulfillment", () => {
     expect(telegramSendMessage).toHaveBeenCalledTimes(1);
     expect(telegramSendMessage.mock.calls[0]?.[0]).toMatchObject({
       chatId: 42,
-      text: ["Your top-up is ready!", "", "United States", "1 GB · 7 days"].join(
+      text: ["Your top-up is successful!", "", "United States", "1 GB · 7 days"].join(
         "\n",
       ),
     });

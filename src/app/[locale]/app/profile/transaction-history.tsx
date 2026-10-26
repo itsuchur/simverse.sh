@@ -24,6 +24,7 @@ import {
 import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
 
 export type HistoryOrder = {
+  id: string;
   orderUuid: string;
   isTopup: boolean;
   packageName: string;
@@ -172,9 +173,9 @@ export function TransactionHistory() {
                               ? t("transactionTopup")
                               : t("transactionEsimPurchase")}
                           </p>
-                          <p className="break-all">
+                          <p>
                             {tMyEsims("orderNumber", {
-                              orderNumber: order.orderUuid,
+                              orderNumber: order.id,
                             })}
                           </p>
                           <p className="text-foreground font-semibold">

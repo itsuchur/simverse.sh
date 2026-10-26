@@ -8,6 +8,7 @@ export const ordersRouter = createTRPCRouter({
       where: { userId: ctx.session.user.id, paymentStatus: paymentStatus.paid },
       orderBy: { createdAt: "desc" },
       select: {
+        id: true,
         orderUuid: true,
         topupOfOrderId: true,
         packageName: true,
@@ -23,6 +24,7 @@ export const ordersRouter = createTRPCRouter({
     });
 
     return rows.map((row) => ({
+      id: row.id.toString(),
       orderUuid: row.orderUuid,
       isTopup: row.topupOfOrderId !== null,
       packageName: row.packageName,

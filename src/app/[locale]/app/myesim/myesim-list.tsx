@@ -38,6 +38,7 @@ import { InstallationGuide } from "./installation-guide";
 import { UsagePanel } from "./usage-panel";
 
 export type MyEsimOrder = {
+  id: string;
   orderUuid: string;
   packageName: string;
   countryCode: string | null;
@@ -339,8 +340,8 @@ function OrderCard({
             ) : null}
             {purchased ? (
               <>
-                <p className="text-muted-foreground text-sm break-all">
-                  {t("orderNumber", { orderNumber: order.orderUuid })}
+                <p className="text-muted-foreground text-sm">
+                  {t("orderNumber", { orderNumber: order.id })}
                 </p>
                 <p className="text-muted-foreground text-sm">
                   {t("purchasedOn", purchased)}
