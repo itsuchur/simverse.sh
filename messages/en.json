@@ -148,7 +148,7 @@
     "expiryDateUnavailable": "Expiry date isn't available.",
     "dataExhausted": "Data is used up.",
     "expiredBeforeActivation": "Expired before activation.",
-    "orderNumber": "Order {orderNumber}",
+    "orderNumber": "Order Number {orderNumber}",
     "purchasedOn": "Purchased on {date} for {price} {currency}."
   },
   "EsimStatus": {
