@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
+import { recoverPendingOrders } from "~/server/orders/fulfill";
 import { handlePlategaWebhook } from "~/server/webhooks/payments/platega";
 import { fakeDb } from "~/test/fake-db";
 import {
@@ -73,6 +74,7 @@ describe("handlePlategaWebhook", () => {
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("paid");
     expect(order.paymentChargeId).toBe(TRANSACTION_ID);
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
     expect(fakeDb.webhookLogs[0]?.source).toBe("platega");
     expect(

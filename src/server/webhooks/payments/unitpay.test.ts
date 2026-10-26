@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
+import { recoverPendingOrders } from "~/server/orders/fulfill";
 import { handleUnitpayWebhook } from "./unitpay";
 import { fakeDb } from "~/test/fake-db";
 import {
@@ -71,6 +72,7 @@ test("Cloudflare client IP is used and repeated PAY issues only one eSIM", async
     await (await handleUnitpayWebhook(request(order.orderUuid))).json(),
   ).toHaveProperty("result");
   await handleUnitpayWebhook(request(order.orderUuid));
+  await recoverPendingOrders();
   expect(order.status).toBe("issued");
   expect(esimOrderCallCount()).toBe(1);
   expect(fakeDb.webhookLogs[0]?.payload).toMatchObject({
@@ -108,6 +110,7 @@ test("CHECK and PREAUTH never fulfill; ERROR can be followed by PAY", async () =
   await handleUnitpayWebhook(request(order.orderUuid, "error"));
   expect(order.paymentStatus).toBe("failed");
   await handleUnitpayWebhook(request(order.orderUuid));
+  await recoverPendingOrders();
   expect(order.status).toBe("issued");
 });
 

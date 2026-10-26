@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { recoverPendingOrders } from "./fulfill";
 import { reconcilePendingPayments, TRYBIT_UNPAID_TTL_MS } from "./payment-reconciliation";
 import { fakeDb } from "~/test/fake-db";
 import { esimAccessPost, esimOrderCallCount, resetTestState, sentryCaptureException, stubEsimAccess } from "~/test/mocks";
@@ -29,6 +30,7 @@ test("missed Trybit callback is recovered exactly once, including concurrent wor
   http.mockImplementation(async () => trybit(order.orderUuid));
   await Promise.all([reconcilePendingPayments(), reconcilePendingPayments()]);
   await reconcilePendingPayments();
+  await recoverPendingOrders();
   expect(order.status).toBe("issued");
   expect(order.paymentChargeId).toBe("INV-test");
   expect(esimOrderCallCount()).toBe(1);
@@ -40,6 +42,7 @@ test("settled X-Hub payment revives an expired draft", async () => {
   const order = seed("xhub", { status: "failed", paymentStatus: "failed", failureReason: "expired" });
   http.mockImplementation(async () => xhub(order.orderUuid));
   await reconcilePendingPayments();
+  await recoverPendingOrders();
   expect(order.status).toBe("issued");
   expect(order.failureReason).toBeNull();
 });
@@ -65,6 +68,7 @@ test("unknown invoice creation outcome is discovered by external order reference
     ? Response.json({ data: [{ id: "pay-test", external_id: order.orderUuid }], pagination: { total_pages: 1 } })
     : xhub(order.orderUuid));
   await reconcilePendingPayments();
+  await recoverPendingOrders();
   expect(order.paymentInvoiceId).toBe("pay-test");
   expect(order.status).toBe("issued");
 });
@@ -104,6 +108,7 @@ test("pre-migration Trybit invoice is discovered without parsing its checkout UR
   const order = seed("trybit", { paymentInvoiceId: null, paymentInvoiceUrl: "https://pay.trybit.com/test" });
   http.mockImplementation(async () => trybit(order.orderUuid));
   await reconcilePendingPayments();
+  await recoverPendingOrders();
   expect(String(http.mock.calls[0]![0])).toEndWith("/invoice/merchant/list");
   expect(order.paymentInvoiceId).toBe("INV-test");
   expect(order.status).toBe("issued");
@@ -114,6 +119,7 @@ test("provider outage leaves payment unconfirmed and does not block another orde
   const good = seed("xhub");
   http.mockImplementation(async (url) => String(url).includes("trybit") ? new Response("", { status: 503 }) : xhub(good.orderUuid));
   await reconcilePendingPayments();
+  await recoverPendingOrders();
   expect(bad.paymentStatus).toBe("pending");
   expect(bad.paymentNextCheckAt.getTime()).toBeGreaterThan(Date.now());
   expect(good.status).toBe("issued");
@@ -167,6 +173,7 @@ test("unpaid Trybit invoice is closed after 12 hours, and a later payment still 
   order.paymentNextCheckAt = new Date(0);
   http.mockImplementation(async () => trybit(order.orderUuid));
   await reconcilePendingPayments();
+  await recoverPendingOrders();
   expect(order.status).toBe("issued");
 });
 
@@ -196,6 +203,7 @@ test("missed Unitpay PAY is recovered from charged error_pay state once", async 
     availableForRefund: "5.00", refunds: [],
   } }));
   await Promise.all([reconcilePendingPayments(), reconcilePendingPayments()]);
+  await recoverPendingOrders();
   expect(order.status).toBe("issued");
   expect(order.paymentChargeId).toBe("987");
   expect(esimOrderCallCount()).toBe(1);

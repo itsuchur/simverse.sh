@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+import { recoverPendingOrders } from "~/server/orders/fulfill";
 import { handleTrybitWebhook } from "~/server/webhooks/payments/trybit";
 import { fakeDb } from "~/test/fake-db";
 import {
@@ -82,6 +83,7 @@ describe("handleTrybitWebhook", () => {
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("paid");
     expect(order.paymentChargeId).toBe("INV-123");
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
     expect(order.resellerOrderId).toBe("EA-1");
     expect(order.esimIccid).toBe(PROFILE.iccid);
@@ -126,6 +128,7 @@ describe("handleTrybitWebhook", () => {
       });
     expect((await handleTrybitWebhook(callback())).status).toBe(200);
     expect((await handleTrybitWebhook(callback())).status).toBe(200);
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
     expect(esimOrderCallCount()).toBe(1);
     expect(JSON.parse(invoiceFetch.mock.calls[0]![1]!.body as string)).toEqual({
@@ -158,6 +161,7 @@ describe("handleTrybitWebhook", () => {
       }),
     );
     expect(response.status).toBe(200);
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
   });
 

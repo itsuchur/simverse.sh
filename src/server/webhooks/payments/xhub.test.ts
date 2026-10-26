@@ -2,9 +2,11 @@ import { createHmac } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+import { recoverPendingOrders } from "~/server/orders/fulfill";
 import { handleXhubWebhook } from "~/server/webhooks/payments/xhub";
 import { fakeDb } from "~/test/fake-db";
 import {
+  esimAccessPost,
   esimOrderCallCount,
   resetTestState,
   sentryCaptureMessage,
@@ -120,6 +122,12 @@ describe("handleXhubWebhook", () => {
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("paid");
     expect(order.paymentChargeId).toBe(PAYMENT_ID);
+    expect(order.status).toBe("ordering");
+    expect(order.resellerOrderId).toBe("EA-XHUB");
+    expect(esimAccessPost.mock.calls.map((call) => call[0])).toEqual([
+      "/esim/order",
+    ]);
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
     expect(fakeDb.webhookLogs[0]?.source).toBe("xhub");
   });
@@ -141,6 +149,7 @@ describe("handleXhubWebhook", () => {
     stubEsimAccess({ orderNo: "EA-XHUB", profiles: [PROFILE] });
     paymentFetch.mockResolvedValue(xhubApi(order.orderUuid, { status: "settled" }));
     expect((await handleXhubWebhook(callback(payload(order.orderUuid, { status: "settled" })))).status).toBe(200);
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
     const issuedAt = order.issuedAt;
     await handleXhubWebhook(callback(payload(order.orderUuid)));
@@ -222,6 +231,9 @@ describe("handleXhubWebhook", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(order.paymentStatus).toBe("paid");
+    expect(order.status).toBe("ordering");
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
   });
 

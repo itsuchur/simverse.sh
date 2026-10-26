@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
+import { recoverPendingOrders } from "~/server/orders/fulfill";
 import { fakeDb } from "~/test/fake-db";
 import { resetTestState, stubEsimAccess } from "~/test/mocks";
 
@@ -205,8 +206,11 @@ describe("telegram webhook /start", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     expect(order.paymentStatus).toBe("paid");
-    expect(order.status).toBe("issued");
+    expect(order.status).toBe("ordering");
+    expect(order.resellerOrderId).toBe("EA-1");
     expect(sendMessage).not.toHaveBeenCalled();
+    await recoverPendingOrders();
+    expect(order.status).toBe("issued");
   });
 
   test("sendMessage failures still return ok", async () => {

@@ -18,6 +18,7 @@ import {
   recoverPendingOrders,
   syncPendingProfilesForUser,
 } from "~/server/orders/fulfill";
+import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
 import { fakeDb } from "~/test/fake-db";
 import {
   capturedEvents,
@@ -67,6 +68,13 @@ describe("fulfillStarsPayment", () => {
 
     expect(order.paymentStatus).toBe("paid");
     expect(order.paymentChargeId).toBe("tg-charge-1");
+    expect(order.status).toBe("ordering");
+    expect(order.resellerOrderId).toBe("EA-1");
+    expect(order.esimIccid).toBeNull();
+    expect(esimAccessPost.mock.calls.map((call) => call[0])).toEqual([
+      "/esim/order",
+    ]);
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
     expect(order.resellerOrderId).toBe("EA-1");
     expect(order.esimIccid).toBe(PROFILE.iccid);
@@ -87,6 +95,7 @@ describe("fulfillStarsPayment", () => {
     };
     await fulfillStarsPayment(input);
     await fulfillStarsPayment(input);
+    await recoverPendingOrders();
 
     expect(esimOrderCallCount()).toBe(1);
     expect(order.status).toBe("issued");
@@ -235,6 +244,7 @@ describe("payment arriving after the draft was closed", () => {
       invoiceUuid: "INV-1",
       amountUsd: 10.99,
     });
+    await recoverPendingOrders();
 
     expect(order.paymentStatus).toBe("paid");
     expect(order.paymentChargeId).toBe("INV-1");
@@ -258,6 +268,7 @@ describe("payment arriving after the draft was closed", () => {
       invoiceUuid: "INV-1",
       amountUsd: 10.99,
     });
+    await recoverPendingOrders();
 
     expect(order.paymentStatus).toBe("paid");
     expect(order.status).toBe("issued");
@@ -280,6 +291,45 @@ describe("payment arriving after the draft was closed", () => {
 
     expect(order.paymentStatus).toBe("refunded");
     expect(order.paymentChargeId).toBe("INV-0");
+  });
+});
+
+describe("profile lookup after payment", () => {
+  test("waits out a supplier that is still allocating the profile", async () => {
+    const order = seedStarsOrder();
+    stubEsimAccess({ orderNo: "EA-1", profiles: [PROFILE] });
+
+    await fulfillStarsPayment({
+      orderUuid: order.orderUuid,
+      telegramPaymentChargeId: "tg-charge-1",
+      telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
+    });
+
+    expect(order.paymentStatus).toBe("paid");
+    expect(order.status).toBe("ordering");
+    esimAccessPost.mockImplementation(async () => {
+      throw new EsimAccessApiError(
+        "200010",
+        "eSIM Access esim/query error: 200010 the batchOrder has been getting resource, total:[1], success:[0]",
+      );
+    });
+
+    await recoverPendingOrders();
+
+    expect(order.status).toBe("ordering");
+    expect(order.esimIccid).toBeNull();
+    expect(sentryCaptureException).not.toHaveBeenCalled();
+
+    stubEsimAccess({ profiles: [PROFILE] });
+    await attachGotResource({
+      orderNo: "EA-1",
+      transactionId: order.orderUuid,
+    });
+
+    expect(order.status).toBe("issued");
+    expect(order.esimIccid).toBe(PROFILE.iccid);
   });
 });
 
@@ -1194,6 +1244,7 @@ test("Redis cart cleanup failure does not interrupt a confirmed payment", async 
     totalAmount: 370,
     currency: "XTR",
   });
+  await recoverPendingOrders();
   expect(order.status).toBe("issued");
   expect(esimOrderCallCount()).toBe(1);
 });

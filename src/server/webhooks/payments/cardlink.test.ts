@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 
+import { recoverPendingOrders } from "~/server/orders/fulfill";
 import {
   handleCardlinkChargebackWebhook,
   handleCardlinkRefundWebhook,
@@ -68,6 +69,7 @@ describe("handleCardlinkWebhook", () => {
     expect(response.status).toBe(200);
     expect(order.paymentStatus).toBe("paid");
     expect(order.paymentChargeId).toBe("BILL-1");
+    await recoverPendingOrders();
     expect(order.status).toBe("issued");
     expect(order.esimIccid).toBe(PROFILE.iccid);
     expect(fakeDb.webhookLogs[0]?.source).toBe("cardlink");

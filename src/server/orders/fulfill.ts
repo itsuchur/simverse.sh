@@ -348,7 +348,17 @@ export async function syncEsimProfile(order: OrderRow) {
     return;
   }
 
-  const profiles = await queryEsimAccessProfiles(order.resellerOrderId);
+  let profiles: EsimAccessProfile[];
+  try {
+    profiles = await queryEsimAccessProfiles(order.resellerOrderId);
+  } catch (error) {
+    // The supplier accepted the batch and is still allocating the profile.
+    // Leave the order in `ordering` for the ready callback or the next pass.
+    if (error instanceof EsimAccessApiError && error.code === "200010") {
+      return;
+    }
+    throw error;
+  }
   const profile = profiles[0];
   if (!profile) {
     return;
@@ -390,7 +400,11 @@ async function claimSupplierOrder(orderId: bigint): Promise<boolean> {
   return reclaimed.count > 0;
 }
 
-export async function placeSupplierOrder(order: OrderRow) {
+export async function placeSupplierOrder(
+  order: OrderRow,
+  options?: { queryProfile?: boolean },
+) {
+  const queryProfile = options?.queryProfile !== false;
   const stored = await db.order.findUnique({ where: { id: order.id } });
   if (stored?.status === orderStatus.refundPending) {
     await processPendingRefund(stored.id);
@@ -402,14 +416,14 @@ export async function placeSupplierOrder(order: OrderRow) {
   }
 
   if (order.resellerOrderId) {
-    await syncEsimProfile(order);
+    if (queryProfile) await syncEsimProfile(order);
     return;
   }
 
   const claimed = await claimSupplierOrder(order.id);
   if (!claimed) {
     const current = await db.order.findUnique({ where: { id: order.id } });
-    if (current?.resellerOrderId) {
+    if (current?.resellerOrderId && queryProfile) {
       await syncEsimProfile(current);
     }
     return;
@@ -451,13 +465,15 @@ export async function placeSupplierOrder(order: OrderRow) {
       });
     }
 
-    try {
-      await syncEsimProfile(current);
-    } catch (error) {
-      Sentry.captureException(error, {
-        tags: { component: "esimaccess", reason: "query_failed" },
-        extra: { orderUuid: order.orderUuid },
-      });
+    if (queryProfile) {
+      try {
+        await syncEsimProfile(current);
+      } catch (error) {
+        Sentry.captureException(error, {
+          tags: { component: "esimaccess", reason: "query_failed" },
+          extra: { orderUuid: order.orderUuid },
+        });
+      }
     }
   } catch (error) {
     Sentry.captureException(error, {
@@ -806,7 +822,11 @@ async function markOrderPaid(input: {
 
 async function continueFulfillment(order: OrderRow, provider: string) {
   await supersedePendingDrafts(order, provider);
-  await placeSupplierOrder(order);
+  // Payment is already stored. Place the supplier order in this request so
+  // issuance starts, and read the profile later: the supplier sends
+  // ORDER_STATUS / GOT_RESOURCE when the resource exists, and recovery queries
+  // anything still waiting. Querying here races that allocation (error 200010).
+  await placeSupplierOrder(order, { queryProfile: false });
 }
 
 async function fulfillPayment(input: {
