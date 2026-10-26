@@ -29,8 +29,6 @@ export const env = createEnv({
     DATABASE_URL: z.string().url(),
     REDIS_URL: z.string().url(),
     ESIMACCESS_ACCESS_CODE: z.string().min(1),
-    // Shared secret embedded in the webhook URL registered with eSIM Access
-    // (their webhooks are not signed, so the URL token is the auth mechanism).
     ESIMACCESS_WEBHOOK_SECRET:
       process.env.NODE_ENV === "production"
         ? z.string().min(16)

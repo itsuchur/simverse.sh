@@ -1,5 +1,7 @@
 "use client";
 
+import { displayedCountries } from "~/lib/displayed-countries";
+
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Search } from "lucide-react";
@@ -49,11 +51,7 @@ function formatVolume(bytes: number) {
   return `${Math.round(mib)} MB`;
 }
 
-/**
- * Search runs server-side via RediSearch (each package document indexes its
- * names, country/region labels and ISO codes), so filtering here is just an
- * intersection with the matched package codes. `null` means "do not filter".
- */
+/** Matching package codes; null leaves the list unfiltered. */
 type MatchedCodes = ReadonlySet<string> | null;
 
 function filterCountryGroups(
@@ -82,20 +80,6 @@ function filterRegionGroups(
       packages: group.packages.filter((pkg) => codes.has(pkg.packageCode)),
     }))
     .filter((group) => group.packages.length > 0);
-}
-
-function uniqueCountries(packages: CatalogPackage[]): string[] {
-  const seen = new Set<string>();
-  const codes: string[] = [];
-  for (const pkg of packages) {
-    for (const code of pkg.location.split(",").filter(Boolean)) {
-      const normalized = code.trim().toUpperCase();
-      if (!normalized || seen.has(normalized)) continue;
-      seen.add(normalized);
-      codes.push(normalized);
-    }
-  }
-  return codes;
 }
 
 function groupPackagesByDuration(packages: CatalogPackage[]) {
@@ -167,8 +151,10 @@ function DestinationDialog({ group }: { group: DestinationGroup }) {
   const [selectedPkg, setSelectedPkg] = useState<CatalogPackage | null>(null);
   const [confirming, setConfirming] = useState(false);
   const coveragePackages = selectedPkg ? [selectedPkg] : group.packages;
-  const countries = uniqueCountries(coveragePackages);
-  const isMultiCountry = countries.length > 1;
+  const countries = displayedCountries(coveragePackages);
+  const isMultiCountry = coveragePackages.some(
+    (pkg) => pkg.location.split(",").filter((code) => code.trim()).length > 1,
+  );
   const durationGroups = groupPackagesByDuration(group.packages);
   const fromPrice = lowestCatalogPrice(group.packages, locale);
   const priceFormat = catalogNumberFormatOptions(locale);

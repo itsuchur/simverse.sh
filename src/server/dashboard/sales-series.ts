@@ -131,12 +131,7 @@ function emptyBuckets(range: SalesRange, now: Date): Map<string, SalesPoint> {
   return points;
 }
 
-/**
- * Normalize order price to USD major units.
- * - USD: minor units (cents) → dollars
- * - XTR / Telegram Stars: stars × USD_PER_STAR
- * - RUB: not FX-normalized (historical rate unknown); contributes 0 to USD revenue
- */
+/** Order revenue in USD major units. */
 export function orderRevenueUsd(order: {
   priceAmount: bigint;
   currency: string;

@@ -1,24 +1,12 @@
 "use client";
 
+import { displayedCountries } from "~/lib/displayed-countries";
+
 import { useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types";
 
 type CoveragePackage = Pick<CatalogPackage, "location" | "coverage">;
-
-function uniqueCountries(packages: CoveragePackage[]): string[] {
-  const seen = new Set<string>();
-  const codes: string[] = [];
-  for (const pkg of packages) {
-    for (const code of pkg.location.split(",").filter(Boolean)) {
-      const normalized = code.trim().toUpperCase();
-      if (!normalized || seen.has(normalized)) continue;
-      seen.add(normalized);
-      codes.push(normalized);
-    }
-  }
-  return codes;
-}
 
 function countryDisplayName(countryCode: string, locale: string) {
   try {
@@ -41,7 +29,7 @@ export function CoverageList({
   showCountry?: boolean;
 }) {
   const t = useTranslations("Catalog");
-  const countries = uniqueCountries(packages)
+  const countries = displayedCountries(packages)
     .map((code) => ({ code, name: countryDisplayName(code, locale) }))
     .sort((a, b) => a.name.localeCompare(b.name, locale));
   return (
