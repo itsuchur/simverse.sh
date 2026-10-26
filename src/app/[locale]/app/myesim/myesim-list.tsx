@@ -338,9 +338,14 @@ function OrderCard({
               </p>
             ) : null}
             {purchased ? (
-              <p className="text-muted-foreground text-sm">
-                {t("purchasedOn", purchased)}
-              </p>
+              <>
+                <p className="text-muted-foreground text-sm break-all">
+                  {t("orderNumber", { orderNumber: order.orderUuid })}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {t("purchasedOn", purchased)}
+                </p>
+              </>
             ) : null}
           </div>
         ) : null}

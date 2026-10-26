@@ -172,6 +172,11 @@ export function TransactionHistory() {
                               ? t("transactionTopup")
                               : t("transactionEsimPurchase")}
                           </p>
+                          <p className="break-all">
+                            {tMyEsims("orderNumber", {
+                              orderNumber: order.orderUuid,
+                            })}
+                          </p>
                           <p className="text-foreground font-semibold">
                             {title}
                           </p>
