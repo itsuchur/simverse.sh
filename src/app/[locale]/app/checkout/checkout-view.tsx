@@ -7,9 +7,12 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
+import { Input } from "~/components/ui/input";
 import { UnlimitedDataLabel } from "~/components/ui/unlimited-data-label";
 import { useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
+import { parsePromoCode } from "~/lib/promo-code";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 import { openExternalLink } from "~/lib/telegram-webapp";
@@ -29,6 +32,7 @@ async function requestInvoice(
   path: string,
   cartRevision: string,
   locale: string,
+  promoCode?: string,
   paymentMethod?: "card" | "sbp",
 ) {
   for (let attempt = 0; attempt < 30; attempt++) {
@@ -39,7 +43,12 @@ async function requestInvoice(
         ...(await checkoutHeaders()),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ cartRevision, locale, paymentMethod }),
+      body: JSON.stringify({
+        cartRevision,
+        locale,
+        paymentMethod,
+        ...(promoCode ? { promoCode } : {}),
+      }),
     });
     const body = (await response.json()) as {
       invoiceUrl?: string;
@@ -148,11 +157,103 @@ export function CheckoutView({
   const [paying, setPaying] = useState(false);
   const [paymentOpened, setPaymentOpened] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [wantsPromo, setWantsPromo] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [acceptedPromo, setAcceptedPromo] = useState<{
+    code: string;
+    discountPercent: number;
+    priceRub: number;
+    priceUsd: number;
+  } | null>(null);
   const invoiceUrls = useRef(new Map<string, string>());
-  const controlsLocked = leaving || paying || paymentOpened;
+  const controlsLocked = leaving || paying || paymentOpened || applyingPromo;
 
-  function openInvoice(method: "xhub_sbp" | "trybit", url: string) {
-    invoiceUrls.current.set(`${cartRevision}:${method}`, url);
+  function promoMessage(code: string) {
+    switch (code) {
+      case "invalid_code":
+        return t("promoInvalid");
+      case "promo_not_found":
+        return t("promoNotFound");
+      case "promo_inactive":
+        return t("promoInactive");
+      case "promo_used":
+        return t("promoUsed");
+      case "promo_held":
+        return t("promoHeld");
+      case "promo_exhausted":
+        return t("promoExhausted");
+      case "promo_too_small":
+        return t("promoTooSmall");
+      case "rate_limited":
+        return t("promoRateLimited");
+      case "cart_changed":
+        return t("cartChanged");
+      default:
+        return t("payFailed");
+    }
+  }
+
+  function clearPromo() {
+    setWantsPromo(false);
+    setPromoInput("");
+    setPromoError(null);
+    setAcceptedPromo(null);
+  }
+
+  async function applyPromo() {
+    const code = parsePromoCode(promoInput);
+    if (!code) {
+      setAcceptedPromo(null);
+      setPromoError(t("promoInvalid"));
+      return;
+    }
+    setApplyingPromo(true);
+    setPromoError(null);
+    try {
+      const response = await fetch("/api/checkout/promo", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...(await checkoutHeaders()),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cartRevision, promoCode: code }),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        discountPercent?: number;
+        priceRub?: number;
+        priceUsd?: number;
+      };
+      if (
+        !response.ok ||
+        typeof body.discountPercent !== "number" ||
+        typeof body.priceRub !== "number" ||
+        typeof body.priceUsd !== "number"
+      ) {
+        setAcceptedPromo(null);
+        setPromoError(promoMessage(body.error ?? "pay_failed"));
+        if (body.error === "cart_changed") router.refresh();
+        return;
+      }
+      setPromoInput(code);
+      setAcceptedPromo({
+        code,
+        discountPercent: body.discountPercent,
+        priceRub: body.priceRub,
+        priceUsd: body.priceUsd,
+      });
+    } catch {
+      setAcceptedPromo(null);
+      setPromoError(t("payFailed"));
+    } finally {
+      setApplyingPromo(false);
+    }
+  }
+
+  function openInvoice(url: string) {
     openExternalLink(url);
   }
 
@@ -161,7 +262,10 @@ export function CheckoutView({
     path: string,
     paymentMethod?: "card" | "sbp",
   ) {
-    const ready = invoiceUrls.current.get(`${cartRevision}:${method}`);
+    const promoCode = acceptedPromo?.code;
+    const ready = invoiceUrls.current.get(
+      `${cartRevision}:${method}:${promoCode ?? ""}`,
+    );
     if (ready) {
       setPayError(null);
       setPaymentOpened(true);
@@ -175,13 +279,17 @@ export function CheckoutView({
       method,
       packageCode: plan.packageCode,
     });
-    void requestInvoice(path, cartRevision, locale, paymentMethod)
+    void requestInvoice(path, cartRevision, locale, promoCode, paymentMethod)
       .then((url) => {
         captureAppEvent("checkout_invoice_opened", {
           method,
           packageCode: plan.packageCode,
         });
-        openInvoice(method, url);
+        invoiceUrls.current.set(
+          `${cartRevision}:${method}:${promoCode ?? ""}`,
+          url,
+        );
+        openInvoice(url);
         setPaymentOpened(true);
         setPaying(false);
       })
@@ -192,9 +300,7 @@ export function CheckoutView({
           packageCode: plan.packageCode,
         });
         setPayError(
-          error instanceof Error && error.message === "cart_changed"
-            ? t("cartChanged")
-            : t("payFailed"),
+          error instanceof Error ? promoMessage(error.message) : t("payFailed"),
         );
         if (error instanceof Error && error.message === "cart_changed") {
           router.refresh();
@@ -223,14 +329,16 @@ export function CheckoutView({
     plan.price_stars,
   ]);
 
+  const priceUsd = acceptedPromo?.priceUsd ?? plan.price;
+  const priceRub = acceptedPromo?.priceRub ?? plan.price_rub;
   const cryptoPrice =
     locale === "ru"
-      ? `${format.number(plan.price, { maximumFractionDigits: 0 })} USDT`
-      : format.number(plan.price, {
+      ? `${format.number(priceUsd, { maximumFractionDigits: 0 })} USDT`
+      : format.number(priceUsd, {
           style: "currency",
           currency: "USD",
         });
-  const sbpPrice = format.number(plan.price_rub, {
+  const sbpPrice = format.number(priceRub, {
     style: "currency",
     currency: "RUB",
     maximumFractionDigits: 0,
@@ -330,6 +438,75 @@ export function CheckoutView({
       )}
 
       <div className="mt-auto flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-3 text-lg">
+            <Checkbox
+              checked={wantsPromo}
+              disabled={controlsLocked}
+              onCheckedChange={(checked) => {
+                if (checked === true) {
+                  setWantsPromo(true);
+                  return;
+                }
+                clearPromo();
+              }}
+            />
+            {t("havePromo")}
+          </label>
+          {wantsPromo ? (
+            <form
+              className="flex flex-col gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void applyPromo();
+              }}
+            >
+              <div className="flex gap-2">
+                <Input
+                  value={promoInput}
+                  disabled={controlsLocked}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={32}
+                  placeholder={t("promoPlaceholder")}
+                  aria-label={t("promoPlaceholder")}
+                  className="h-12 text-lg uppercase"
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setPromoInput(next);
+                    setPromoError(null);
+                    if (
+                      acceptedPromo &&
+                      next.trim().toUpperCase() !== acceptedPromo.code
+                    ) {
+                      setAcceptedPromo(null);
+                    }
+                  }}
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  variant="outline"
+                  className="h-12 shrink-0 text-lg"
+                  disabled={controlsLocked || promoInput.trim() === ""}
+                >
+                  {t("promoApply")}
+                </Button>
+              </div>
+              {acceptedPromo ? (
+                <p className="text-lg font-medium">
+                  {t("promoApplied", {
+                    percent: String(acceptedPromo.discountPercent),
+                  })}
+                </p>
+              ) : null}
+              {promoError ? (
+                <p className="text-destructive text-lg">{promoError}</p>
+              ) : null}
+            </form>
+          ) : null}
+        </div>
         {payError ? (
           <p className="text-destructive w-full text-center text-lg">
             {payError}

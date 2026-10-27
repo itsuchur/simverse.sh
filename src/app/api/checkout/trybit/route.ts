@@ -5,14 +5,20 @@ import {
 import * as Sentry from "@sentry/nextjs";
 
 import { getAuth } from "~/server/better-auth";
-import { limitMiniappRequest } from "~/server/http/rate-limit";
+import {
+  limitMiniappRequest,
+  limitPromoAttempt,
+} from "~/server/http/rate-limit";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { getCartSnapshot } from "~/server/cart";
+import { readPromoCode } from "~/lib/promo-code";
 import { TRYBIT_PAYMENT_PROVIDER } from "~/lib/order-status";
+import { createPendingInvoice } from "~/server/orders/draft";
 import {
-  createPendingInvoice,
-  findOrCreatePendingOrder,
-} from "~/server/orders/draft";
+  placeCheckoutOrder,
+  PromoError,
+  promoErrorResponse,
+} from "~/server/promos/promo";
 import {
   createTrybitInvoice,
   trybitConfigured,
@@ -58,6 +64,10 @@ export async function POST(request: Request) {
   );
   if (!body.success)
     return Response.json({ error: "invalid_checkout" }, { status: 400 });
+  const promoCode = readPromoCode(body.data.promoCode);
+  if (promoCode === null) {
+    return Response.json({ error: "invalid_code" }, { status: 400 });
+  }
 
   const cart = await getCartSnapshot(telegramId);
   if (!cart) {
@@ -93,21 +103,35 @@ export async function POST(request: Request) {
 
   const countryCode = plan.country.includes(",") ? null : plan.country || null;
 
-  const order = await findOrCreatePendingOrder({
-    userId: session.user.id,
-    resellerPlanId: plan.packageCode,
-    packageName: plan.name,
-    countryCode,
-    dataAmountMb: Math.round(plan.data_gb * 1024),
-    validityDays: plan.validity_days,
-    priceAmount: BigInt(cents),
-    currency: "USD",
-    costAmount: BigInt(Math.round(plan.cost)),
-    costCurrency: "USD",
-    paymentProvider: TRYBIT_PAYMENT_PROVIDER,
-    buyerIp: clientIpFromHeaders(request.headers),
-    cartRevision,
-  });
+  if (promoCode) {
+    const promoLimited = await limitPromoAttempt(session.user.id);
+    if (promoLimited) return promoLimited;
+  }
+
+  let order;
+  try {
+    order = await placeCheckoutOrder(
+      {
+        userId: session.user.id,
+        resellerPlanId: plan.packageCode,
+        packageName: plan.name,
+        countryCode,
+        dataAmountMb: Math.round(plan.data_gb * 1024),
+        validityDays: plan.validity_days,
+        priceAmount: BigInt(cents),
+        currency: "USD",
+        costAmount: BigInt(Math.round(plan.cost)),
+        costCurrency: "USD",
+        paymentProvider: TRYBIT_PAYMENT_PROVIDER,
+        buyerIp: clientIpFromHeaders(request.headers),
+        cartRevision,
+      },
+      promoCode,
+    );
+  } catch (error) {
+    if (error instanceof PromoError) return promoErrorResponse(error);
+    throw error;
+  }
   if (order.paymentInvoiceUrl) {
     return invoiceResponse(order.orderUuid, order.paymentInvoiceUrl);
   }
@@ -115,7 +139,7 @@ export async function POST(request: Request) {
   try {
     const invoiceUrl = await createPendingInvoice(order.id, async () => {
       const invoice = await createTrybitInvoice({
-        amount: cents / 100,
+        amount: Number(order.priceAmount) / 100,
         orderId: order.orderUuid,
       });
       return { url: invoice.link, id: invoice.uuid };

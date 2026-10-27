@@ -58,6 +58,9 @@ model User {
   accounts Account[]
   orders   Order[]
   requestedRefunds Refund[] @relation("RefundRequester")
+  createdPromoCodes PromoCode[] @relation("PromoCodeCreator")
+  revokedPromoCodes PromoCode[] @relation("PromoCodeRevoker")
+  promoRedemptions PromoRedemption[]
 
   @@unique([email])
   @@map("user")
@@ -196,6 +199,11 @@ model Order {
   /// Day-pass extension length. Null for a data top-up package.
   topupPeriodDays Int?    @map("topup_period_days")
 
+  /// Set when checkout reserved a promo. `price_amount` stays the charged amount.
+  promoCodeId BigInt? @map("promo_code_id")
+  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+  promoRedemption PromoRedemption?
+
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   paidAt    DateTime? @map("paid_at") @db.Timestamptz(6)
   issuedAt  DateTime? @map("issued_at") @db.Timestamptz(6)
@@ -210,12 +218,68 @@ model Order {
   @@index([createdAt(sort: Desc)], map: "idx_orders_created_at")
   @@index([esimIccid], map: "idx_orders_esim_iccid")
   @@index([topupOfOrderId], map: "idx_orders_topup_of_order_id")
+  @@index([promoCodeId], map: "idx_orders_promo_code_id")
   /// Partial unique index `uq_payment_charge` is defined in the migration SQL
   /// (payment_provider, payment_charge_id) WHERE payment_charge_id IS NOT NULL.
   /// Partial unique index `uq_pending_draft` is defined in the migration SQL
-  /// for new-plan drafts (topup_of_order_id IS NULL).
+  /// for new-plan drafts with no promo (topup_of_order_id IS NULL AND promo_code_id IS NULL).
+  /// Partial unique index `uq_pending_promo_draft` covers discounted drafts.
   /// Partial unique index `uq_pending_topup_draft` covers top-up drafts.
   @@map("orders")
+}
+
+/// Dashboard-managed checkout discount. `code` is stored uppercase.
+model PromoCode {
+  id               BigInt    @id @default(autoincrement())
+  code             String
+  discountPercent  Int       @map("discount_percent") @db.SmallInt
+  /// 1 = one live redemption per user. Null = unlimited per user.
+  maxPerUser       Int?      @map("max_per_user")
+  /// Null = no global cap.
+  maxRedemptions   Int?      @map("max_redemptions")
+  startsAt         DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt           DateTime? @map("ends_at") @db.Timestamptz(6)
+  note             String?
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedById      String?   @map("revoked_by_id")
+  revokedBy        User?     @relation("PromoCodeRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokeReason     String?   @map("revoke_reason")
+  createdById      String?   @map("created_by_id")
+  createdBy        User?     @relation("PromoCodeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  orders      Order[]
+  redemptions PromoRedemption[]
+
+  @@unique([code], map: "uq_promo_codes_code")
+  @@map("promo_codes")
+}
+
+/// One reservation per order. Released only when that order never got an invoice.
+model PromoRedemption {
+  id               BigInt    @id @default(autoincrement())
+  promoCodeId      BigInt    @map("promo_code_id")
+  promoCode        PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+  userId           String    @map("user_id")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  orderId          BigInt    @unique(map: "uq_promo_redemptions_order") @map("order_id")
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  /// Copied from the code so the partial unique index can see it.
+  oncePerUser      Boolean   @map("once_per_user")
+  discountPercent  Int       @map("discount_percent") @db.SmallInt
+  listPriceAmount  BigInt    @map("list_price_amount")
+  chargedAmount    BigInt    @map("charged_amount")
+  currency         String    @db.Char(3)
+  consumedAt       DateTime? @map("consumed_at") @db.Timestamptz(6)
+  releasedAt       DateTime? @map("released_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([promoCodeId], map: "idx_promo_redemptions_promo_code_id")
+  @@index([userId], map: "idx_promo_redemptions_user_id")
+  /// Partial unique index `uq_promo_redemptions_once_per_user` is defined in
+  /// the migration SQL: (promo_code_id, user_id) WHERE once_per_user AND released_at IS NULL.
+  @@map("promo_redemptions")
 }
 
 /// One durable full-refund request per order. Retries reuse its idempotency key.

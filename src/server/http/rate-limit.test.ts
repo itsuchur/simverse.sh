@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { RateLimiterMemory, RateLimiterRes } from "rate-limiter-flexible";
 import {
   createRequestLimitGuard,
+  PROMO_ATTEMPT_LIMIT,
+  PROMO_ATTEMPT_WINDOW_SECONDS,
   REQUEST_LIMITS,
   type RequestLimitScope,
 } from "./rate-limit";
@@ -55,6 +57,25 @@ describe("request limits", () => {
     expect(response?.headers.get("Retry-After")).toBe("2");
     limited = false;
     expect(await guard("user-1", "checkout")).toBeNull();
+  });
+
+  test("allows 5 promo attempts per user within 10 minutes", async () => {
+    expect(PROMO_ATTEMPT_LIMIT).toBe(5);
+    expect(PROMO_ATTEMPT_WINDOW_SECONDS).toBe(600);
+    const store = new RateLimiterMemory({
+      keyPrefix: "promo-attempt",
+      points: PROMO_ATTEMPT_LIMIT,
+      duration: PROMO_ATTEMPT_WINDOW_SECONDS,
+    });
+    const guard = createRequestLimitGuard(async () => store);
+    for (let attempt = 0; attempt < PROMO_ATTEMPT_LIMIT; attempt++) {
+      expect(await guard("user-1", "checkout")).toBeNull();
+    }
+    const blocked = await guard("user-1", "checkout");
+    expect(blocked?.status).toBe(429);
+    expect(await blocked?.json()).toEqual({ error: "rate_limited" });
+    expect(Number(blocked?.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(await guard("user-2", "checkout")).toBeNull();
   });
 
   test("fails closed with 503 when the shared store is unavailable", async () => {

@@ -78,10 +78,43 @@ export type FakeOrder = {
   activationCheckedAt: Date | null;
   topupOfOrderId: bigint | null;
   topupPeriodDays: number | null;
+  promoCodeId: bigint | null;
   paidAt: Date | null;
   issuedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type FakePromoCode = {
+  id: bigint;
+  code: string;
+  discountPercent: number;
+  maxPerUser: number | null;
+  maxRedemptions: number | null;
+  startsAt: Date;
+  endsAt: Date | null;
+  note: string | null;
+  revokedAt: Date | null;
+  revokedById: string | null;
+  revokeReason: string | null;
+  createdById: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type FakePromoRedemption = {
+  id: bigint;
+  promoCodeId: bigint;
+  userId: string;
+  orderId: bigint;
+  oncePerUser: boolean;
+  discountPercent: number;
+  listPriceAmount: bigint;
+  chargedAmount: bigint;
+  currency: string;
+  consumedAt: Date | null;
+  releasedAt: Date | null;
+  createdAt: Date;
 };
 
 type Where = Record<string, unknown>;
@@ -189,6 +222,7 @@ function orderDefaults(): Omit<
     activationCheckedAt: null,
     topupOfOrderId: null,
     topupPeriodDays: null,
+    promoCodeId: null,
     paidAt: null,
     issuedAt: null,
   };
@@ -201,6 +235,10 @@ class FakeDb {
   private excludedPackageCodes: FakeExcludedPackageCode[] = [];
   private excludedCountryCodes: FakeExcludedCountryCode[] = [];
   private users = new Map<string, FakeUser>();
+  private promoCodes: FakePromoCode[] = [];
+  private promoRedemptions: FakePromoRedemption[] = [];
+  private nextPromoCodeId = 1n;
+  private nextPromoRedemptionId = 1n;
   private telegramStarts: Array<{
     telegramId: string;
     firstSource: string;
@@ -229,7 +267,11 @@ class FakeDb {
     this.users.clear();
     this.telegramStarts = [];
     this.webhookLogs = [];
+    this.promoCodes = [];
+    this.promoRedemptions = [];
     this.nextOrderId = 1n;
+    this.nextPromoCodeId = 1n;
+    this.nextPromoRedemptionId = 1n;
     this.nextExcludedPackageCodeId = 1n;
     this.nextExcludedCountryCodeId = 1n;
     this.nextWebhookLogId = 1n;
@@ -281,17 +323,39 @@ class FakeDb {
       row,
       state: { ...row },
     }));
+    const promoCodeStates = this.promoCodes.map((row) => ({
+      row,
+      state: { ...row },
+    }));
+    const redemptionStates = this.promoRedemptions.map((row) => ({
+      row,
+      state: { ...row },
+    }));
     try {
       return await run(this);
     } catch (error) {
       orderStates.forEach(({ row, state }) => Object.assign(row, state));
       refundStates.forEach(({ row, state }) => Object.assign(row, state));
+      promoCodeStates.forEach(({ row, state }) => Object.assign(row, state));
+      redemptionStates.forEach(({ row, state }) => Object.assign(row, state));
       this.orders = orderStates.map(({ row }) => row);
       this.refunds = refundStates.map(({ row }) => row);
+      this.promoCodes = promoCodeStates.map(({ row }) => row);
+      this.promoRedemptions = redemptionStates.map(({ row }) => row);
       throw error;
     } finally {
       release();
     }
+  }
+
+  async $queryRaw(query: { strings?: readonly string[]; values?: unknown[] }) {
+    const text = query.strings?.join(" ") ?? "";
+    if (text.includes("promo_codes") && text.includes("FOR UPDATE")) {
+      const code = query.values?.find((value) => typeof value === "string");
+      const row = this.promoCodes.find((item) => item.code === code);
+      return row ? [{ id: row.id }] : [];
+    }
+    throw new Error("fake-db: unsupported $queryRaw");
   }
 
   refund = {
@@ -445,7 +509,8 @@ class FakeDb {
         order.priceAmount === candidate.priceAmount &&
         order.currency === candidate.currency &&
         order.topupOfOrderId === candidate.topupOfOrderId &&
-        order.topupPeriodDays === candidate.topupPeriodDays,
+        order.topupPeriodDays === candidate.topupPeriodDays &&
+        order.promoCodeId === candidate.promoCodeId,
     );
   }
 
@@ -771,6 +836,137 @@ class FakeDb {
       );
       for (const user of matches) {
         Object.assign(user, args.data);
+      }
+      return { count: matches.length };
+    },
+  };
+
+  promoCode = {
+    findUnique: async (args: { where: { id?: bigint; code?: string } }) => {
+      const row = this.promoCodes.find((item) =>
+        args.where.id !== undefined
+          ? item.id === args.where.id
+          : item.code === args.where.code,
+      );
+      return row ? { ...row } : null;
+    },
+    findMany: async (args?: {
+      orderBy?: { createdAt?: "asc" | "desc" };
+      include?: {
+        _count?: {
+          select?: { redemptions?: { where?: Where } };
+        };
+      };
+    }) => {
+      const rows = [...this.promoCodes];
+      if (args?.orderBy?.createdAt === "desc") {
+        rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+      return rows.map((row) => ({
+        ...row,
+        _count: {
+          redemptions: this.promoRedemptions.filter(
+            (redemption) =>
+              redemption.promoCodeId === row.id &&
+              matchWhere(
+                redemption,
+                args?.include?._count?.select?.redemptions?.where ?? {},
+              ),
+          ).length,
+        },
+      }));
+    },
+    create: async (args: {
+      data: Omit<FakePromoCode, "id" | "createdAt" | "updatedAt">;
+    }) => {
+      if (this.promoCodes.some((item) => item.code === args.data.code)) {
+        throw Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+        });
+      }
+      const now = new Date();
+      const row: FakePromoCode = {
+        id: this.nextPromoCodeId++,
+        ...args.data,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.promoCodes.push(row);
+      return { ...row };
+    },
+    update: async (args: {
+      where: { id: bigint };
+      data: Partial<FakePromoCode>;
+    }) => {
+      const row = this.promoCodes.find((item) => item.id === args.where.id);
+      if (!row) throw new Error("fake-db: promo code not found");
+      Object.assign(row, args.data, { updatedAt: new Date() });
+      return { ...row };
+    },
+  };
+
+  promoRedemption = {
+    findFirst: async (args: { where: Where }) => {
+      const row = this.promoRedemptions.find((item) =>
+        matchWhere(item, args.where),
+      );
+      return row ? { ...row } : null;
+    },
+    findMany: async (args: { where?: Where } = {}) =>
+      this.promoRedemptions
+        .filter((item) => matchWhere(item, args.where ?? {}))
+        .map((item) => ({ ...item })),
+    count: async (args: { where: Where }) =>
+      this.promoRedemptions.filter((item) => matchWhere(item, args.where))
+        .length,
+    create: async (args: {
+      data: Omit<
+        FakePromoRedemption,
+        "id" | "createdAt" | "consumedAt" | "releasedAt"
+      > & {
+        consumedAt?: Date | null;
+        releasedAt?: Date | null;
+      };
+    }) => {
+      const row: FakePromoRedemption = {
+        id: this.nextPromoRedemptionId++,
+        consumedAt: null,
+        releasedAt: null,
+        createdAt: new Date(),
+        ...args.data,
+      };
+      if (
+        row.oncePerUser &&
+        row.releasedAt == null &&
+        this.promoRedemptions.some(
+          (item) =>
+            item.oncePerUser &&
+            item.releasedAt == null &&
+            item.promoCodeId === row.promoCodeId &&
+            item.userId === row.userId,
+        )
+      ) {
+        throw Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+        });
+      }
+      if (this.promoRedemptions.some((item) => item.orderId === row.orderId)) {
+        throw Object.assign(new Error("Unique constraint failed"), {
+          code: "P2002",
+        });
+      }
+      this.promoRedemptions.push(row);
+      return { ...row };
+    },
+    updateMany: async (args: {
+      where: Where;
+      data: Partial<FakePromoRedemption>;
+    }) => {
+      const matches = this.promoRedemptions.filter((item) =>
+        matchWhere(item, args.where),
+      );
+      for (const row of matches) {
+        Object.assign(row, args.data);
       }
       return { count: matches.length };
     },

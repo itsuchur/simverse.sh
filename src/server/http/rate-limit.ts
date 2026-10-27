@@ -19,8 +19,13 @@ export const REQUEST_LIMITS = {
 export type RequestLimitScope = keyof typeof REQUEST_LIMITS;
 export const REQUEST_LIMIT_WINDOW_SECONDS = 60;
 
+/** Promo lookups only. Redis key: `promo-attempt:<user id>`. */
+export const PROMO_ATTEMPT_LIMIT = 5;
+export const PROMO_ATTEMPT_WINDOW_SECONDS = 10 * 60;
+
 type Limiter = Pick<RateLimiterRedis, "consume">;
 const limiters = new Map<RequestLimitScope, Promise<Limiter>>();
+let promoLimiter: Promise<Limiter> | undefined;
 
 function getLimiter(scope: RequestLimitScope): Promise<Limiter> {
   let limiter = limiters.get(scope);
@@ -46,44 +51,72 @@ function getLimiter(scope: RequestLimitScope): Promise<Limiter> {
   return limiter;
 }
 
+function getPromoLimiter(): Promise<Limiter> {
+  promoLimiter ??= getRedis()
+    .then(
+      (storeClient) =>
+        new RateLimiterRedis({
+          storeClient,
+          useRedisPackage: true,
+          rejectIfRedisNotReady: true,
+          keyPrefix: "promo-attempt",
+          points: PROMO_ATTEMPT_LIMIT,
+          duration: PROMO_ATTEMPT_WINDOW_SECONDS,
+        }),
+    )
+    .catch((error: unknown) => {
+      promoLimiter = undefined;
+      throw error;
+    });
+  return promoLimiter;
+}
+
+async function consumeIdentity(
+  limiter: Promise<Limiter>,
+  identity: string,
+): Promise<Response | null> {
+  try {
+    await (await limiter).consume(identity);
+    return null;
+  } catch (error) {
+    if (error instanceof RateLimiterRes) {
+      return Response.json(
+        { error: "rate_limited" },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(
+              Math.max(1, Math.ceil(error.msBeforeNext / 1000)),
+            ),
+          },
+        },
+      );
+    }
+    // A Redis outage must not silently remove abuse protection.
+    return Response.json(
+      { error: "unavailable" },
+      {
+        status: 503,
+        headers: { "Retry-After": "30" },
+      },
+    );
+  }
+}
+
 /** Injectable store boundary lets tests exercise the real limiter policy. */
 export function createRequestLimitGuard(
   resolve: (scope: RequestLimitScope) => Promise<Limiter>,
 ) {
-  return async (
-    identity: string,
-    scope: RequestLimitScope,
-  ): Promise<Response | null> => {
-    try {
-      await (await resolve(scope)).consume(identity);
-      return null;
-    } catch (error) {
-      if (error instanceof RateLimiterRes) {
-        return Response.json(
-          { error: "rate_limited" },
-          {
-            status: 429,
-            headers: {
-              "Retry-After": String(
-                Math.max(1, Math.ceil(error.msBeforeNext / 1000)),
-              ),
-            },
-          },
-        );
-      }
-      // A Redis outage must not silently remove abuse protection.
-      return Response.json(
-        { error: "unavailable" },
-        {
-          status: 503,
-          headers: { "Retry-After": "30" },
-        },
-      );
-    }
-  };
+  return (identity: string, scope: RequestLimitScope) =>
+    consumeIdentity(resolve(scope), identity);
 }
 
 export const limitMiniappRequest = createRequestLimitGuard(getLimiter);
+
+/** Five promo-code database lookups per user, then a 10-minute block. */
+export function limitPromoAttempt(userId: string) {
+  return consumeIdentity(getPromoLimiter(), userId);
+}
 
 export function limitPrecheckRequest(request: Request) {
   // Traefik overwrites X-Real-IP. Do not trust arbitrary forwarded/CF headers

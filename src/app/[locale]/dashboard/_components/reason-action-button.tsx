@@ -17,7 +17,7 @@ export function ReasonActionButton({
   onSubmit,
   initialReason = "",
 }: {
-  label: "Refund" | "Ban";
+  label: "Refund" | "Ban" | "Revoke";
   initialReason?: string;
   onSubmit: (reason: string) => Promise<{ pending: boolean } | void>;
 }) {
@@ -59,7 +59,11 @@ export function ReasonActionButton({
         <DialogContent showCloseButton={!pending}>
           <DialogHeader>
             <DialogTitle>
-              {label === "Refund" ? "Refund order" : "Ban user"}
+              {label === "Refund"
+                ? "Refund order"
+                : label === "Ban"
+                  ? "Ban user"
+                  : "Revoke promo code"}
             </DialogTitle>
             <DialogDescription>
               Enter a reason and submit to {label.toLowerCase()}. Closing this
@@ -78,7 +82,7 @@ export function ReasonActionButton({
                   setMessage(
                     result?.pending
                       ? "Refund requested; awaiting X-Hub confirmation."
-                      : `${label === "Refund" ? "Refund" : "Ban"} completed.`,
+                      : `${label} completed.`,
                   );
                   setOpen(false);
                   router.refresh();

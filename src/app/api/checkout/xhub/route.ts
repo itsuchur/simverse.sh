@@ -6,14 +6,20 @@ import {
   invoiceResponse,
 } from "~/server/orders/checkout";
 import { getAuth } from "~/server/better-auth";
-import { limitMiniappRequest } from "~/server/http/rate-limit";
+import {
+  limitMiniappRequest,
+  limitPromoAttempt,
+} from "~/server/http/rate-limit";
 import { getCartSnapshot } from "~/server/cart";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
+import { readPromoCode } from "~/lib/promo-code";
 import { XHUB_PAYMENT_PROVIDER } from "~/lib/order-status";
+import { createPendingInvoice } from "~/server/orders/draft";
 import {
-  createPendingInvoice,
-  findOrCreatePendingOrder,
-} from "~/server/orders/draft";
+  placeCheckoutOrder,
+  PromoError,
+  promoErrorResponse,
+} from "~/server/promos/promo";
 import { createXhubPayment, xhubConfigured } from "~/server/payments/xhub";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { miniappOrigin } from "~/server/urls";
@@ -62,6 +68,10 @@ export async function POST(request: Request) {
   if (!body.success) {
     return Response.json({ error: "invalid_checkout" }, { status: 400 });
   }
+  const promoCode = readPromoCode(body.data.promoCode);
+  if (promoCode === null) {
+    return Response.json({ error: "invalid_code" }, { status: 400 });
+  }
 
   const cart = await getCartSnapshot(telegramId);
   if (!cart) {
@@ -105,21 +115,34 @@ export async function POST(request: Request) {
 
   const countryCode = plan.country.includes(",") ? null : plan.country || null;
   const buyerIp = clientIpFromHeaders(request.headers);
-  const order = await findOrCreatePendingOrder({
-    userId: session.user.id,
-    resellerPlanId: plan.packageCode,
-    packageName: plan.name,
-    countryCode,
-    dataAmountMb: Math.round(plan.data_gb * 1024),
-    validityDays: plan.validity_days,
-    priceAmount: BigInt(cents),
-    currency,
-    costAmount: BigInt(Math.round(plan.cost)),
-    costCurrency: "USD",
-    paymentProvider: XHUB_PAYMENT_PROVIDER,
-    buyerIp,
-    cartRevision,
-  });
+  if (promoCode) {
+    const promoLimited = await limitPromoAttempt(session.user.id);
+    if (promoLimited) return promoLimited;
+  }
+  let order;
+  try {
+    order = await placeCheckoutOrder(
+      {
+        userId: session.user.id,
+        resellerPlanId: plan.packageCode,
+        packageName: plan.name,
+        countryCode,
+        dataAmountMb: Math.round(plan.data_gb * 1024),
+        validityDays: plan.validity_days,
+        priceAmount: BigInt(cents),
+        currency,
+        costAmount: BigInt(Math.round(plan.cost)),
+        costCurrency: "USD",
+        paymentProvider: XHUB_PAYMENT_PROVIDER,
+        buyerIp,
+        cartRevision,
+      },
+      promoCode,
+    );
+  } catch (error) {
+    if (error instanceof PromoError) return promoErrorResponse(error);
+    throw error;
+  }
   if (order.paymentInvoiceUrl) {
     return invoiceResponse(order.orderUuid, order.paymentInvoiceUrl);
   }
@@ -129,7 +152,7 @@ export async function POST(request: Request) {
   try {
     const invoiceUrl = await createPendingInvoice(order.id, async () => {
       const payment = await createXhubPayment({
-        amountRub: cents / 100,
+        amountRub: Number(order.priceAmount) / 100,
         orderUuid: order.orderUuid,
         paymentMethod,
         description: `${plan.name} · ${plan.validity_days}d`,

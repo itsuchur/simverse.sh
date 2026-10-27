@@ -1,8 +1,12 @@
 import "server-only";
 
+import type { Prisma } from "@prisma/client";
+
 import { orderStatus, paymentStatus } from "~/lib/order-status";
 import { db, isUniqueConstraintError } from "~/server/db";
 import { assertSupplierCapacity } from "~/server/orders/supplier-capacity";
+
+type DraftDb = Prisma.TransactionClient | typeof db;
 
 /**
  * A pending draft (and its provider invoice) is reused for this long. After
@@ -27,6 +31,7 @@ export type PendingOrderDraft = {
   cartRevision?: string | null;
   topupOfOrderId?: bigint | null;
   topupPeriodDays?: number | null;
+  promoCodeId?: bigint | null;
 };
 
 function pendingDraftWhere(data: PendingOrderDraft) {
@@ -40,12 +45,16 @@ function pendingDraftWhere(data: PendingOrderDraft) {
     currency: data.currency,
     topupOfOrderId: data.topupOfOrderId ?? null,
     topupPeriodDays: data.topupPeriodDays ?? null,
+    promoCodeId: data.promoCodeId ?? null,
   };
 }
 
-export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
+export async function findOrCreatePendingOrder(
+  data: PendingOrderDraft,
+  client: DraftDb = db,
+) {
   const where = pendingDraftWhere(data);
-  const existing = await db.order.findFirst({
+  const existing = await client.order.findFirst({
     where,
     orderBy: { createdAt: "desc" },
   });
@@ -56,11 +65,11 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
     ) {
       return existing;
     }
-    await failPendingInvoice(existing.id, "expired");
+    await failPendingInvoice(existing.id, "expired", client);
   }
 
   try {
-    return await db.order.create({
+    return await client.order.create({
       data: {
         userId: data.userId,
         resellerCode: "esimaccess",
@@ -78,6 +87,7 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
         cartRevision: data.cartRevision ?? null,
         topupOfOrderId: data.topupOfOrderId ?? null,
         topupPeriodDays: data.topupPeriodDays ?? null,
+        promoCodeId: data.promoCodeId ?? null,
         paymentStatus: paymentStatus.pending,
         status: orderStatus.created,
       },
@@ -86,14 +96,15 @@ export async function findOrCreatePendingOrder(data: PendingOrderDraft) {
     if (!isUniqueConstraintError(error)) {
       throw error;
     }
-    const raced = await db.order.findFirst({
+    const raced = await client.order.findFirst({
       where,
       orderBy: { createdAt: "desc" },
     });
     if (
       raced?.cartRevision !== (data.cartRevision ?? null) ||
       raced?.topupOfOrderId !== (data.topupOfOrderId ?? null) ||
-      raced?.topupPeriodDays !== (data.topupPeriodDays ?? null)
+      raced?.topupPeriodDays !== (data.topupPeriodDays ?? null) ||
+      raced?.promoCodeId !== (data.promoCodeId ?? null)
     ) {
       throw error;
     }
@@ -180,8 +191,13 @@ export async function createPendingInvoice(
   }
 }
 
-export async function failPendingInvoice(orderId: bigint, reason: string) {
-  await db.order.updateMany({
+export async function failPendingInvoice(
+  orderId: bigint,
+  reason: string,
+  client: DraftDb = db,
+) {
+  const current = await client.order.findUnique({ where: { id: orderId } });
+  await client.order.updateMany({
     where: {
       id: orderId,
       paymentStatus: paymentStatus.pending,
@@ -193,4 +209,17 @@ export async function failPendingInvoice(orderId: bigint, reason: string) {
       failureReason: reason,
     },
   });
+  // A provider invoice can still be paid after the draft is closed. Release
+  // the promo only when this order never reached a provider.
+  if (
+    current &&
+    current.paymentInvoiceUrl == null &&
+    current.paymentInvoiceId == null &&
+    current.paymentInvoiceClaim == null
+  ) {
+    await client.promoRedemption.updateMany({
+      where: { orderId, releasedAt: null, consumedAt: null },
+      data: { releasedAt: new Date() },
+    });
+  }
 }

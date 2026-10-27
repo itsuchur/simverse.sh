@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 export const checkoutRequestSchema = z.object({
   cartRevision: z.string().uuid(),
   locale: z.enum(["en", "ru"]).optional(),
+  promoCode: z.string().max(64).optional(),
 });
 
 export function invoiceResponse(orderUuid: string, invoiceUrl: string | null) {

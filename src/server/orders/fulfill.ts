@@ -7,6 +7,7 @@ import * as Sentry from "@sentry/nextjs";
 
 import { clearCartIfRevisionMatches } from "~/server/cart";
 import { db, isUniqueConstraintError } from "~/server/db";
+import { consumePromoRedemption } from "~/server/promos/promo";
 import {
   orderEsimAccessPackage,
   queryEsimAccessProfiles,
@@ -28,7 +29,10 @@ import {
 import { projectEsimSnapshot } from "~/lib/esim-lifecycle";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
 import { reportedAcquisitionSource } from "~/lib/acquisition-source";
-import { captureServerEvent, recordEsimFulfillment } from "~/lib/posthog/server";
+import {
+  captureServerEvent,
+  recordEsimFulfillment,
+} from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
 import { notifyBuyerTopupApplied } from "~/server/telegram/topup-notice";
 import {
@@ -623,7 +627,10 @@ async function placeSupplierTopup(order: {
         }
       } catch (error) {
         Sentry.captureException(error, {
-          tags: { component: "esimaccess", reason: "topup_replay_query_failed" },
+          tags: {
+            component: "esimaccess",
+            reason: "topup_replay_query_failed",
+          },
           extra: { orderUuid: order.orderUuid },
         });
       }
@@ -817,6 +824,7 @@ async function markOrderPaid(input: {
   if (result.count === 0) {
     return null;
   }
+  await consumePromoRedemption(input.orderId);
   return db.order.findUniqueOrThrow({
     where: { id: input.orderId },
     include: { user: { select: { telegramId: true } } },
@@ -846,6 +854,7 @@ async function fulfillPayment(input: {
   if (alreadyCharged) {
     if (alreadyCharged.paymentStatus !== paymentStatus.paid) return;
     if (alreadyCharged.status === orderStatus.refundRequired) return;
+    await consumePromoRedemption(alreadyCharged.id);
     await continueFulfillment(alreadyCharged, input.provider);
     return;
   }
@@ -868,6 +877,7 @@ async function fulfillPayment(input: {
   if (order.paymentStatus === paymentStatus.paid) {
     if (order.status === orderStatus.refundRequired) return;
     if (order.paymentChargeId === input.chargeId) {
+      await consumePromoRedemption(order.id);
       await continueFulfillment(order, input.provider);
       return;
     }
@@ -1041,7 +1051,11 @@ export async function fulfillTrybitPayment(input: {
   if (order?.paymentProvider !== TRYBIT_PAYMENT_PROVIDER) return;
   if (order.paymentStatus !== paymentStatus.paid) {
     const cents = usdNumberToCents(input.amountUsd);
-    if (order.currency !== "USD" || cents === null || cents !== order.priceAmount) {
+    if (
+      order.currency !== "USD" ||
+      cents === null ||
+      cents !== order.priceAmount
+    ) {
       Sentry.captureMessage("Trybit webhook amount mismatch", {
         level: "error",
         tags: { component: "trybit", reason: "amount_mismatch" },
@@ -1264,7 +1278,11 @@ export async function fulfillXhubPayment(input: {
   if (order?.paymentProvider !== XHUB_PAYMENT_PROVIDER) return;
   if (order.paymentStatus !== paymentStatus.paid) {
     const kopecks = usdAmountToCents(input.amountRub);
-    if (order.currency !== "RUB" || kopecks === null || kopecks !== order.priceAmount) {
+    if (
+      order.currency !== "RUB" ||
+      kopecks === null ||
+      kopecks !== order.priceAmount
+    ) {
       Sentry.captureMessage(
         order.currency !== "RUB"
           ? "X-Hub webhook currency mismatch"
@@ -1273,13 +1291,17 @@ export async function fulfillXhubPayment(input: {
           level: "error",
           tags: {
             component: "xhub",
-            reason: order.currency !== "RUB" ? "currency_mismatch" : "amount_mismatch",
+            reason:
+              order.currency !== "RUB"
+                ? "currency_mismatch"
+                : "amount_mismatch",
           },
           extra: {
             orderUuid: input.orderUuid,
-            expected: order.currency === "RUB"
-              ? order.priceAmount.toString()
-              : order.currency,
+            expected:
+              order.currency === "RUB"
+                ? order.priceAmount.toString()
+                : order.currency,
             received: order.currency === "RUB" ? input.amountRub : "RUB",
           },
         },

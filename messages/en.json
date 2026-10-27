@@ -96,7 +96,19 @@
     "payCard": "Credit Card · {price}",
     "paySbp": "SBP · {price}",
     "payCrypto": "Cryptocurrency · {price}",
-    "payFailed": "Couldn't start payment. Open the app from Telegram and try again."
+    "payFailed": "Couldn't start payment. Open the app from Telegram and try again.",
+    "havePromo": "I have a promo code",
+    "promoPlaceholder": "Promo code",
+    "promoApply": "Apply",
+    "promoApplied": "{percent}% off",
+    "promoInvalid": "Use 4–32 letters or numbers only.",
+    "promoNotFound": "This promo code is not valid.",
+    "promoInactive": "This promo code is not active.",
+    "promoUsed": "This promo code has already been used.",
+    "promoHeld": "This promo code is already on an open payment.",
+    "promoExhausted": "This promo code has reached its limit.",
+    "promoTooSmall": "This promo code does not change this price.",
+    "promoRateLimited": "Too many promo code attempts. Try again in a few minutes."
   },
   "PaymentResult": {
     "successTitle": "Thank you for your purchase.",
