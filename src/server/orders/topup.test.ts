@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
+import { quoteDayPassAmount } from "~/lib/day-pass-quote";
 import {
   exceedsEsimAccessProvisionCost,
+  markedRetailPrice,
   retailPriceToRub,
   retailPriceToStars,
   retailPriceToUsd,
 } from "~/server/suppliers/esimaccess/packages";
 import { fakeDb } from "~/test/fake-db";
 import { esimAccessPost, resetTestState } from "~/test/mocks";
+
+const getPriceModifier = mock(async () => 1);
+
+void mock.module("~/server/price-modifier", () => ({
+  getPriceModifier,
+}));
 
 const getEsimAccessPackageByCode = mock(
   async (
@@ -33,6 +41,7 @@ void mock.module("~/server/suppliers/esimaccess/packages", () => ({
     return obj?.packageList ?? [];
   },
   getEsimAccessPackageByCode,
+  markedRetailPrice,
   retailPriceToRub,
   retailPriceToStars,
   retailPriceToUsd,
@@ -102,6 +111,8 @@ beforeEach(() => {
   resetTestState();
   getEsimAccessPackageByCode.mockReset();
   getEsimAccessPackageByCode.mockResolvedValue(null);
+  getPriceModifier.mockReset();
+  getPriceModifier.mockResolvedValue(1);
 });
 
 describe("listTopupOffers", () => {
@@ -132,6 +143,101 @@ describe("listTopupOffers", () => {
       offers.packages.every((pkg) => pkg.packageCode === "TR_1_Daily_Premium"),
     ).toBe(true);
     expect(offers.packages[2]?.priceUsd).toBe(15);
+  });
+
+  test("applies PRICE_MODIFIER to day-pass and data top-up prices", async () => {
+    getPriceModifier.mockResolvedValue(1.5);
+    const parent = seedParent();
+    getEsimAccessPackageByCode.mockResolvedValue({
+      meta: { usdRubRate: 90 },
+      pkg: DAY_PASS_PKG,
+    });
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: { packageList: [DAY_PASS_TOPUP] },
+    });
+
+    const retail = quoteDayPassAmount({
+      retailPrice: DAY_PASS_TOPUP.retailPrice,
+      durationDays: 1,
+      extendDays: 7,
+    });
+    if (retail === null) throw new Error("expected a day-pass retail quote");
+    const marked = markedRetailPrice(retail, 1.5);
+
+    const offers = await listTopupOffers({
+      userId: "user-1",
+      orderUuid: parent.orderUuid,
+    });
+    if (offers === "not_found" || offers.mode !== "packages") {
+      throw new Error("expected packages");
+    }
+    expect(offers.packages[2]?.priceUsd).toBe(retailPriceToUsd(marked));
+    expect(offers.packages[2]?.priceRub).toBe(retailPriceToRub(marked, 90));
+    expect(offers.packages[2]?.priceStars).toBe(retailPriceToStars(marked));
+
+    esimAccessPost.mockResolvedValueOnce({
+      success: true,
+      obj: { packageList: [DAY_PASS_TOPUP] },
+    });
+    const purchase = await prepareTopupPurchase({
+      userId: "user-1",
+      orderUuid: parent.orderUuid,
+      packageCode: "TR_1_Daily_Premium",
+      days: 7,
+    });
+    expect(purchase).toMatchObject({
+      supplierCost: 41_592,
+      priceUsd: retailPriceToUsd(marked),
+      priceRub: retailPriceToRub(marked, 90),
+    });
+
+    const dataParent = seedParent({ resellerPlanId: DATA_PKG.packageCode });
+    getEsimAccessPackageByCode.mockResolvedValue({
+      meta: { usdRubRate: 90 },
+      pkg: DATA_PKG,
+    });
+    const dataRetail = 16_100;
+    esimAccessPost.mockResolvedValue({
+      success: true,
+      obj: {
+        packageList: [
+          {
+            packageCode: "TOPUP_DATA",
+            name: "Europe 1GB 7Days",
+            price: 80_000,
+            retailPrice: dataRetail,
+            volume: 1024 ** 3,
+            duration: 7,
+          },
+        ],
+      },
+    });
+    const dataOffers = await listTopupOffers({
+      userId: "user-1",
+      orderUuid: dataParent.orderUuid,
+    });
+    const dataMarked = markedRetailPrice(dataRetail, 1.5);
+    expect(dataOffers).toMatchObject({
+      mode: "packages",
+      packages: [
+        {
+          priceUsd: retailPriceToUsd(dataMarked),
+          priceRub: retailPriceToRub(dataMarked, 90),
+          priceStars: retailPriceToStars(dataMarked),
+        },
+      ],
+    });
+    const dataPurchase = await prepareTopupPurchase({
+      userId: "user-1",
+      orderUuid: dataParent.orderUuid,
+      packageCode: "TOPUP_DATA",
+    });
+    expect(dataPurchase).toMatchObject({
+      supplierCost: 80_000,
+      priceUsd: retailPriceToUsd(dataMarked),
+      priceRub: retailPriceToRub(dataMarked, 90),
+    });
   });
 
   test("omits a day-pass preset once its supplier provision cost reaches $100", async () => {

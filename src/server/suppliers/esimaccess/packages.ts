@@ -239,15 +239,23 @@ export function retailPriceToStars(retailPrice: number): number {
   return usdToStars(retailPrice / ESIMACCESS_PRICE_SCALE);
 }
 
+/** Scaled supplier retail × PRICE_MODIFIER. An invalid modifier is treated as 1. */
+export function markedRetailPrice(
+  retailPrice: number,
+  priceModifier = 1,
+): number {
+  const modifier =
+    Number.isFinite(priceModifier) && priceModifier > 0 ? priceModifier : 1;
+  return retailPrice * modifier;
+}
+
 export function withPriceRub(
   packages: EsimAccessPackage[],
   usdRubRate: number,
   priceModifier = 1,
 ): EsimAccessPackage[] {
-  const modifier =
-    Number.isFinite(priceModifier) && priceModifier > 0 ? priceModifier : 1;
   return packages.map((pkg) => {
-    const adjustedRetail = pkg.retailPrice * modifier;
+    const adjustedRetail = markedRetailPrice(pkg.retailPrice, priceModifier);
     return {
       ...pkg,
       priceRub: retailPriceToRub(adjustedRetail, usdRubRate),

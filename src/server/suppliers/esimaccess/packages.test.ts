@@ -4,6 +4,7 @@ import { usdToStars } from "~/lib/usd-to-stars";
 import {
   ESIMACCESS_PRICE_SCALE,
   omitEsimAccessProvisionCostCap,
+  markedRetailPrice,
   retailPriceToRub,
   retailPriceToStars,
   retailPriceToUsd,
@@ -60,6 +61,14 @@ describe("retailPriceToStars", () => {
     expect(retailPriceToStars(retailPrice)).toBe(
       usdToStars(retailPrice / ESIMACCESS_PRICE_SCALE),
     );
+  });
+});
+
+describe("markedRetailPrice", () => {
+  test("multiplies scaled retail and ignores a non-positive modifier", () => {
+    expect(markedRetailPrice(21_700, 1.5)).toBe(32_550);
+    expect(markedRetailPrice(21_700, 0)).toBe(21_700);
+    expect(markedRetailPrice(21_700, Number.NaN)).toBe(21_700);
   });
 });
 

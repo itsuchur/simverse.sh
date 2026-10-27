@@ -10,11 +10,13 @@ import {
 } from "~/lib/topup-offer";
 import { db } from "~/server/db";
 import { DRAFT_TTL_MS } from "~/server/orders/draft";
+import { getPriceModifier } from "~/server/price-modifier";
 import {
   ESIMACCESS_SUPPLIER,
   exceedsEsimAccessProvisionCost,
   fetchEsimAccessTopupPackages,
   getEsimAccessPackageByCode,
+  markedRetailPrice,
   retailPriceToRub,
   retailPriceToStars,
   retailPriceToUsd,
@@ -75,9 +77,23 @@ function topupAllowed(
   return true;
 }
 
+function customerPrices(
+  retail: number,
+  usdRubRate: number,
+  priceModifier: number,
+) {
+  const marked = markedRetailPrice(retail, priceModifier);
+  return {
+    priceUsd: retailPriceToUsd(marked),
+    priceRub: retailPriceToRub(marked, usdRubRate),
+    priceStars: retailPriceToStars(marked),
+  };
+}
+
 function packageOffer(
   raw: EsimAccessTopupPackage,
   usdRubRate: number,
+  priceModifier: number,
 ): TopupPackageOffer | null {
   if (
     typeof raw.packageCode !== "string" ||
@@ -110,9 +126,7 @@ function packageOffer(
     name: raw.name,
     volumeBytes: raw.volume,
     validityDays: raw.duration,
-    priceUsd: retailPriceToUsd(retail),
-    priceRub: retailPriceToRub(retail, usdRubRate),
-    priceStars: retailPriceToStars(retail),
+    ...customerPrices(retail, usdRubRate, priceModifier),
   };
 }
 
@@ -120,9 +134,10 @@ function packageOffer(
 function preferredDataTopups(
   listed: EsimAccessTopupPackage[],
   usdRubRate: number,
+  priceModifier: number,
 ) {
   const valid = listed.flatMap((raw) => {
-    const offer = packageOffer(raw, usdRubRate);
+    const offer = packageOffer(raw, usdRubRate, priceModifier);
     return offer ? [{ raw, offer }] : [];
   });
   const premium = valid.filter(({ offer }) => /\bPremium\b/i.test(offer.name));
@@ -195,6 +210,7 @@ function dayPassOffers(
   pkg: EsimAccessPackage,
   topup: EsimAccessTopupPackage,
   usdRubRate: number,
+  priceModifier: number,
 ): TopupPackageOffer[] {
   const topupCode = topupPackageCode(topup);
   if (!topupCode) return [];
@@ -208,9 +224,7 @@ function dayPassOffers(
       volumeBytes: pkg.volume,
       validityDays: days,
       days,
-      priceUsd: retailPriceToUsd(quote.retail),
-      priceRub: retailPriceToRub(quote.retail, usdRubRate),
-      priceStars: retailPriceToStars(quote.retail),
+      ...customerPrices(quote.retail, usdRubRate, priceModifier),
     });
   }
   return offers;
@@ -236,19 +250,22 @@ export async function listTopupOffers(input: {
   if (!catalog) return { mode: "none" };
   const { meta, pkg } = catalog;
 
-  const listed = await fetchEsimAccessTopupPackages(order.esimIccid);
+  const [listed, priceModifier] = await Promise.all([
+    fetchEsimAccessTopupPackages(order.esimIccid),
+    getPriceModifier(),
+  ]);
 
   if (pkg.supportTopUpType === 3) {
     const topup = resolveDayPassTopupPackage(listed, pkg);
     if (!topup) return { mode: "none" };
-    const packages = dayPassOffers(pkg, topup, meta.usdRubRate);
+    const packages = dayPassOffers(pkg, topup, meta.usdRubRate, priceModifier);
     if (packages.length === 0) return { mode: "none" };
     return { mode: "packages", action: "extend", packages };
   }
 
   if (pkg.supportTopUpType !== 2) return { mode: "none" };
 
-  const packages = preferredDataTopups(listed, meta.usdRubRate)
+  const packages = preferredDataTopups(listed, meta.usdRubRate, priceModifier)
     .map(({ offer }) => offer)
     .sort((a, b) => a.priceUsd - b.priceUsd || a.volumeBytes - b.volumeBytes);
 
@@ -272,7 +289,10 @@ export async function prepareTopupPurchase(input: {
   if (!catalog) return "unavailable";
   const { meta, pkg } = catalog;
 
-  const listed = await fetchEsimAccessTopupPackages(order.esimIccid);
+  const [listed, priceModifier] = await Promise.all([
+    fetchEsimAccessTopupPackages(order.esimIccid),
+    getPriceModifier(),
+  ]);
 
   if (pkg.supportTopUpType === 3) {
     if (input.days === undefined || !isDayPassPreset(input.days)) {
@@ -291,12 +311,13 @@ export async function prepareTopupPurchase(input: {
     const quote = dayPassQuote(pkg, topup, input.days);
     if (!quote) return "invalid";
     const dataAmountMb = Math.max(0, Math.round(pkg.volume / 1024 ** 2));
+    const prices = customerPrices(quote.retail, meta.usdRubRate, priceModifier);
     return {
       supplierCost: quote.cost,
       title: pkg.name,
       description: `${pkg.name} · ${input.days}d`,
-      priceUsd: retailPriceToUsd(quote.retail),
-      priceRub: retailPriceToRub(quote.retail, meta.usdRubRate),
+      priceUsd: prices.priceUsd,
+      priceRub: prices.priceRub,
       draft: {
         resellerPlanId: topupCode,
         packageName: pkg.name,
@@ -311,7 +332,11 @@ export async function prepareTopupPurchase(input: {
 
   if (pkg.supportTopUpType !== 2 || !input.packageCode) return "invalid";
 
-  const selected = preferredDataTopups(listed, meta.usdRubRate).find(
+  const selected = preferredDataTopups(
+    listed,
+    meta.usdRubRate,
+    priceModifier,
+  ).find(
     ({ offer }) => offer.packageCode === input.packageCode,
   );
   if (!selected) return "invalid";
