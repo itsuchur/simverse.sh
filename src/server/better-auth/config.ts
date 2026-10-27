@@ -13,6 +13,7 @@ import {
   sanitizeMiniAppMappedUser,
   sanitizeUserForPersist,
 } from "~/server/telegram/sanitize-mini-app-user";
+import { syncChatMenuButton } from "~/server/telegram/menu-button";
 import { dashboardOrigin, FALLBACK_ORIGIN, miniappOrigin } from "~/server/urls";
 
 const createAuth = () =>
@@ -84,6 +85,12 @@ const createAuth = () =>
               }
               throw error;
             }
+          },
+          after: async (user) => {
+            await syncChatMenuButton({
+              telegramId: user.telegramId,
+              preferredLanguage: user.preferredLanguage,
+            });
           },
         },
       },

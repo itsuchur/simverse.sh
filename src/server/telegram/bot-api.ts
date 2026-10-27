@@ -73,6 +73,21 @@ export type InlineKeyboardMarkup = {
   inline_keyboard: Array<Array<InlineKeyboardButton>>;
 };
 
+export async function setChatMenuButton(input: {
+  chatId: number;
+  text: string;
+  url: string;
+}) {
+  await botMethod<boolean>("setChatMenuButton", {
+    chat_id: input.chatId,
+    menu_button: {
+      type: "web_app",
+      text: input.text,
+      web_app: { url: input.url },
+    },
+  });
+}
+
 export async function sendMessage(input: {
   chatId: number;
   text: string;

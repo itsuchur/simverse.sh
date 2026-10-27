@@ -6,6 +6,7 @@ import { z } from "zod";
 import { localeCookie } from "~/i18n/routing";
 import { getSession } from "~/server/better-auth/server";
 import { db } from "~/server/db";
+import { syncChatMenuButton } from "~/server/telegram/menu-button";
 
 const preferredLanguageSchema = z.enum(["en", "ru"]);
 
@@ -17,9 +18,13 @@ export async function updatePreferredLanguageAction(locale: string) {
 
   const preferredLanguage = preferredLanguageSchema.parse(locale);
 
-  await db.user.update({
+  const user = await db.user.update({
     where: { id: session.user.id },
     data: { preferredLanguage },
+  });
+  await syncChatMenuButton({
+    telegramId: user.telegramId,
+    preferredLanguage: user.preferredLanguage,
   });
 
   const cookieStore = await cookies();

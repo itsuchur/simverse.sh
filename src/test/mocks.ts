@@ -82,6 +82,10 @@ export const telegramSendPhoto = mock(
   }) => ({ message_id: 1 }),
 );
 
+export const telegramSetChatMenuButton = mock(
+  async (_input: { chatId: number; text: string; url: string }) => undefined,
+);
+
 /** Stubs the supplier API: /esim/order returns orderNo, /esim/query profiles. */
 export function stubEsimAccess(input?: {
   orderNo?: string;
@@ -145,4 +149,6 @@ export function resetTestState() {
   telegramSendMessage.mockImplementation(async () => ({ message_id: 1 }));
   telegramSendPhoto.mockClear();
   telegramSendPhoto.mockImplementation(async () => ({ message_id: 1 }));
+  telegramSetChatMenuButton.mockClear();
+  telegramSetChatMenuButton.mockImplementation(async () => undefined);
 }

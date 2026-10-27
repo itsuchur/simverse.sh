@@ -18,6 +18,7 @@ import {
   sentryCaptureMessage,
   telegramSendMessage,
   telegramSendPhoto,
+  telegramSetChatMenuButton,
 } from "./mocks";
 
 process.env.SKIP_ENV_VALIDATION = "1";
@@ -86,6 +87,7 @@ void mock.module("../server/suppliers/esimaccess/client", () => ({
 void mock.module("../server/telegram/bot-api", () => ({
   sendMessage: telegramSendMessage,
   sendPhoto: telegramSendPhoto,
+  setChatMenuButton: telegramSetChatMenuButton,
   answerPreCheckoutQuery: async () => undefined,
   verifyTelegramWebhookSecret: (header: string | null) =>
     header === process.env.TELEGRAM_WEBHOOK_SECRET,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { recoverPendingOrders } from "~/server/orders/fulfill";
 import { fakeDb } from "~/test/fake-db";
-import { resetTestState, stubEsimAccess } from "~/test/mocks";
+import { resetTestState, stubEsimAccess, telegramSetChatMenuButton } from "~/test/mocks";
 
 process.env.TELEGRAM_WEBHOOK_SECRET ??=
   "0123456789abcdef0123456789abcdef";
@@ -22,6 +22,7 @@ const answerPreCheckoutQuery = mock(
 void mock.module("~/server/telegram/bot-api", () => ({
   sendMessage,
   sendPhoto: async () => ({ message_id: 1 }),
+  setChatMenuButton: telegramSetChatMenuButton,
   answerPreCheckoutQuery,
   verifyTelegramWebhookSecret: (header: string | null) =>
     header === process.env.TELEGRAM_WEBHOOK_SECRET,

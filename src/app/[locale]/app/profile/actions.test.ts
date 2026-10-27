@@ -3,13 +3,30 @@ import { fakeDb } from "~/test/fake-db";
 import { ZodError } from "zod";
 import { resetTestState } from "~/test/mocks";
 
+const syncChatMenuButton = mock(
+  async (_input: {
+    telegramId?: string | null;
+    preferredLanguage?: string | null;
+  }) => undefined,
+);
+
 void mock.module("~/server/better-auth/server", () => ({
   getSession: async () => ({ user: { id: "user-1" } }),
 }));
-const { updateDataUsageNotificationsAction } = await import("./actions");
+void mock.module("~/server/telegram/menu-button", () => ({
+  syncChatMenuButton,
+}));
+void mock.module("next/headers", () => ({
+  cookies: async () => ({
+    set: () => undefined,
+  }),
+}));
+const { updateDataUsageNotificationsAction, updatePreferredLanguageAction } =
+  await import("./actions");
 
 beforeEach(() => {
   resetTestState();
+  syncChatMenuButton.mockClear();
   fakeDb.seedUser({
     id: "user-1",
     telegramId: "42",
@@ -26,6 +43,18 @@ test("rejects forged non-boolean notification values before changing the databas
   }
   const user = await fakeDb.user.findUnique({ where: { id: "user-1" } });
   expect(user?.dataUsageNotifications).toBe(true);
+});
+
+test("sets the menu button when the signed-in user changes language", async () => {
+  await updatePreferredLanguageAction("ru");
+  expect(
+    (await fakeDb.user.findUnique({ where: { id: "user-1" } }))
+      ?.preferredLanguage,
+  ).toBe("ru");
+  expect(syncChatMenuButton).toHaveBeenCalledWith({
+    telegramId: "42",
+    preferredLanguage: "ru",
+  });
 });
 
 test("accepts true and false for the signed-in user's preference", async () => {
