@@ -43,4 +43,24 @@ export function captureAppEvent(
   posthog.capture(event, properties);
 }
 
+/** One Mini App open. `initialSource` is set once from the stored first touch. */
+export function captureAppOpened(input: {
+  source: string;
+  startParam?: string;
+  initialSource?: string | null;
+}) {
+  initPosthog();
+  if (!initialized) {
+    return;
+  }
+  posthog.capture("app_opened", {
+    source: input.source,
+    ...(input.startParam ? { start_param: input.startParam } : {}),
+    $set: { latest_source: input.source },
+    ...(input.initialSource
+      ? { $set_once: { initial_source: input.initialSource } }
+      : {}),
+  });
+}
+
 export { posthog };

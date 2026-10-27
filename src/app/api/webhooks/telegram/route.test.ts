@@ -156,6 +156,44 @@ describe("telegram webhook /start", () => {
     });
   });
 
+  test("remembers the first /start source and lets a later one update latest", async () => {
+    await postUpdate({
+      message: {
+        chat: { id: 100 },
+        from: { id: 42 },
+        text: "/start src_instagram",
+      },
+    });
+    await postUpdate({
+      message: {
+        chat: { id: 100 },
+        from: { id: 42 },
+        text: "/start@test_bot src_youtube",
+      },
+    });
+
+    const row = await fakeDb.telegramStart.findUnique({
+      where: { telegramId: "42" },
+    });
+    expect(row?.firstSource).toBe("src_instagram");
+    expect(row?.latestSource).toBe("src_youtube");
+  });
+
+  test("a payment /start payload is not an acquisition source", async () => {
+    await postUpdate({
+      message: {
+        chat: { id: 100 },
+        from: { id: 42 },
+        text: "/start successful_payment",
+      },
+    });
+
+    const row = await fakeDb.telegramStart.findUnique({
+      where: { telegramId: "42" },
+    });
+    expect(row).toBeNull();
+  });
+
   test("unknown messages are a noop", async () => {
     const response = await postUpdate({
       message: {

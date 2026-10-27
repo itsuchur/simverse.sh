@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { withWebhookLogging } from "~/lib/webhook-logger";
+import { startCommandPayload } from "~/lib/acquisition-source";
 import { paymentStatus } from "~/lib/order-status";
+import { withWebhookLogging } from "~/lib/webhook-logger";
 import { db } from "~/server/db";
 import { fulfillStarsPayment } from "~/server/orders/fulfill";
 import {
@@ -9,6 +10,7 @@ import {
   sendMessage,
   verifyTelegramWebhookSecret,
 } from "~/server/telegram/bot-api";
+import { rememberTelegramStart } from "~/server/telegram/telegram-start";
 import { startWelcome } from "~/server/telegram/start-welcome";
 
 const userSchema = z.object({
@@ -120,9 +122,17 @@ export const POST = withWebhookLogging(
         currency: payment.currency,
       });
     } else if (isStartCommand(message?.text) && message?.chat?.id !== undefined) {
+      const text = message.text ?? "";
+      const telegramId =
+        message.from?.id !== undefined ? String(message.from.id) : null;
+      if (telegramId) {
+        try {
+          await rememberTelegramStart(telegramId, startCommandPayload(text));
+        } catch {
+          // A missed source must not block the welcome message.
+        }
+      }
       try {
-        const telegramId =
-          message.from?.id !== undefined ? String(message.from.id) : null;
         const user = telegramId
           ? await db.user.findUnique({
               where: { telegramId },

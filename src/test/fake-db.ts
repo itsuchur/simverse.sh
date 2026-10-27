@@ -14,6 +14,8 @@ export type FakeUser = {
   languageCode: string | null;
   preferredLanguage: string | null;
   dataUsageNotifications: boolean;
+  acquisitionSource: string | null;
+  createdAt: Date;
 };
 
 export type FakeExcludedPackageCode = {
@@ -199,6 +201,13 @@ class FakeDb {
   private excludedPackageCodes: FakeExcludedPackageCode[] = [];
   private excludedCountryCodes: FakeExcludedCountryCode[] = [];
   private users = new Map<string, FakeUser>();
+  private telegramStarts: Array<{
+    telegramId: string;
+    firstSource: string;
+    latestSource: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }> = [];
   private nextOrderId = 1n;
   private nextExcludedPackageCodeId = 1n;
   private nextExcludedCountryCodeId = 1n;
@@ -218,6 +227,7 @@ class FakeDb {
     this.excludedPackageCodes = [];
     this.excludedCountryCodes = [];
     this.users.clear();
+    this.telegramStarts = [];
     this.webhookLogs = [];
     this.nextOrderId = 1n;
     this.nextExcludedPackageCodeId = 1n;
@@ -325,6 +335,8 @@ class FakeDb {
       languageCode: null,
       preferredLanguage: null,
       dataUsageNotifications: true,
+      acquisitionSource: null,
+      createdAt: new Date(),
       ...user,
     };
     this.users.set(record.id, record);
@@ -410,6 +422,7 @@ class FakeDb {
         dataUsageNotifications: true,
         isBanned: false,
         isDeleted: false,
+        acquisitionSource: user?.acquisitionSource ?? null,
       },
     };
   }
@@ -669,6 +682,55 @@ class FakeDb {
     },
   };
 
+  telegramStart = {
+    findUnique: async (args: { where: { telegramId: string } }) => {
+      const row = this.telegramStarts.find(
+        (item) => item.telegramId === args.where.telegramId,
+      );
+      return row ? { ...row } : null;
+    },
+    upsert: async (args: {
+      where: { telegramId: string };
+      create: {
+        telegramId: string;
+        firstSource: string;
+        latestSource: string;
+      };
+      update: { latestSource: string };
+    }) => {
+      const row = this.telegramStarts.find(
+        (item) => item.telegramId === args.where.telegramId,
+      );
+      if (row) {
+        row.latestSource = args.update.latestSource;
+        row.updatedAt = new Date();
+        return { ...row };
+      }
+      const created = {
+        ...args.create,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.telegramStarts.push(created);
+      return { ...created };
+    },
+    updateMany: async (args: {
+      where: { telegramId: string; latestSource: string };
+      data: { latestSource: string | null };
+    }) => {
+      const rows = this.telegramStarts.filter(
+        (item) =>
+          item.telegramId === args.where.telegramId &&
+          item.latestSource === args.where.latestSource,
+      );
+      for (const row of rows) {
+        row.latestSource = args.data.latestSource;
+        row.updatedAt = new Date();
+      }
+      return { count: rows.length };
+    },
+  };
+
   user = {
     update: async (args: {
       where: { id: string };
@@ -702,6 +764,15 @@ class FakeDb {
         }
       }
       return selected;
+    },
+    updateMany: async (args: { where: Where; data: Partial<FakeUser> }) => {
+      const matches = [...this.users.values()].filter((user) =>
+        matchWhere(user, args.where),
+      );
+      for (const user of matches) {
+        Object.assign(user, args.data);
+      }
+      return { count: matches.length };
     },
   };
 

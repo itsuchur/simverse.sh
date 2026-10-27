@@ -27,6 +27,7 @@ import {
 } from "~/lib/order-status";
 import { projectEsimSnapshot } from "~/lib/esim-lifecycle";
 import { isEsimLifecycleStatus } from "~/lib/esim-status";
+import { reportedAcquisitionSource } from "~/lib/acquisition-source";
 import { captureServerEvent, recordEsimFulfillment } from "~/lib/posthog/server";
 import { notifyBuyerEsimDelivery } from "~/server/telegram/esim-delivery";
 import { notifyBuyerTopupApplied } from "~/server/telegram/topup-notice";
@@ -310,6 +311,7 @@ function captureOrderPaid(input: {
   paymentProvider: string;
   priceAmount: bigint;
   currency: string;
+  acquisitionSource: string;
 }) {
   captureServerEvent({
     event: "order_paid",
@@ -319,6 +321,7 @@ function captureOrderPaid(input: {
       paymentProvider: input.paymentProvider,
       priceAmount: input.priceAmount.toString(),
       currency: input.currency,
+      acquisitionSource: input.acquisitionSource,
     },
   });
 }
@@ -849,7 +852,9 @@ async function fulfillPayment(input: {
 
   const order = await db.order.findUnique({
     where: { orderUuid: input.orderUuid },
-    include: { user: { select: { telegramId: true } } },
+    include: {
+      user: { select: { telegramId: true, acquisitionSource: true } },
+    },
   });
   if (!order) {
     return;
@@ -935,6 +940,9 @@ async function fulfillPayment(input: {
       paymentProvider: input.provider,
       priceAmount: order.priceAmount,
       currency: order.currency,
+      acquisitionSource: reportedAcquisitionSource(
+        order.user.acquisitionSource,
+      ),
     });
     if (typeof telegramId === "string" && telegramId.length > 0) {
       try {

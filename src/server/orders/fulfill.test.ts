@@ -21,6 +21,7 @@ import {
 import { EsimAccessApiError } from "~/server/suppliers/esimaccess/error";
 import { fakeDb } from "~/test/fake-db";
 import {
+  captureServerEvent,
   capturedEvents,
   clearCart,
   esimAccessPost,
@@ -80,6 +81,47 @@ describe("fulfillStarsPayment", () => {
     expect(order.esimIccid).toBe(PROFILE.iccid);
     expect(clearCart).toHaveBeenCalledWith("42");
     expect(capturedEvents()).toEqual(["order_paid", "esim_issued"]);
+  });
+
+  test("order_paid carries the stored acquisition source", async () => {
+    const order = seedStarsOrder();
+    fakeDb.seedUser({
+      id: "user-1",
+      telegramId: "42",
+      acquisitionSource: "src_instagram",
+    });
+    stubEsimAccess({ orderNo: "EA-1", profiles: [PROFILE] });
+
+    await fulfillStarsPayment({
+      orderUuid: order.orderUuid,
+      telegramPaymentChargeId: "tg-charge-1",
+      telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
+    });
+
+    const paid = captureServerEvent.mock.calls.find(
+      (call) => call[0].event === "order_paid",
+    );
+    expect(paid?.[0].properties?.acquisitionSource).toBe("src_instagram");
+  });
+
+  test("order_paid reports an unset source as unknown", async () => {
+    const order = seedStarsOrder();
+    stubEsimAccess({ orderNo: "EA-1", profiles: [PROFILE] });
+
+    await fulfillStarsPayment({
+      orderUuid: order.orderUuid,
+      telegramPaymentChargeId: "tg-charge-1",
+      telegramId: "42",
+      totalAmount: 370,
+      currency: "XTR",
+    });
+
+    const paid = captureServerEvent.mock.calls.find(
+      (call) => call[0].event === "order_paid",
+    );
+    expect(paid?.[0].properties?.acquisitionSource).toBe("unknown");
   });
 
   test("replaying the same charge does not order twice", async () => {

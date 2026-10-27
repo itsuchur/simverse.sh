@@ -4,6 +4,7 @@ import { getMessages } from "next-intl/server";
 
 import enMessages from "../../../../messages/en.json";
 import ruMessages from "../../../../messages/ru.json";
+import { AcquisitionTracker } from "./_components/acquisition-tracker";
 import { AuthGate, type ConsentMessages } from "./_components/auth-gate";
 import { FingerprintCollector } from "./_components/fingerprint-collector";
 import { MiniAppChrome } from "./_components/mini-app-chrome";
@@ -54,6 +55,7 @@ export default async function MiniAppLayout({
               fingerprint={session.user.fingerprint ?? null}
             />
           ) : null}
+          {session ? <AcquisitionTracker /> : null}
           {session && !session.user.fingerprint ? (
             <FingerprintCollector />
           ) : null}
