@@ -244,8 +244,9 @@ export function OrderCard({ order }: { order: OrderRecord }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
               <div className="font-medium">{order.packageName}</div>
-              <div className="text-muted-foreground text-sm">
-                #{order.id} · {created}
+              <div className="text-muted-foreground text-sm break-all">
+                #{order.id}{" "}
+                <span className="font-mono">{order.orderUuid}</span> · {created}
               </div>
             </div>
             <div className="shrink-0 text-right">

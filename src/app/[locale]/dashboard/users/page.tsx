@@ -17,6 +17,9 @@ export default async function DashboardUsersPage() {
       fingerprint: true,
       isBanned: true,
       banReason: true,
+      preferredLanguage: true,
+      isDeleted: true,
+      deletedAt: true,
       createdAt: true,
     },
   });
@@ -57,6 +60,13 @@ export default async function DashboardUsersPage() {
                     : (user.telegramId ?? "—")}
                 </div>
                 <div className="truncate">{user.email}</div>
+                <div>Language: {user.preferredLanguage ?? "—"}</div>
+                <div>
+                  Deleted: {user.isDeleted ? "Yes" : "No"}
+                  {user.deletedAt
+                    ? ` · ${user.deletedAt.toISOString().replace("T", " ").slice(0, 19)}`
+                    : null}
+                </div>
                 <div className="font-mono break-all">
                   {user.fingerprint ?? "—"}
                 </div>
@@ -85,6 +95,8 @@ export default async function DashboardUsersPage() {
               <th className="px-5 py-3.5 font-medium">Name</th>
               <th className="px-5 py-3.5 font-medium">Telegram</th>
               <th className="px-5 py-3.5 font-medium">Email</th>
+              <th className="px-5 py-3.5 font-medium">Language</th>
+              <th className="px-5 py-3.5 font-medium">Deleted</th>
               <th className="px-5 py-3.5 font-medium">Fingerprint</th>
               <th className="px-5 py-3.5 font-medium">Banned</th>
               <th className="px-5 py-3.5 font-medium"> </th>
@@ -93,7 +105,7 @@ export default async function DashboardUsersPage() {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td className="text-muted-foreground px-5 py-8" colSpan={7}>
+                <td className="text-muted-foreground px-5 py-8" colSpan={9}>
                   No users yet.
                 </td>
               </tr>
@@ -116,6 +128,20 @@ export default async function DashboardUsersPage() {
                   </td>
                   <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
                     {user.email}
+                  </td>
+                  <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
+                    {user.preferredLanguage ?? "—"}
+                  </td>
+                  <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
+                    {user.isDeleted ? "Yes" : "No"}
+                    {user.deletedAt ? (
+                      <p className="text-muted-foreground text-sm">
+                        {user.deletedAt
+                          .toISOString()
+                          .replace("T", " ")
+                          .slice(0, 19)}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
                     {user.fingerprint ?? "—"}

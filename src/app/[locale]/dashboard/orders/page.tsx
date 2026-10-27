@@ -186,11 +186,12 @@ export default async function DashboardOrdersPage({
         )}
       </div>
 
-      <div className="ring-foreground/10 hidden overflow-x-auto rounded-xl ring-1 md:block">
-        <table className="w-max min-w-full border-separate border-spacing-0 text-left text-base">
+      <div className="ring-foreground/10 hidden w-full max-w-full overflow-x-auto rounded-xl ring-1 md:block">
+        <table className="w-full min-w-max border-separate border-spacing-0 text-left text-base">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
               <th className="px-5 py-3.5 font-medium">ID</th>
+              <th className="px-5 py-3.5 font-medium">UUID</th>
               <th className="px-5 py-3.5 font-medium">Created</th>
               <th className="px-5 py-3.5 font-medium">User</th>
               <th className="px-5 py-3.5 font-medium">IP</th>
@@ -207,7 +208,7 @@ export default async function DashboardOrdersPage({
           <tbody>
             {orders.length === 0 ? (
               <tr>
-                <td className="text-muted-foreground px-5 py-8" colSpan={12}>
+                <td className="text-muted-foreground px-5 py-8" colSpan={13}>
                   No orders yet.
                 </td>
               </tr>
@@ -216,6 +217,9 @@ export default async function DashboardOrdersPage({
                 <OrderRow key={order.orderUuid} order={records[index]!}>
                   <td className="border-border border-t px-5 py-3.5 font-mono whitespace-nowrap">
                     {order.id.toString()}
+                  </td>
+                  <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
+                    {order.orderUuid}
                   </td>
                   <td className="border-border border-t px-5 py-3.5 whitespace-nowrap">
                     {order.createdAt
@@ -232,7 +236,7 @@ export default async function DashboardOrdersPage({
                   <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
                     {order.buyerIp ?? "—"}
                   </td>
-                  <td className="border-border min-w-48 border-t px-5 py-3.5">
+                  <td className="border-border min-w-48 border-t px-5 py-3.5 whitespace-nowrap">
                     {order.packageName}
                   </td>
                   <td className="border-border border-t px-5 py-3.5 font-mono text-sm whitespace-nowrap">
