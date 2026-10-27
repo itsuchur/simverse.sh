@@ -2,6 +2,8 @@ import "server-only";
 
 import { miniappOrigin } from "~/server/urls";
 
+const MARKETING_ORIGIN = "https://simverse.sh";
+
 export type WelcomeLocale = "en" | "ru";
 
 export type WelcomeReplyMarkup = {
@@ -22,38 +24,38 @@ export function welcomeLocale(
 const COPY = {
   en: {
     text: [
-      "We sell travel eSIMs you can install in minutes — coverage in about 150 countries at affordable prices.",
+      "Internet abroad without roaming 🌍",
       "",
-      "Pay with USDT.",
+      'eSIM for 150+ countries from $4. Tap "Open the App", choose a country, and pay with USDT. Setup takes a couple of minutes.',
       "",
-      "Our support team is ready to help whenever you need it.",
-      "",
-      "We're a registered business.",
+      "Questions: @simversesupport",
     ].join("\n"),
     button: "Open the App",
+    photo: "/bot-start-pic-en.png",
   },
   ru: {
     text: [
-      "Мы продаём travel eSIM, которые устанавливаются за минуты — покрытие примерно в 150 странах по доступным ценам.",
+      "Интернет за границей без роуминга 🌍",
       "",
-      "Оплата: СБП или USDT.",
+      "eSIM для 150+ стран от 128 ₽. Нажмите «Открыть приложение», выберите страну и оплатите через СБП или USDT. Установка занимает пару минут.",
       "",
-      "Поддержка всегда на связи и готова помочь.",
-      "",
-      "Мы — зарегистрированный бизнес.",
+      "Вопросы: @simversesupport",
     ].join("\n"),
     button: "Открыть приложение",
+    photo: "/bot-start-pic.png",
   },
 } as const;
 
 export function startWelcome(languageCode?: string | null): {
   text: string;
+  photo: string;
   replyMarkup: WelcomeReplyMarkup;
 } {
   const locale = welcomeLocale(languageCode);
   const copy = COPY[locale];
   return {
     text: copy.text,
+    photo: `${MARKETING_ORIGIN}${copy.photo}`,
     replyMarkup: {
       inline_keyboard: [
         [

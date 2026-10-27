@@ -7,7 +7,7 @@ import { db } from "~/server/db";
 import { fulfillStarsPayment } from "~/server/orders/fulfill";
 import {
   answerPreCheckoutQuery,
-  sendMessage,
+  sendPhoto,
   verifyTelegramWebhookSecret,
 } from "~/server/telegram/bot-api";
 import { rememberTelegramStart } from "~/server/telegram/telegram-start";
@@ -147,9 +147,10 @@ export const POST = withWebhookLogging(
             user?.languageCode ??
             message.from?.language_code,
         );
-        await sendMessage({
+        await sendPhoto({
           chatId: message.chat.id,
-          text: welcome.text,
+          photo: welcome.photo,
+          caption: welcome.text,
           replyMarkup: welcome.replyMarkup,
         });
       } catch {

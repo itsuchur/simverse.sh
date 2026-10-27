@@ -15,13 +15,22 @@ const sendMessage = mock(
   }) => ({ message_id: 1 }),
 );
 
+const sendPhoto = mock(
+  async (_input: {
+    chatId: number;
+    photo: string;
+    caption?: string;
+    replyMarkup?: unknown;
+  }) => ({ message_id: 1 }),
+);
+
 const answerPreCheckoutQuery = mock(
   async (_id: string, _ok: boolean, _error?: string) => undefined,
 );
 
 void mock.module("~/server/telegram/bot-api", () => ({
   sendMessage,
-  sendPhoto: async () => ({ message_id: 1 }),
+  sendPhoto,
   setChatMenuButton: telegramSetChatMenuButton,
   answerPreCheckoutQuery,
   verifyTelegramWebhookSecret: (header: string | null) =>
@@ -52,6 +61,7 @@ function postUpdate(payload: unknown): Promise<Response> {
 beforeEach(() => {
   resetTestState();
   sendMessage.mockClear();
+  sendPhoto.mockClear();
   answerPreCheckoutQuery.mockClear();
 });
 
@@ -97,15 +107,17 @@ describe("telegram webhook /start", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendPhoto).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
     const expected = startWelcome(undefined);
-    expect(sendMessage.mock.calls[0]?.[0]).toEqual({
+    expect(sendPhoto.mock.calls[0]?.[0]).toEqual({
       chatId: 100,
-      text: expected.text,
+      photo: expected.photo,
+      caption: expected.text,
       replyMarkup: expected.replyMarkup,
     });
-    expect(expected.text).toContain("We sell travel eSIMs");
-    expect(expected.text).not.toContain("Welcome to Simverse");
+    expect(expected.photo).toBe("https://simverse.sh/bot-start-pic-en.png");
+    expect(expected.text).toContain("from $4");
     expect(fakeDb.webhookLogs).toHaveLength(1);
     expect(fakeDb.webhookLogs[0]?.source).toBe("telegram");
   });
@@ -120,15 +132,16 @@ describe("telegram webhook /start", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendPhoto).toHaveBeenCalledTimes(1);
     const expected = startWelcome("ru");
-    expect(sendMessage.mock.calls[0]?.[0]).toEqual({
+    expect(sendPhoto.mock.calls[0]?.[0]).toEqual({
       chatId: 101,
-      text: expected.text,
+      photo: expected.photo,
+      caption: expected.text,
       replyMarkup: expected.replyMarkup,
     });
-    expect(expected.text).toContain("Мы продаём travel eSIM");
-    expect(expected.text).not.toContain("Добро пожаловать");
+    expect(expected.photo).toBe("https://simverse.sh/bot-start-pic.png");
+    expect(expected.text).toContain("от 128 ₽");
   });
 
   test("prefers preferredLanguage over Telegram language_code", async () => {
@@ -148,11 +161,12 @@ describe("telegram webhook /start", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendPhoto).toHaveBeenCalledTimes(1);
     const expected = startWelcome("ru");
-    expect(sendMessage.mock.calls[0]?.[0]).toEqual({
+    expect(sendPhoto.mock.calls[0]?.[0]).toEqual({
       chatId: 102,
-      text: expected.text,
+      photo: expected.photo,
+      caption: expected.text,
       replyMarkup: expected.replyMarkup,
     });
   });
@@ -207,6 +221,7 @@ describe("telegram webhook /start", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     expect(sendMessage).not.toHaveBeenCalled();
+    expect(sendPhoto).not.toHaveBeenCalled();
   });
 
   test("successful_payment still fulfills Stars orders", async () => {
@@ -252,8 +267,8 @@ describe("telegram webhook /start", () => {
     expect(order.status).toBe("issued");
   });
 
-  test("sendMessage failures still return ok", async () => {
-    sendMessage.mockImplementationOnce(async () => {
+  test("sendPhoto failures still return ok", async () => {
+    sendPhoto.mockImplementationOnce(async () => {
       throw new Error("telegram down");
     });
 
