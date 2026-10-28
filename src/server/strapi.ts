@@ -9,16 +9,47 @@ export type StrapiMedia = {
   height: number | null;
 };
 
+export type ArticleLocalization = {
+  slug: string;
+  locale: string;
+};
+
 export type StrapiArticle = {
   documentId: string;
   title: string;
   slug: string;
+  locale?: string;
   excerpt: string | null;
   publishedAt: string | null;
+  updatedAt?: string | null;
   cover: StrapiMedia | null;
   tags?: unknown;
   body?: unknown;
+  localizations?: ArticleLocalization[] | null;
 };
+
+export function articleLocalizations(article: {
+  localizations?: unknown;
+}): ArticleLocalization[] {
+  const value = article.localizations;
+  const list = Array.isArray(value)
+    ? value
+    : value &&
+        typeof value === "object" &&
+        "data" in value &&
+        Array.isArray(value.data)
+      ? value.data
+      : [];
+
+  return list.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const slug = typeof record.slug === "string" ? record.slug : null;
+    const locale = typeof record.locale === "string" ? record.locale : null;
+    if (!slug || !locale) return [];
+    return [{ slug, locale }];
+  });
+}
 
 type StrapiListResponse<T> = {
   data: T[];
@@ -82,19 +113,76 @@ export async function fetchArticles(
   };
 }
 
+async function fetchArticleList(params: URLSearchParams) {
+  return strapiFetch<StrapiListResponse<StrapiArticle>>(
+    `/api/articles?${params.toString()}`,
+  );
+}
+
 export async function fetchArticleBySlug(
   slug: string,
   locale: string,
 ): Promise<StrapiArticle | null> {
-  const params = new URLSearchParams({
+  const shared = {
     "filters[slug][$eq]": slug,
-    populate: "cover",
-    locale: locale,
+    locale,
     status: "published",
     "pagination[pageSize]": "1",
-  });
-  const result = await strapiFetch<StrapiListResponse<StrapiArticle>>(
-    `/api/articles?${params.toString()}`,
-  );
+  };
+  const result =
+    (await fetchArticleList(
+      new URLSearchParams({
+        ...shared,
+        "populate[cover]": "true",
+        "populate[localizations][fields][0]": "slug",
+        "populate[localizations][fields][1]": "locale",
+      }),
+    )) ??
+    (await fetchArticleList(
+      new URLSearchParams({ ...shared, populate: "cover" }),
+    ));
   return result?.data[0] ?? null;
+}
+
+/** Every published article in one locale, including the other locale's slug. */
+export async function fetchPublishedArticles(
+  locale: string,
+): Promise<StrapiArticle[]> {
+  const articles: StrapiArticle[] = [];
+  const pageSize = 100;
+
+  for (let page = 1; page <= 20; page++) {
+    const params = new URLSearchParams({
+      locale,
+      status: "published",
+      "fields[0]": "slug",
+      "fields[1]": "updatedAt",
+      "fields[2]": "publishedAt",
+      "populate[localizations][fields][0]": "slug",
+      "populate[localizations][fields][1]": "locale",
+      "pagination[page]": String(page),
+      "pagination[pageSize]": String(pageSize),
+    });
+    const result =
+      (await fetchArticleList(params)) ??
+      (page === 1
+        ? await fetchArticleList(
+            new URLSearchParams({
+              locale,
+              status: "published",
+              "fields[0]": "slug",
+              "fields[1]": "updatedAt",
+              "fields[2]": "publishedAt",
+              "pagination[page]": String(page),
+              "pagination[pageSize]": String(pageSize),
+            }),
+          )
+        : null);
+    const batch = result?.data ?? [];
+    articles.push(...batch);
+    const pageCount = result?.meta.pagination.pageCount ?? 0;
+    if (batch.length === 0 || page >= pageCount) break;
+  }
+
+  return articles;
 }

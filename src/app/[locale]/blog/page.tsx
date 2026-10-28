@@ -2,19 +2,38 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
+import { isAppLocale } from "~/i18n/preferred-locale";
 import { Link } from "~/i18n/navigation";
+import { requestSite } from "~/lib/request-site";
+import { blogListPath, blogPostPath, pageAlternates } from "~/lib/public-url";
 import { fetchArticles } from "~/server/strapi";
 
 import { ArticleCover } from "./_components/article-cover";
 import { ArticleTags } from "./_components/article-tags";
 import { BlogShell } from "./_components/blog-shell";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string | string[]; tag?: string | string[] }>;
+}): Promise<Metadata> {
   const t = await getTranslations("Blog");
+  const { page: pageParam, tag: tagParam } = await searchParams;
+  const page = pageParam === undefined ? 1 : Number(pageParam);
+  const filtered =
+    Boolean(typeof tagParam === "string" && tagParam.trim()) ||
+    (Number.isSafeInteger(page) && page > 1);
+  const site = await requestSite();
+  const locale = await getLocale();
 
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
+    robots: filtered ? { index: false, follow: true } : undefined,
+    alternates:
+      filtered && site.origin && isAppLocale(locale)
+        ? pageAlternates(site.origin, locale === "ru" ? "/ru" : "/")
+        : undefined,
   };
 }
 
@@ -34,6 +53,8 @@ export default async function BlogPage({
   const t = await getTranslations("Blog");
   const format = await getFormatter();
   const locale = await getLocale();
+  const onBlogHost = (await requestSite()).onBlogHost;
+  const listPath = blogListPath(onBlogHost);
   const { articles, pageCount } = await fetchArticles(locale, page, tag);
   if (page > 1 && page > pageCount) {
     notFound();
@@ -51,7 +72,7 @@ export default async function BlogPage({
       {tag ? (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm">
           <p>{t("filteredByTag", { tag })}</p>
-          <Link href="/blog" className="underline underline-offset-4">
+          <Link href={listPath} className="underline underline-offset-4">
             {t("back")}
           </Link>
         </div>
@@ -66,7 +87,7 @@ export default async function BlogPage({
           {articles.map((article) => (
             <li key={article.documentId}>
               <Link
-                href={`/blog/${article.slug}`}
+                href={blogPostPath(onBlogHost, article.slug)}
                 className="group focus-visible:outline-ring block rounded-2xl outline-offset-8 focus-visible:outline-2"
               >
                 <ArticleCover
@@ -93,7 +114,7 @@ export default async function BlogPage({
                   </p>
                 ) : null}
               </Link>
-              <ArticleTags tags={article.tags} />
+              <ArticleTags tags={article.tags} listPath={listPath} />
             </li>
           ))}
         </ul>
@@ -106,7 +127,7 @@ export default async function BlogPage({
           {page > 1 ? (
             <Link
               href={{
-                pathname: "/blog",
+                pathname: listPath,
                 query: {
                   ...(tag ? { tag } : {}),
                   ...(page > 2 ? { page: page - 1 } : {}),
@@ -125,7 +146,7 @@ export default async function BlogPage({
           {page < pageCount ? (
             <Link
               href={{
-                pathname: "/blog",
+                pathname: listPath,
                 query: { ...(tag ? { tag } : {}), page: page + 1 },
               }}
               className="underline-offset-4 hover:underline"

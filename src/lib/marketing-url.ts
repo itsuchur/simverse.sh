@@ -1,7 +1,6 @@
 import { getPathname } from "~/i18n/navigation";
 import type { routing } from "~/i18n/routing";
-
-const MARKETING_ORIGIN = "https://simverse.sh";
+import { MARKETING_ORIGIN } from "~/lib/public-url";
 
 export type LegalPath = "/tos" | "/privacy-policy" | "/refund-policy";
 

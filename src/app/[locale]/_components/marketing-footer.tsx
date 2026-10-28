@@ -1,10 +1,16 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { marketingLegalUrl, type LegalPath } from "~/lib/marketing-url";
+import { getPathname } from "~/i18n/navigation";
+import {
+  marketingLegalUrl,
+  marketingUrl,
+  type LegalPath,
+} from "~/lib/marketing-url";
 
 const linkClassName = "py-1 underline-offset-4 hover:underline";
 
 export async function MarketingFooter() {
+  const help = await getTranslations("Help");
   const tos = await getTranslations("Tos");
   const privacy = await getTranslations("PrivacyPolicy");
   const refund = await getTranslations("RefundPolicy");
@@ -15,6 +21,12 @@ export async function MarketingFooter() {
   return (
     <footer className="border-border text-muted-foreground border-t px-6 py-8 text-center text-sm">
       <nav className="text-foreground flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-base font-semibold">
+        <a
+          href={marketingUrl(getPathname({ href: "/help", locale }))}
+          className={linkClassName}
+        >
+          {help("title")}
+        </a>
         <a href={legalHref("/tos")} className={linkClassName}>
           {tos("title")}
         </a>

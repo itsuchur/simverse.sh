@@ -12,6 +12,12 @@ import {
   pickMessages,
 } from "~/i18n/client-messages";
 import { routing } from "~/i18n/routing";
+import { requestSite } from "~/lib/request-site";
+import {
+  absoluteUrl,
+  isBlogArticlePath,
+  pageAlternates,
+} from "~/lib/public-url";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export function generateStaticParams() {
@@ -20,11 +26,20 @@ export function generateStaticParams() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Metadata");
+  const site = await requestSite();
+  const alternates =
+    site.origin == null
+      ? undefined
+      : isBlogArticlePath(site.host, site.pathname)
+        ? { canonical: absoluteUrl(site.origin, site.pathname) }
+        : pageAlternates(site.origin, site.pathname);
 
   return {
+    metadataBase: site.origin ? new URL(site.origin) : undefined,
     title: t("title"),
     description: t("description"),
     icons: [{ rel: "icon", url: "/favicon.ico" }],
+    alternates,
   };
 }
 

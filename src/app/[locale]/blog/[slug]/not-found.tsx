@@ -1,11 +1,14 @@
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "~/i18n/navigation";
+import { requestSite } from "~/lib/request-site";
+import { blogListPath } from "~/lib/public-url";
 
 import { BlogShell } from "../_components/blog-shell";
 
 export default async function BlogArticleNotFound() {
   const t = await getTranslations("Blog");
+  const listPath = blogListPath((await requestSite()).onBlogHost);
 
   return (
     <BlogShell>
@@ -14,7 +17,7 @@ export default async function BlogArticleNotFound() {
       </h1>
       <p className="mt-6 text-center">
         <Link
-          href="/blog"
+          href={listPath}
           className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline"
         >
           {t("back")}

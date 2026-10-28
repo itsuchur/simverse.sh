@@ -5,9 +5,11 @@ import {
   PUBLIC_PATHNAME_HEADER,
   PUBLIC_SEARCH_HEADER,
 } from "./i18n/preferred-locale";
-import { routing } from "./i18n/routing";
+import { publicRouting, routing } from "./i18n/routing";
+import { canonicalRequestTarget } from "./lib/public-url";
 
 const handleI18n = createMiddleware(routing);
+const handlePublicI18n = createMiddleware(publicRouting);
 
 /** Routes that live at the locale root, not under `/app`. */
 const MINIAPP_PASSTHROUGH = [
@@ -145,14 +147,28 @@ function prefixInternalRewrite(
 }
 
 export default function proxy(request: NextRequest) {
+  const host = requestHost(request);
+  const canonical = canonicalRequestTarget(host, request.nextUrl.pathname);
+  if (canonical) {
+    const url = new URL(request.url);
+    url.pathname = canonical.pathname;
+    if (canonical.host !== host) {
+      url.hostname = canonical.host;
+      url.protocol = "https:";
+      url.port = "";
+    }
+    return NextResponse.redirect(url, 301);
+  }
+
   // The public URL, before the host rewrite. The mini app layout uses it to
   // send the user back to their saved language without dropping the page.
   request.headers.set(PUBLIC_PATHNAME_HEADER, request.nextUrl.pathname);
   request.headers.set(PUBLIC_SEARCH_HEADER, request.nextUrl.search);
 
-  const prefix = hostAppPrefix(requestHost(request));
+  const prefix = hostAppPrefix(host);
+  const localize = !prefix || prefix === "blog" ? handlePublicI18n : handleI18n;
   if (!prefix) {
-    return handleI18n(request);
+    return localize(request);
   }
 
   const { locale, rest } = splitLocalePrefix(request.nextUrl.pathname);
@@ -169,7 +185,7 @@ export default function proxy(request: NextRequest) {
     return handleI18n(request);
   }
 
-  return prefixInternalRewrite(handleI18n(request), request, prefix);
+  return prefixInternalRewrite(localize(request), request, prefix);
 }
 
 export const config = {

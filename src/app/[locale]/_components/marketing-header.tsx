@@ -3,6 +3,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { HomeLocalePicker } from "./home-locale-picker";
 import { buttonVariants } from "~/components/ui/button";
+import { getPathname } from "~/i18n/navigation";
+import { marketingUrl } from "~/lib/marketing-url";
+import { BLOG_ORIGIN } from "~/lib/public-url";
 import { cn } from "~/lib/utils";
 
 const SOCIAL_LINKS = [
@@ -45,7 +48,7 @@ export async function MarketingHeader() {
         ))}
       </nav>
       <a
-        href={`https://simverse.sh/${locale}`}
+        href={marketingUrl(getPathname({ href: "/", locale }))}
         className="focus-visible:outline-ring block w-18 rounded-sm outline-offset-4 focus-visible:outline-2 min-[400px]:w-28 sm:w-40 lg:w-64"
       >
         <Image
@@ -58,7 +61,7 @@ export async function MarketingHeader() {
       </a>
       <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
         <a
-          href={`https://blog.simverse.sh/${locale}`}
+          href={`${BLOG_ORIGIN}${getPathname({ href: "/", locale })}`}
           className={cn(
             buttonVariants({ variant: "ghost" }),
             "h-9 px-2 sm:px-3 lg:h-12 lg:px-4 lg:text-lg",
