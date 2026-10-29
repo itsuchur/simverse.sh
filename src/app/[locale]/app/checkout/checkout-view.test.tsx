@@ -188,7 +188,7 @@ test("opening payment replaces the method buttons; continuing reuses its invoice
   try {
     renderCheckout();
     fireEvent.click(screen.getByRole("button", { name: "Pay with PayPal" }));
-    expect(screen.getByText("Creating your payment link?")).toBeTruthy();
+    expect(screen.getByText("Creating your payment link…")).toBeTruthy();
     await screen.findByText("Waiting for payment");
     expect(
       screen.queryByRole("button", { name: "Pay with PayPal" }),
@@ -254,7 +254,7 @@ test("only server-confirmed payment shows preparation and redirects to My eSIMs"
     Response.json({ paymentStatus: "paid" })) as typeof fetch;
   try {
     renderCheckout(invoice);
-    await screen.findByText("Payment received. Preparing your eSIM?");
+    await screen.findByText("Payment received. Preparing your eSIM…");
     expect(
       screen.queryByRole("button", { name: "Continue payment" }),
     ).toBeNull();
