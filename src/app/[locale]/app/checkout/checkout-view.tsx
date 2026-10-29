@@ -549,16 +549,26 @@ export function CheckoutView({
           />
           {t("payCrypto", { price: cryptoPrice })}
         </Button>
-        <Button
-          type="button"
-          size="lg"
-          variant="outline"
-          className="h-12 w-full text-lg"
-          disabled={controlsLocked}
-          onClick={() => pay("paypal", "/api/checkout/paypal")}
-        >
-          {t("payPaypal")}
-        </Button>
+        {locale === "en" ? (
+          <Button
+            type="button"
+            size="lg"
+            variant="outline"
+            className="h-12 w-full text-lg"
+            disabled={controlsLocked}
+            onClick={() => pay("paypal", "/api/checkout/paypal")}
+          >
+            <Image
+              src="/paypal.svg"
+              alt=""
+              width={24}
+              height={24}
+              data-icon="inline-start"
+              className="size-6 shrink-0"
+            />
+            {t("payPaypal")}
+          </Button>
+        ) : null}
       </div>
     </main>
   );

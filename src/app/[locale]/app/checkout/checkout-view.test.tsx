@@ -124,7 +124,7 @@ test("a promo code is applied only after the server accepts it", async () => {
 });
 
 for (const locale of ["en", "ru"] as const) {
-  test(`PayPal button is present on the ${locale} checkout`, async () => {
+  test(`PayPal button is ${locale === "en" ? "visible" : "hidden"} on the ${locale} checkout`, async () => {
     const localeMessages: AbstractIntlMessages =
       locale === "en"
         ? messages
@@ -139,8 +139,14 @@ for (const locale of ["en", "ru"] as const) {
         />
       </NextIntlClientProvider>,
     );
-    expect(
-      screen.getByRole("button", { name: "Pay with PayPal" }),
-    ).toBeTruthy();
+    const button = screen.queryByRole("button", { name: "Pay with PayPal" });
+    if (locale === "en") {
+      expect(button).toBeTruthy();
+      expect(button?.querySelector("img")?.getAttribute("src")).toBe(
+        "/paypal.svg",
+      );
+    } else {
+      expect(button).toBeNull();
+    }
   });
 }
