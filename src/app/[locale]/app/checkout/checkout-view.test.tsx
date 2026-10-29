@@ -21,22 +21,26 @@ for (const key of [
   });
 }
 
+const replace = mock((_href: string) => undefined);
+const push = mock((_href: string) => undefined);
+
 void mock.module("~/i18n/navigation", () => ({
+  Link: (props: React.ComponentProps<"a">) => <a {...props} />,
   useRouter: () => ({
-    push: () => undefined,
+    push,
     refresh: () => undefined,
-    replace: () => undefined,
+    replace,
   }),
   usePathname: () => "/en/app/checkout",
 }));
 void mock.module("~/lib/use-miniapp-path", () => ({
-  useMiniappPath: () => "/",
+  useMiniappPath: (path: string) => path,
 }));
 void mock.module("~/lib/posthog/browser", () => ({
   captureAppEvent: () => undefined,
 }));
 
-const { cleanup, fireEvent, render, screen } =
+const { cleanup, fireEvent, render, screen, waitFor } =
   await import("@testing-library/react");
 const { NextIntlClientProvider } = await import("next-intl");
 const messages = (await import("../../../../../messages/en.json")).default;
@@ -44,6 +48,8 @@ const { CheckoutView } = await import("./checkout-view");
 
 afterEach(() => {
   cleanup();
+  replace.mockClear();
+  push.mockClear();
 });
 
 const plan = {
@@ -64,10 +70,13 @@ const plan = {
   isUnlimited: false,
 };
 
-function renderCheckout() {
+function renderCheckout(
+  initialPayment: { orderUuid: string; invoiceUrl: string } | null = null,
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <CheckoutView
+        initialPayment={initialPayment}
         plan={plan}
         cartRevision="6f1b5c3a-1d2e-4f5a-8b7c-9d0e1f2a3b4c"
         supportTopUpType={1}
@@ -150,3 +159,110 @@ for (const locale of ["en", "ru"] as const) {
     }
   });
 }
+
+const invoice = {
+  orderUuid: "6f1b5c3a-1d2e-4f5a-8b7c-9d0e1f2a3b4c",
+  invoiceUrl: "https://www.paypal.com/checkoutnow?token=existing",
+};
+
+test("opening payment replaces the method buttons; continuing reuses its invoice", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+  const open = mock(() => null);
+  const originalOpen = window.open.bind(window);
+  window.open = open;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const path =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+    calls.push(path);
+    return Response.json(
+      path.startsWith("/api/checkout/status")
+        ? { paymentStatus: "pending" }
+        : invoice,
+    );
+  }) as typeof fetch;
+  try {
+    renderCheckout();
+    fireEvent.click(screen.getByRole("button", { name: "Pay with PayPal" }));
+    expect(screen.getByText("Creating your payment link?")).toBeTruthy();
+    await screen.findByText("Waiting for payment");
+    expect(
+      screen.queryByRole("button", { name: "Pay with PayPal" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /Cryptocurrency/ })).toBeNull();
+    expect(screen.queryByText("I have a promo code")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "My eSIMs" }).getAttribute("href"),
+    ).toBe("/myesim");
+    expect(
+      screen
+        .getByRole("button", { name: "Back to App" })
+        .hasAttribute("disabled"),
+    ).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Continue payment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue payment" }));
+    expect(open).toHaveBeenCalledTimes(3);
+    expect(
+      calls.filter((path) => path === "/api/checkout/paypal"),
+    ).toHaveLength(1);
+    expect(replace).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    globalThis.fetch = originalFetch;
+    window.open = originalOpen;
+  }
+});
+
+test("a restored invoice remains usable when payment status is unavailable", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    calls.push(
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url,
+    );
+    return Response.json({ error: "unavailable" }, { status: 503 });
+  }) as typeof fetch;
+  try {
+    renderCheckout(invoice);
+    expect(screen.getByText("Waiting for payment")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Continue payment" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Pay with PayPal" }),
+    ).toBeNull();
+    await waitFor(() => expect(calls.length).toBe(1));
+    expect(calls[0]).toContain("/api/checkout/status?");
+    expect(replace).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("only server-confirmed payment shows preparation and redirects to My eSIMs", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input: RequestInfo | URL) =>
+    Response.json({ paymentStatus: "paid" })) as typeof fetch;
+  try {
+    renderCheckout(invoice);
+    await screen.findByText("Payment received. Preparing your eSIM?");
+    expect(
+      screen.queryByRole("button", { name: "Continue payment" }),
+    ).toBeNull();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/myesim"), {
+      timeout: 2500,
+    });
+  } finally {
+    cleanup();
+    globalThis.fetch = originalFetch;
+  }
+});

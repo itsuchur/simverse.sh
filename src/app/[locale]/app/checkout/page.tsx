@@ -1,3 +1,4 @@
+import { db } from "~/server/db";
 import * as Sentry from "@sentry/nextjs";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -74,23 +75,45 @@ export default async function CheckoutPage({
     );
   }
 
-  let hasBalance = false;
+  const existingPayment = await db.order.findFirst({
+    where: {
+      userId: session.user.id,
+      cartRevision: cart.revision,
+      paymentInvoiceUrl: { not: null },
+      topupOfOrderId: null,
+    },
+    orderBy: { createdAt: "desc" },
+    select: { orderUuid: true, paymentInvoiceUrl: true, paymentStatus: true },
+  });
+  if (existingPayment?.paymentStatus === "paid") {
+    redirect({ href: await miniappPathForRequest("/myesim"), locale });
+  }
+  const initialPayment = existingPayment?.paymentInvoiceUrl
+    ? {
+        orderUuid: existingPayment.orderUuid,
+        invoiceUrl: existingPayment.paymentInvoiceUrl,
+      }
+    : null;
+
+  let hasBalance = initialPayment !== null;
   try {
-    const balance = await checkBalance();
-    hasBalance = balance >= plan.cost * plan.qty;
-    if (!hasBalance) {
-      Sentry.captureMessage("Supplier balance insufficient for checkout", {
-        level: "fatal",
-        tags: {
-          component: "cart",
-          reason: "insufficient_balance",
-        },
-        extra: {
-          packageCode: plan.packageCode,
-          cost: plan.cost,
-          qty: plan.qty,
-        },
-      });
+    if (!initialPayment) {
+      const balance = await checkBalance();
+      hasBalance = balance >= plan.cost * plan.qty;
+      if (!hasBalance) {
+        Sentry.captureMessage("Supplier balance insufficient for checkout", {
+          level: "fatal",
+          tags: {
+            component: "cart",
+            reason: "insufficient_balance",
+          },
+          extra: {
+            packageCode: plan.packageCode,
+            cost: plan.cost,
+            qty: plan.qty,
+          },
+        });
+      }
     }
   } catch (error) {
     Sentry.captureException(error, {
@@ -106,6 +129,8 @@ export default async function CheckoutPage({
     const catalog = await getEsimAccessPackageByCode(plan.packageCode);
     return (
       <CheckoutView
+        key={cart.revision}
+        initialPayment={initialPayment}
         plan={plan}
         cartRevision={cart.revision}
         supportTopUpType={catalog?.pkg.supportTopUpType}

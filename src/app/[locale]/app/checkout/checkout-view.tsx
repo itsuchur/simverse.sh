@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, Globe } from "lucide-react";
+import { ChevronLeft, Globe, LoaderCircle, Clock3 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import ReactCountryFlag from "react-country-flag";
 
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { UnlimitedDataLabel } from "~/components/ui/unlimited-data-label";
-import { useRouter } from "~/i18n/navigation";
+import { Link, useRouter } from "~/i18n/navigation";
 import type { CartPlan } from "~/lib/cart-plan";
 import { parsePromoCode } from "~/lib/promo-code";
 import { captureAppEvent } from "~/lib/posthog/browser";
@@ -52,15 +52,16 @@ async function requestInvoice(
     });
     const body = (await response.json()) as {
       invoiceUrl?: string;
+      orderUuid?: string;
       error?: string;
     };
     if (body.error === "invoice_in_progress") {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       continue;
     }
-    if (!response.ok || !body.invoiceUrl)
+    if (!response.ok || !body.invoiceUrl || !body.orderUuid)
       throw new Error(body.error ?? "invoice_http");
-    return body.invoiceUrl;
+    return { invoiceUrl: body.invoiceUrl, orderUuid: body.orderUuid };
   }
   throw new Error("invoice_in_progress");
 }
@@ -141,11 +142,13 @@ export function CheckoutView({
   cartRevision,
   supportTopUpType,
   networkCoverage,
+  initialPayment = null,
 }: {
   plan: CartPlan;
   cartRevision: string;
   supportTopUpType: number | undefined;
   networkCoverage: CatalogCoverage[];
+  initialPayment?: { orderUuid: string; invoiceUrl: string } | null;
 }) {
   const t = useTranslations("Checkout");
   const tCatalog = useTranslations("Catalog");
@@ -155,7 +158,8 @@ export function CheckoutView({
   const homeHref = useMiniappPath("/");
   const [leaving, setLeaving] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [paymentOpened, setPaymentOpened] = useState(false);
+  const [payment, setPayment] = useState(initialPayment);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [wantsPromo, setWantsPromo] = useState(false);
   const [promoInput, setPromoInput] = useState("");
@@ -167,8 +171,9 @@ export function CheckoutView({
     priceRub: number;
     priceUsd: number;
   } | null>(null);
-  const invoiceUrls = useRef(new Map<string, string>());
-  const controlsLocked = leaving || paying || paymentOpened || applyingPromo;
+  const invoiceRequested = useRef(false);
+  const myEsimsHref = useMiniappPath("/myesim");
+  const controlsLocked = leaving || paying || payment !== null || applyingPromo;
 
   function promoMessage(code: string) {
     switch (code) {
@@ -263,16 +268,8 @@ export function CheckoutView({
     paymentMethod?: "card" | "sbp",
   ) {
     const promoCode = acceptedPromo?.code;
-    const ready = invoiceUrls.current.get(
-      `${cartRevision}:${method}:${promoCode ?? ""}`,
-    );
-    if (ready) {
-      setPayError(null);
-      setPaymentOpened(true);
-      openExternalLink(ready);
-      return;
-    }
-
+    if (invoiceRequested.current || payment) return;
+    invoiceRequested.current = true;
     setPaying(true);
     setPayError(null);
     captureAppEvent("checkout_method_selected", {
@@ -280,20 +277,17 @@ export function CheckoutView({
       packageCode: plan.packageCode,
     });
     void requestInvoice(path, cartRevision, locale, promoCode, paymentMethod)
-      .then((url) => {
+      .then((invoice) => {
         captureAppEvent("checkout_invoice_opened", {
           method,
           packageCode: plan.packageCode,
         });
-        invoiceUrls.current.set(
-          `${cartRevision}:${method}:${promoCode ?? ""}`,
-          url,
-        );
-        openInvoice(url);
-        setPaymentOpened(true);
+        setPayment(invoice);
+        openInvoice(invoice.invoiceUrl);
         setPaying(false);
       })
       .catch((error: unknown) => {
+        invoiceRequested.current = false;
         console.error(`[checkout] ${method} invoice`, error);
         captureAppEvent("checkout_invoice_failed", {
           method,
@@ -329,6 +323,49 @@ export function CheckoutView({
     plan.price_stars,
   ]);
 
+  useEffect(() => {
+    if (!payment || paymentConfirmed) return;
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout>;
+    async function checkPayment() {
+      try {
+        const response = await fetch(
+          `/api/checkout/status?orderUuid=${encodeURIComponent(payment!.orderUuid)}`,
+          {
+            credentials: "include",
+            cache: "no-store",
+            signal: controller.signal,
+            headers: await checkoutHeaders(),
+          },
+        );
+        if (response.ok) {
+          const body = (await response.json()) as { paymentStatus?: string };
+          if (body.paymentStatus === "paid") {
+            setPaymentConfirmed(true);
+            return;
+          }
+        }
+      } catch {
+        // Keep the existing invoice available during a temporary connection loss.
+      }
+      if (!controller.signal.aborted)
+        timeout = setTimeout(() => {
+          void checkPayment();
+        }, 5000);
+    }
+    void checkPayment();
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [payment, paymentConfirmed]);
+
+  useEffect(() => {
+    if (!paymentConfirmed) return;
+    const timeout = setTimeout(() => router.replace(myEsimsHref), 1500);
+    return () => clearTimeout(timeout);
+  }, [paymentConfirmed, router, myEsimsHref]);
+
   const priceUsd = acceptedPromo?.priceUsd ?? plan.price;
   const priceRub = acceptedPromo?.priceRub ?? plan.price_rub;
   const cryptoPrice =
@@ -356,17 +393,18 @@ export function CheckoutView({
           variant="ghost"
           size="icon"
           className="text-foreground -ml-1.5"
-          disabled={controlsLocked}
+          disabled={leaving || paying}
           aria-label={t("backToApp")}
           onClick={() => {
             void (async () => {
               setLeaving(true);
               try {
-                await fetch("/api/cart", {
-                  method: "DELETE",
-                  credentials: "include",
-                  headers: await checkoutHeaders(),
-                });
+                if (!payment)
+                  await fetch("/api/cart", {
+                    method: "DELETE",
+                    credentials: "include",
+                    headers: await checkoutHeaders(),
+                  });
               } finally {
                 router.push(homeHref);
               }
@@ -437,139 +475,187 @@ export function CheckoutView({
         />
       )}
 
-      <div className="mt-auto flex flex-col gap-3">
-        <div className="flex flex-col gap-3">
-          <label className="flex items-center gap-3 text-lg">
-            <Checkbox
-              checked={wantsPromo}
-              disabled={controlsLocked}
-              onCheckedChange={(checked) => {
-                if (checked === true) {
-                  setWantsPromo(true);
-                  return;
-                }
-                clearPromo();
-              }}
-            />
-            {t("havePromo")}
-          </label>
-          {wantsPromo ? (
-            <form
-              className="flex flex-col gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void applyPromo();
-              }}
-            >
-              <div className="flex gap-2">
-                <Input
-                  value={promoInput}
-                  disabled={controlsLocked}
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  maxLength={32}
-                  placeholder={t("promoPlaceholder")}
-                  aria-label={t("promoPlaceholder")}
-                  className="h-12 text-lg uppercase"
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setPromoInput(next);
-                    setPromoError(null);
-                    if (
-                      acceptedPromo &&
-                      next.trim().toUpperCase() !== acceptedPromo.code
-                    ) {
-                      setAcceptedPromo(null);
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  size="lg"
-                  variant="outline"
-                  className="h-12 shrink-0 text-lg"
-                  disabled={controlsLocked || promoInput.trim() === ""}
-                >
-                  {t("promoApply")}
-                </Button>
-              </div>
-              {acceptedPromo ? (
-                <p className="text-lg font-medium">
-                  {t("promoApplied", {
-                    percent: String(acceptedPromo.discountPercent),
-                  })}
-                </p>
-              ) : null}
-              {promoError ? (
-                <p className="text-destructive text-lg">{promoError}</p>
-              ) : null}
-            </form>
-          ) : null}
-        </div>
-        {payError ? (
-          <p className="text-destructive w-full text-center text-lg">
-            {payError}
-          </p>
-        ) : null}
-        {locale === "ru" ? (
-          <Button
-            type="button"
-            size="lg"
-            className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
-            disabled={controlsLocked}
-            onClick={() => pay("xhub_sbp", "/api/checkout/xhub", "sbp")}
-          >
-            <Image
-              src="/SBP.svg"
-              alt=""
-              width={48}
-              height={24}
-              data-icon="inline-start"
-              className="h-6 w-12 shrink-0 object-contain"
-            />
-            {t("paySbp", { price: sbpPrice })}
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          size="lg"
-          variant="outline"
-          className="h-12 w-full text-lg"
-          disabled={controlsLocked}
-          onClick={() => pay("trybit", "/api/checkout/trybit")}
+      {payment ? (
+        <section
+          className="mt-auto flex flex-col gap-4 rounded-xl border p-5"
+          aria-label={t("paymentStatusLabel")}
         >
-          <Image
-            src="/USDT.svg"
-            alt=""
-            width={24}
-            height={24}
-            data-icon="inline-start"
-            className="size-6 shrink-0"
-          />
-          {t("payCrypto", { price: cryptoPrice })}
-        </Button>
-        {locale === "en" ? (
+          <div role="status" className="flex items-center gap-3">
+            {paymentConfirmed ? (
+              <LoaderCircle className="size-6 animate-spin" aria-hidden />
+            ) : (
+              <Clock3 className="size-6 shrink-0" aria-hidden />
+            )}
+            <p className="text-lg font-medium">
+              {t(paymentConfirmed ? "paymentReceived" : "waitingForPayment")}
+            </p>
+          </div>
+          {!paymentConfirmed ? (
+            <>
+              <p className="text-muted-foreground leading-7">
+                {t("waitingDescription")}
+              </p>
+              <Button
+                size="lg"
+                className="h-12 text-lg"
+                onClick={() => openInvoice(payment.invoiceUrl)}
+              >
+                {t("continuePayment")}
+              </Button>
+            </>
+          ) : null}
+          <Link
+            href={myEsimsHref}
+            className={buttonVariants({
+              variant: "outline",
+              size: "lg",
+              className: "h-12 text-lg",
+            })}
+          >
+            {t("myEsims")}
+          </Link>
+        </section>
+      ) : (
+        <div className="mt-auto flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
+            <label className="flex items-center gap-3 text-lg">
+              <Checkbox
+                checked={wantsPromo}
+                disabled={controlsLocked}
+                onCheckedChange={(checked) => {
+                  if (checked === true) {
+                    setWantsPromo(true);
+                    return;
+                  }
+                  clearPromo();
+                }}
+              />
+              {t("havePromo")}
+            </label>
+            {wantsPromo ? (
+              <form
+                className="flex flex-col gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void applyPromo();
+                }}
+              >
+                <div className="flex gap-2">
+                  <Input
+                    value={promoInput}
+                    disabled={controlsLocked}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={32}
+                    placeholder={t("promoPlaceholder")}
+                    aria-label={t("promoPlaceholder")}
+                    className="h-12 text-lg uppercase"
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setPromoInput(next);
+                      setPromoError(null);
+                      if (
+                        acceptedPromo &&
+                        next.trim().toUpperCase() !== acceptedPromo.code
+                      ) {
+                        setAcceptedPromo(null);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="submit"
+                    size="lg"
+                    variant="outline"
+                    className="h-12 shrink-0 text-lg"
+                    disabled={controlsLocked || promoInput.trim() === ""}
+                  >
+                    {t("promoApply")}
+                  </Button>
+                </div>
+                {acceptedPromo ? (
+                  <p className="text-lg font-medium">
+                    {t("promoApplied", {
+                      percent: String(acceptedPromo.discountPercent),
+                    })}
+                  </p>
+                ) : null}
+                {promoError ? (
+                  <p className="text-destructive text-lg">{promoError}</p>
+                ) : null}
+              </form>
+            ) : null}
+          </div>
+          {paying ? (
+            <p role="status" className="flex items-center justify-center gap-2">
+              <LoaderCircle className="size-5 animate-spin" aria-hidden />
+              {t("creatingPayment")}
+            </p>
+          ) : null}
+          {payError ? (
+            <p className="text-destructive w-full text-center text-lg">
+              {payError}
+            </p>
+          ) : null}
+          {locale === "ru" ? (
+            <Button
+              type="button"
+              size="lg"
+              className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
+              disabled={controlsLocked}
+              onClick={() => pay("xhub_sbp", "/api/checkout/xhub", "sbp")}
+            >
+              <Image
+                src="/SBP.svg"
+                alt=""
+                width={48}
+                height={24}
+                data-icon="inline-start"
+                className="h-6 w-12 shrink-0 object-contain"
+              />
+              {t("paySbp", { price: sbpPrice })}
+            </Button>
+          ) : null}
           <Button
             type="button"
             size="lg"
             variant="outline"
             className="h-12 w-full text-lg"
             disabled={controlsLocked}
-            onClick={() => pay("paypal", "/api/checkout/paypal")}
+            onClick={() => pay("trybit", "/api/checkout/trybit")}
           >
             <Image
-              src="/paypal.svg"
+              src="/USDT.svg"
               alt=""
               width={24}
               height={24}
               data-icon="inline-start"
               className="size-6 shrink-0"
             />
-            {t("payPaypal")}
+            {t("payCrypto", { price: cryptoPrice })}
           </Button>
-        ) : null}
-      </div>
+          {locale === "en" ? (
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              className="h-12 w-full text-lg"
+              disabled={controlsLocked}
+              onClick={() => pay("paypal", "/api/checkout/paypal")}
+            >
+              <Image
+                src="/paypal.svg"
+                alt=""
+                width={24}
+                height={24}
+                data-icon="inline-start"
+                className="size-6 shrink-0"
+              />
+              {t("payPaypal")}
+            </Button>
+          ) : null}
+        </div>
+      )}
     </main>
   );
 }

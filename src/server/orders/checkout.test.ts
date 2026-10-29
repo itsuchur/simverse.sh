@@ -194,3 +194,40 @@ for (const [locale, currency, amount] of [
     }
   });
 }
+
+const { GET: checkoutStatus } = await import("~/app/api/checkout/status/route");
+
+test("checkout status returns only the signed-in user's payment status", async () => {
+  fakeDb.seedUser({ id: "user-1", telegramId: "42" });
+  const order = fakeDb.seedOrder({ userId: "user-1", paymentStatus: "paid" });
+  const response = await checkoutStatus(
+    new Request(
+      `http://localhost/api/checkout/status?orderUuid=${order.orderUuid}`,
+    ),
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ paymentStatus: "paid" });
+  expect(response.headers.get("cache-control")).toBe("no-store");
+  expect(esimAccessPost).not.toHaveBeenCalled();
+});
+
+test("checkout status cannot inspect another user's order", async () => {
+  fakeDb.seedUser({ id: "another-user", telegramId: "43" });
+  const order = fakeDb.seedOrder({ userId: "another-user" });
+  const response = await checkoutStatus(
+    new Request(
+      `http://localhost/api/checkout/status?orderUuid=${order.orderUuid}`,
+    ),
+  );
+  expect(response.status).toBe(404);
+});
+
+test("checkout status rejects invalid order IDs", async () => {
+  expect(
+    (
+      await checkoutStatus(
+        new Request("http://localhost/api/checkout/status?orderUuid=invalid"),
+      )
+    ).status,
+  ).toBe(400);
+});
