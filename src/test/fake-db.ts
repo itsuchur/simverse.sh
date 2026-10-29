@@ -246,6 +246,16 @@ class FakeDb {
     createdAt: Date;
     updatedAt: Date;
   }> = [];
+  private trafficSourceCodes: Array<{ code: string; createdAt: Date }> = [];
+  private telegramStartLogs: Array<{
+    id: bigint;
+    telegramId: string;
+    payload: string;
+    source: string;
+    createdAt: Date;
+  }> = [];
+  failNextTelegramStartLog = false;
+  private nextTelegramStartLogId = 1n;
   private nextOrderId = 1n;
   private nextExcludedPackageCodeId = 1n;
   private nextExcludedCountryCodeId = 1n;
@@ -266,10 +276,14 @@ class FakeDb {
     this.excludedCountryCodes = [];
     this.users.clear();
     this.telegramStarts = [];
+    this.trafficSourceCodes = [];
+    this.telegramStartLogs = [];
+    this.failNextTelegramStartLog = false;
     this.webhookLogs = [];
     this.promoCodes = [];
     this.promoRedemptions = [];
     this.nextOrderId = 1n;
+    this.nextTelegramStartLogId = 1n;
     this.nextPromoCodeId = 1n;
     this.nextPromoRedemptionId = 1n;
     this.nextExcludedPackageCodeId = 1n;
@@ -794,6 +808,51 @@ class FakeDb {
       }
       return { count: rows.length };
     },
+  };
+
+  trafficSourceCode = {
+    findMany: async () => this.trafficSourceCodes.map((row) => ({ ...row })),
+    create: async (args: { data: { code: string } }) => {
+      if (this.trafficSourceCodes.some((row) => row.code === args.data.code)) {
+        throw Object.assign(new Error("Unique constraint"), { code: "P2002" });
+      }
+      const row = { code: args.data.code, createdAt: new Date() };
+      this.trafficSourceCodes.push(row);
+      return { ...row };
+    },
+    delete: async (args: { where: { code: string } }) => {
+      const index = this.trafficSourceCodes.findIndex(
+        (row) => row.code === args.where.code,
+      );
+      const row = this.trafficSourceCodes[index];
+      if (index === -1 || !row) {
+        throw new Error("Traffic source code not found");
+      }
+      this.trafficSourceCodes.splice(index, 1);
+      return { ...row };
+    },
+  };
+
+  telegramStartLog = {
+    create: async (args: {
+      data: { telegramId: string; payload: string; source: string };
+    }) => {
+      if (this.failNextTelegramStartLog) {
+        this.failNextTelegramStartLog = false;
+        throw new Error("log failed");
+      }
+      const row = {
+        id: this.nextTelegramStartLogId++,
+        ...args.data,
+        createdAt: new Date(),
+      };
+      this.telegramStartLogs.push(row);
+      return { ...row };
+    },
+    findMany: async () =>
+      [...this.telegramStartLogs]
+        .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))
+        .map((row) => ({ ...row })),
   };
 
   user = {

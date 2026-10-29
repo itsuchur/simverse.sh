@@ -10,6 +10,7 @@ import { db } from "~/server/db";
 import { limitMiniappRequest } from "~/server/http/rate-limit";
 import {
   openSourceForTelegramUser,
+  registeredTrafficSourceCodes,
   storedFirstTouch,
 } from "~/server/telegram/telegram-start";
 
@@ -77,9 +78,11 @@ export async function POST(request: Request) {
   }
 
   const initParam = startParamFromInitData(body.data.initData);
+  const allowed = await registeredTrafficSourceCodes();
   const { openSource, pendingFirst } = await openSourceForTelegramUser(
     sessionTelegramId,
     initParam,
+    allowed,
   );
   if (user.acquisitionSource) {
     return attributed(user.acquisitionSource, openSource);
@@ -88,7 +91,7 @@ export async function POST(request: Request) {
     return attributed(null, openSource);
   }
 
-  const source = storedFirstTouch(initParam, pendingFirst);
+  const source = storedFirstTouch(initParam, pendingFirst, allowed);
   const updated = await db.user.updateMany({
     where: { id: session.user.id, acquisitionSource: null },
     data: { acquisitionSource: source },

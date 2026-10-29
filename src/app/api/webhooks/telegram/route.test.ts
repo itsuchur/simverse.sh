@@ -172,6 +172,8 @@ describe("telegram webhook /start", () => {
   });
 
   test("remembers the first /start source and lets a later one update latest", async () => {
+    await fakeDb.trafficSourceCode.create({ data: { code: "src_instagram" } });
+    await fakeDb.trafficSourceCode.create({ data: { code: "src_youtube" } });
     await postUpdate({
       message: {
         chat: { id: 100 },
@@ -192,6 +194,80 @@ describe("telegram webhook /start", () => {
     });
     expect(row?.firstSource).toBe("src_instagram");
     expect(row?.latestSource).toBe("src_youtube");
+    const logs = await fakeDb.telegramStartLog.findMany();
+    expect(logs).toHaveLength(2);
+    expect(logs.map((log) => log.source).sort()).toEqual([
+      "src_instagram",
+      "src_youtube",
+    ]);
+  });
+
+  test("a plain /start is organic and an unregistered payload is unknown", async () => {
+    await postUpdate({
+      message: {
+        chat: { id: 100 },
+        from: { id: 42 },
+        text: "/start",
+      },
+    });
+    await postUpdate({
+      message: {
+        chat: { id: 100 },
+        from: { id: 42 },
+        text: "/start src_tg_ads",
+      },
+    });
+
+    const row = await fakeDb.telegramStart.findUnique({
+      where: { telegramId: "42" },
+    });
+    expect(row?.firstSource).toBe("organic");
+    expect(row?.latestSource).toBe("unknown");
+    const logs = await fakeDb.telegramStartLog.findMany();
+    expect(logs.map((log) => [log.payload, log.source])).toEqual([
+      ["src_tg_ads", "unknown"],
+      ["", "organic"],
+    ]);
+  });
+
+  test("a registered code is stored and logged once", async () => {
+    await fakeDb.trafficSourceCode.create({ data: { code: "src_tg_ads" } });
+    await postUpdate({
+      message: {
+        chat: { id: 100 },
+        from: { id: 42 },
+        text: "/start src_tg_ads",
+      },
+    });
+
+    const row = await fakeDb.telegramStart.findUnique({
+      where: { telegramId: "42" },
+    });
+    expect(row?.firstSource).toBe("src_tg_ads");
+    const logs = await fakeDb.telegramStartLog.findMany();
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.telegramId).toBe("42");
+    expect(logs[0]?.payload).toBe("src_tg_ads");
+    expect(logs[0]?.source).toBe("src_tg_ads");
+  });
+
+  test("a failed click log still remembers the source and sends the welcome", async () => {
+    fakeDb.failNextTelegramStartLog = true;
+    const response = await postUpdate({
+      message: {
+        chat: { id: 100 },
+        from: { id: 42 },
+        text: "/start",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(sendPhoto).toHaveBeenCalledTimes(1);
+    const row = await fakeDb.telegramStart.findUnique({
+      where: { telegramId: "42" },
+    });
+    expect(row?.firstSource).toBe("organic");
+    expect(await fakeDb.telegramStartLog.findMany()).toEqual([]);
   });
 
   test("a payment /start payload is not an acquisition source", async () => {
@@ -207,6 +283,7 @@ describe("telegram webhook /start", () => {
       where: { telegramId: "42" },
     });
     expect(row).toBeNull();
+    expect(await fakeDb.telegramStartLog.findMany()).toEqual([]);
   });
 
   test("unknown messages are a noop", async () => {

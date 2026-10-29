@@ -1,18 +1,26 @@
 import "server-only";
 
 import {
-  classifyStartParam,
+  classifyStartPayload,
   firstTouchSource,
   startPayloadSource,
 } from "~/lib/acquisition-source";
 import { db } from "~/server/db";
+
+export async function registeredTrafficSourceCodes(): Promise<Set<string>> {
+  const rows = await db.trafficSourceCode.findMany({
+    select: { code: true },
+  });
+  return new Set(rows.map((row) => row.code));
+}
 
 /** Remember a `/start` payload. The first one sticks; later ones update latest. */
 export async function rememberTelegramStart(
   telegramId: string,
   payload: string,
 ) {
-  const source = startPayloadSource(payload);
+  const allowed = await registeredTrafficSourceCodes();
+  const source = startPayloadSource(payload, allowed);
   if (!source) {
     return;
   }
@@ -25,6 +33,13 @@ export async function rememberTelegramStart(
     },
     update: { latestSource: source },
   });
+  try {
+    await db.telegramStartLog.create({
+      data: { telegramId, payload, source },
+    });
+  } catch {
+    // The click log is optional. The row above is what the Mini App reads.
+  }
 }
 
 /**
@@ -34,18 +49,22 @@ export async function rememberTelegramStart(
 export async function openSourceForTelegramUser(
   telegramId: string,
   initParam: string | null,
+  allowed: ReadonlySet<string>,
 ): Promise<{ openSource: string; pendingFirst: string | null }> {
   const row = await db.telegramStart.findUnique({ where: { telegramId } });
   const pendingFirst = row?.firstSource ?? null;
-  const classified = classifyStartParam(initParam);
+  const classified = classifyStartPayload(initParam, allowed);
 
   if (classified.kind === "navigation") {
     return { openSource: "organic", pendingFirst };
   }
 
-  if (classified.kind === "source") {
+  if (classified.kind === "source" || classified.kind === "unknown") {
     await clearLatest(telegramId, row?.latestSource);
-    return { openSource: classified.source, pendingFirst };
+    return {
+      openSource: classified.kind === "source" ? classified.source : "unknown",
+      pendingFirst,
+    };
   }
 
   if (!row?.latestSource) {
@@ -61,8 +80,9 @@ export async function openSourceForTelegramUser(
 export function storedFirstTouch(
   initParam: string | null,
   pendingFirst: string | null,
+  allowed: ReadonlySet<string>,
 ): string {
-  return pendingFirst ?? firstTouchSource(initParam);
+  return pendingFirst ?? firstTouchSource(initParam, allowed);
 }
 
 async function clearLatest(

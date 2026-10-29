@@ -49,6 +49,12 @@ async function storedSource() {
   return user?.acquisitionSource ?? null;
 }
 
+async function allow(...codes: string[]) {
+  for (const code of codes) {
+    await fakeDb.trafficSourceCode.create({ data: { code } });
+  }
+}
+
 beforeEach(() => {
   resetTestState();
   limitRequest.mockReset();
@@ -60,6 +66,7 @@ beforeEach(() => {
 
 describe("POST /api/account/attribution", () => {
   test("stores the first src_ code and keeps it", async () => {
+    await allow("src_instagram", "src_youtube");
     const first = await post("start_param=src_instagram&hash=1");
     expect(first.status).toBe(200);
     expect(await first.json()).toEqual({
@@ -75,13 +82,13 @@ describe("POST /api/account/attribution", () => {
     expect(await storedSource()).toBe("src_instagram");
   });
 
-  test("an invalid src_ value is stored as organic", async () => {
+  test("an invalid src_ value is stored as unknown", async () => {
     const response = await post("start_param=src_&hash=1");
     expect(await response.json()).toEqual({
-      source: "organic",
-      openSource: "organic",
+      source: "unknown",
+      openSource: "unknown",
     });
-    expect(await storedSource()).toBe("organic");
+    expect(await storedSource()).toBe("unknown");
   });
 
   test("an account older than an hour is left unset", async () => {
@@ -91,6 +98,7 @@ describe("POST /api/account/attribution", () => {
       createdAt: new Date(Date.now() - 61 * 60 * 1000),
     });
 
+    await allow("src_instagram");
     const response = await post("start_param=src_instagram&hash=1");
     expect(await response.json()).toEqual({
       source: null,
@@ -100,6 +108,7 @@ describe("POST /api/account/attribution", () => {
   });
 
   test("a /start payload is the first touch and is only used once", async () => {
+    await allow("src_instagram");
     await rememberTelegramStart("42", "src_instagram");
 
     const first = await post("user=%7B%7D&hash=1");
@@ -117,6 +126,7 @@ describe("POST /api/account/attribution", () => {
   });
 
   test("a later /start does not replace the stored source", async () => {
+    await allow("src_instagram", "src_youtube");
     await rememberTelegramStart("42", "src_instagram");
     await post("user=%7B%7D&hash=1");
     await rememberTelegramStart("42", "src_youtube");
@@ -130,6 +140,7 @@ describe("POST /api/account/attribution", () => {
   });
 
   test("a mismatched Telegram id is rejected", async () => {
+    await allow("src_instagram");
     miniApp = { valid: true, data: { user: { id: "99" } } };
 
     const response = await post("start_param=src_instagram&hash=1");

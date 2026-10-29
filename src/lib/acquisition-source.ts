@@ -13,12 +13,13 @@ export const FIRST_TOUCH_WINDOW_MS = 60 * 60 * 1000;
 export type StartParamClass =
   | { kind: "navigation"; page: MiniappPage }
   | { kind: "source"; source: string }
+  | { kind: "unknown" }
   | { kind: "organic" };
 
 /**
- * A Mini App `start_param`, or the payload of `/start`. Payment codes
- * navigate. A `src_` code is an acquisition source. Anything else, including
- * a malformed `src_` value, is an ordinary open.
+ * Shape of a Mini App `start_param` or `/start` payload. Payment codes
+ * navigate. A well-formed `src_` code can be a source. Anything else,
+ * including a malformed `src_` value, is an ordinary open.
  */
 export function classifyStartParam(
   value: string | null | undefined,
@@ -34,6 +35,36 @@ export function classifyStartParam(
     return { kind: "source", source: value };
   }
   return { kind: "organic" };
+}
+
+/**
+ * How a `/start` payload is stored. Empty is `organic`. A registered code is
+ * kept. Payment codes are not visits. Every other payload is `unknown`.
+ */
+export function classifyStartPayload(
+  value: string | null | undefined,
+  allowed: ReadonlySet<string>,
+): StartParamClass {
+  if (!value) {
+    return { kind: "organic" };
+  }
+  const page = NAVIGATION[value];
+  if (page) {
+    return { kind: "navigation", page };
+  }
+  if (allowed.has(value) && SOURCE_CODE.test(value)) {
+    return { kind: "source", source: value };
+  }
+  return { kind: "unknown" };
+}
+
+/** Code a dashboard admin may register. `organic` and `unknown` are reserved. */
+export function parseTrafficSourceCode(value: string): string | null {
+  const code = value.trim();
+  if (!SOURCE_CODE.test(code)) {
+    return null;
+  }
+  return code;
 }
 
 /** Page to open for a payment deep link. Other params stay on the Mini App. */
@@ -64,25 +95,38 @@ export function startParamFromInitData(initData: string): string | null {
   return value && value.length > 0 ? value : null;
 }
 
-/** Value stored on a new user. Invalid and payment params count as organic. */
-export function firstTouchSource(value: string | null | undefined): string {
-  const classified = classifyStartParam(value);
-  return classified.kind === "source" ? classified.source : "organic";
+/** Value stored on a new user. Payment params count as organic. */
+export function firstTouchSource(
+  value: string | null | undefined,
+  allowed: ReadonlySet<string>,
+): string {
+  const classified = classifyStartPayload(value, allowed);
+  if (classified.kind === "source") {
+    return classified.source;
+  }
+  if (classified.kind === "unknown") {
+    return "unknown";
+  }
+  return "organic";
 }
 
 /**
  * Source carried by `t.me/<bot>?start=`. Payment codes are ignored so a
- * payment return does not count as a visit. Anything else is `organic`.
+ * payment return does not count as a visit.
  */
 export function startPayloadSource(
   value: string | null | undefined,
+  allowed: ReadonlySet<string>,
 ): string | null {
-  const classified = classifyStartParam(value);
+  const classified = classifyStartPayload(value, allowed);
   if (classified.kind === "navigation") {
     return null;
   }
   if (classified.kind === "source") {
     return classified.source;
+  }
+  if (classified.kind === "unknown") {
+    return "unknown";
   }
   return "organic";
 }

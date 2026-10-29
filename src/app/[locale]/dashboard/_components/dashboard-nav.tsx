@@ -50,6 +50,11 @@ const navItems = [
     label: "Webhooks",
     match: (path: string) => path.startsWith("/dashboard/webhooks"),
   },
+  {
+    href: "/dashboard/traffic-sources",
+    label: "Traffic Sources",
+    match: (path: string) => path.startsWith("/dashboard/traffic-sources"),
+  },
 ] as const;
 
 function SignOutButton({ className }: { className?: string }) {
