@@ -95,6 +95,7 @@
     "payStars": "Telegram Stars · {price}",
     "payCard": "Банковская карта · {price}",
     "paySbp": "СБП · {price}",
+    "payPaypal": "Pay with PayPal",
     "payCrypto": "Криптовалюта · {price}",
     "payFailed": "Не удалось инициировать оплату. Пожалуйста, попробуйте снова позже.",
     "havePromo": "У меня есть промокод",

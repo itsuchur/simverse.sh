@@ -95,6 +95,7 @@
     "payStars": "Telegram Stars · {price}",
     "payCard": "Credit Card · {price}",
     "paySbp": "SBP · {price}",
+    "payPaypal": "Pay with PayPal",
     "payCrypto": "Cryptocurrency · {price}",
     "payFailed": "Couldn't start payment. Open the app from Telegram and try again.",
     "havePromo": "I have a promo code",

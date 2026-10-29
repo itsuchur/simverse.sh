@@ -258,7 +258,7 @@ export function CheckoutView({
   }
 
   function pay(
-    method: "xhub_sbp" | "trybit",
+    method: "xhub_sbp" | "trybit" | "paypal",
     path: string,
     paymentMethod?: "card" | "sbp",
   ) {
@@ -548,6 +548,16 @@ export function CheckoutView({
             className="size-6 shrink-0"
           />
           {t("payCrypto", { price: cryptoPrice })}
+        </Button>
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="h-12 w-full text-lg"
+          disabled={controlsLocked}
+          onClick={() => pay("paypal", "/api/checkout/paypal")}
+        >
+          {t("payPaypal")}
         </Button>
       </div>
     </main>

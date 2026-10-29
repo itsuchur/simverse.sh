@@ -22,6 +22,7 @@ void mock.module("~/server/better-auth", () => ({
 void mock.module("~/server/sales", () => ({ isSalesActive: async () => true }));
 
 const { POST: stars } = await import("~/app/api/checkout/stars/route");
+const { POST: paypal } = await import("~/app/api/checkout/paypal/route");
 const { POST: trybit } = await import("~/app/api/checkout/trybit/route");
 const { POST: cardlink } = await import("~/app/api/checkout/cardlink/route");
 const { POST: cent } = await import("~/app/api/checkout/cent/route");
@@ -39,6 +40,7 @@ beforeEach(() => {
 for (const [name, post] of [
   ["stars", stars],
   ["trybit", trybit],
+  ["paypal", paypal],
   ["cardlink", cardlink],
   ["cent", cent],
   ["platega", platega],
@@ -89,6 +91,7 @@ test("invoice response tracks the order before navigating to a provider", async 
 for (const [name, post] of [
   ["stars", stars],
   ["trybit", trybit],
+  ["paypal", paypal],
   ["cardlink", cardlink],
   ["cent", cent],
   ["platega", platega],

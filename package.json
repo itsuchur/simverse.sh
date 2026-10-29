@@ -29,6 +29,7 @@
     "@esimfly/sdk": "^0.1.0",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@lottiefiles/dotlottie-react": "^0.19.15",
+    "@paypal/paypal-server-sdk": "^2.5.0",
     "@prisma/client": "^6.6.0",
     "@qkix/better-blocks-react-renderer": "0.18.8",
     "@sentry/nextjs": "^10",

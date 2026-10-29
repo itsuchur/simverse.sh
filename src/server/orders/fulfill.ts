@@ -22,6 +22,7 @@ import {
   TRYBIT_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
   UNITPAY_PAYMENT_PROVIDER,
+  PAYPAL_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -52,6 +53,7 @@ export {
   TRYBIT_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
   UNITPAY_PAYMENT_PROVIDER,
+  PAYPAL_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -1656,4 +1658,22 @@ export async function fulfillUnitpayPayment(input: {
 
 export async function failUnitpayPayment(orderUuid: string) {
   await failPendingPayment(orderUuid, UNITPAY_PAYMENT_PROVIDER);
+}
+
+export async function fulfillPaypalPayment(input: {
+  orderUuid: string;
+  captureId: string;
+  amount: bigint;
+  currency: string;
+}) {
+  const order = await db.order.findUnique({ where: { orderUuid: input.orderUuid } });
+  if (order?.paymentProvider !== PAYPAL_PAYMENT_PROVIDER) return;
+  if (order.paymentStatus !== paymentStatus.paid &&
+      (order.priceAmount !== input.amount || order.currency !== input.currency)) {
+    await holdCapturedPaymentMismatch({
+      provider: PAYPAL_PAYMENT_PROVIDER, orderUuid: input.orderUuid, chargeId: input.captureId,
+    });
+    return;
+  }
+  await fulfillPayment({ provider: PAYPAL_PAYMENT_PROVIDER, orderUuid: input.orderUuid, chargeId: input.captureId });
 }

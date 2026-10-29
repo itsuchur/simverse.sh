@@ -1,3 +1,4 @@
+import type { AbstractIntlMessages } from "next-intl";
 import { afterEach, expect, mock, test } from "bun:test";
 import { Window } from "happy-dom";
 
@@ -121,3 +122,25 @@ test("a promo code is applied only after the server accepts it", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+for (const locale of ["en", "ru"] as const) {
+  test(`PayPal button is present on the ${locale} checkout`, async () => {
+    const localeMessages: AbstractIntlMessages =
+      locale === "en"
+        ? messages
+        : (await import("../../../../../messages/ru.json")).default;
+    render(
+      <NextIntlClientProvider locale={locale} messages={localeMessages}>
+        <CheckoutView
+          plan={plan}
+          cartRevision={crypto.randomUUID()}
+          supportTopUpType={1}
+          networkCoverage={[]}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.getByRole("button", { name: "Pay with PayPal" }),
+    ).toBeTruthy();
+  });
+}

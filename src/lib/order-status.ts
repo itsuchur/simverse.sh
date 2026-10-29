@@ -35,3 +35,5 @@ export const PLATEGA_PAYMENT_PROVIDER = "platega";
 export const XHUB_PAYMENT_PROVIDER = "xhub";
 
 export const UNITPAY_PAYMENT_PROVIDER = "unitpay";
+
+export const PAYPAL_PAYMENT_PROVIDER = "paypal";

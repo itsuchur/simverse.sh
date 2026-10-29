@@ -57,6 +57,10 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
         : z.string().min(1).optional(),
+    PAYPAL_CLIENT_ID: z.string().min(1).optional(),
+    PAYPAL_CLIENT_SECRET: z.string().min(1).optional(),
+    PAYPAL_WEBHOOK_ID: z.string().min(1).optional(),
+    PAYPAL_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
     UNITPAY_PROJECT_ID: z.string().regex(/^\d+$/).optional(),
     UNITPAY_SECRET_KEY: z.string().min(1).optional(),
     // Optional until Cent checkout is enabled; gated by centConfigured().
@@ -131,6 +135,10 @@ export const env = createEnv({
     TRYBIT_SECRET_KEY: process.env.TRYBIT_SECRET_KEY,
     CARDLINK_API_TOKEN: process.env.CARDLINK_API_TOKEN,
     CARDLINK_SHOP_ID: process.env.CARDLINK_SHOP_ID,
+    PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID,
+    PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET,
+    PAYPAL_WEBHOOK_ID: process.env.PAYPAL_WEBHOOK_ID,
+    PAYPAL_ENVIRONMENT: process.env.PAYPAL_ENVIRONMENT,
     UNITPAY_PROJECT_ID: process.env.UNITPAY_PROJECT_ID,
     UNITPAY_SECRET_KEY: process.env.UNITPAY_SECRET_KEY,
     CENT_API_TOKEN: process.env.CENT_API_TOKEN,

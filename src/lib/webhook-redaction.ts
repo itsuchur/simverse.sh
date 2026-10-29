@@ -12,6 +12,7 @@ function isCredentialKey(key: string) {
     normalized.includes("password") ||
     normalized.includes("apikey") ||
     normalized.includes("signature") ||
+    normalized === "paypaltransmissionsig" ||
     normalized.includes("privatekey") ||
     normalized.includes("accesscode") ||
     normalized.includes("activationcode") ||
