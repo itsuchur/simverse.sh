@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 
-import enMessages from "../../../../messages/en.json";
-import ruMessages from "../../../../messages/ru.json";
+// Paused with the welcome screen (hurts conversion). Uncomment with AuthGate's
+// consentMessages prop.
+// import enMessages from "../../../../messages/en.json";
+// import ruMessages from "../../../../messages/ru.json";
 import { AcquisitionTracker } from "./_components/acquisition-tracker";
-import { AuthGate, type ConsentMessages } from "./_components/auth-gate";
+import { AuthGate } from "./_components/auth-gate";
 import { FingerprintCollector } from "./_components/fingerprint-collector";
 import { MiniAppChrome } from "./_components/mini-app-chrome";
 import { PostHogIdentify } from "./_components/posthog-identify";
@@ -18,11 +20,11 @@ import { redirectToPreferredLocale } from "~/server/preferred-locale";
 // The consent screen picks its language from Telegram initData on the
 // client (before any session or locale preference exists), so it needs the
 // messages for both locales up front.
-const consentMessages: Record<"en" | "ru", ConsentMessages> = {
-  en: enMessages.Consent,
-  // The declared message types use en literals; they are erased at runtime.
-  ru: ruMessages.Consent as ConsentMessages,
-};
+// const consentMessages: Record<"en" | "ru", ConsentMessages> = {
+//   en: enMessages.Consent,
+//   // The declared message types use en literals; they are erased at runtime.
+//   ru: ruMessages.Consent as ConsentMessages,
+// };
 
 export default async function MiniAppLayout({
   children,
@@ -45,7 +47,7 @@ export default async function MiniAppLayout({
       <PostHogProvider>
         <PostHogPageView />
         <MiniAppChrome showNav={Boolean(session)}>
-          {session ? children : <AuthGate consentMessages={consentMessages} />}
+          {session ? children : <AuthGate />}
           {session ? <StartParamRouter /> : null}
           {session ? (
             <PostHogIdentify

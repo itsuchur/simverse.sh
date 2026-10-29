@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { useCallback, useEffect, useState } from "react";
+// Paused with the welcome screen (hurts conversion). Uncomment with ConsentScreen.
+// import { useRef } from "react";
+// import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { LoaderCircle } from "lucide-react";
-import { NextIntlClientProvider, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
+// import { NextIntlClientProvider } from "next-intl";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -12,20 +15,21 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Checkbox } from "~/components/ui/checkbox";
-import type enMessages from "../../../../../messages/en.json";
-import { LegalLink } from "../../_components/legal-link";
-import { getPathname, useRouter } from "~/i18n/navigation";
+// import { Checkbox } from "~/components/ui/checkbox";
+// import type enMessages from "../../../../../messages/en.json";
+// import { LegalLink } from "../../_components/legal-link";
+import { useRouter } from "~/i18n/navigation";
+// import { getPathname } from "~/i18n/navigation";
 import { autoSignInFromMiniApp } from "~/lib/auth-client";
-import { marketingUrl } from "~/lib/marketing-url";
+// import { marketingUrl } from "~/lib/marketing-url";
 import { waitForTelegramInitData } from "~/lib/telegram-webapp";
 
 // Literal message types (from the generated en.json declaration) so the
 // nested NextIntlClientProvider accepts them; runtime values differ per
 // locale.
-export type ConsentMessages = (typeof enMessages)["Consent"];
-
-type ConsentLocale = "en" | "ru";
+// export type ConsentMessages = (typeof enMessages)["Consent"];
+//
+// type ConsentLocale = "en" | "ru";
 
 type Phase = "checking" | "consent" | "signing-in" | "failed";
 
@@ -53,25 +57,18 @@ function reasonOf(error: unknown): FailReason {
  * Telegram Mini App sign-in gate.
  *
  * Rendered by the /app layout instead of the page content when there is no
- * session. First asks the server whether this Telegram user needs to accept
- * the ToS/Privacy consent screen (new user, or an account they previously
- * deleted). Existing users are signed in silently as before; consenting
- * users are registered only after ticking the agreement checkbox.
- *
- * The consent screen is localized from the Telegram initData language code
- * (ru or en, en fallback) rather than the route locale, so it reads
- * correctly before the user ever picks a language in the app.
+ * session. Asks the server whether this Telegram user is new or previously
+ * deleted, then signs them in. The welcome / ToS consent screen is paused
+ * because it hurts conversion: new and deleted users sign in immediately,
+ * and signIn(true) still restores a soft-deleted account.
  */
-export function AuthGate({
-  consentMessages,
-}: {
-  consentMessages: Record<ConsentLocale, ConsentMessages>;
-}) {
+export function AuthGate() {
   const t = useTranslations("Auth");
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("checking");
   const [failReason, setFailReason] = useState<FailReason>("network");
-  const [consentLocale, setConsentLocale] = useState<ConsentLocale>("en");
+  // Paused with the welcome screen. Uncomment with the consent phase below.
+  // const [consentLocale, setConsentLocale] = useState<ConsentLocale>("en");
   const [attempt, setAttempt] = useState(0);
 
   const fail = useCallback((reason: FailReason) => {
@@ -136,14 +133,11 @@ export function AuthGate({
     precheck()
       .then((needsConsent) => {
         if (cancelled) return;
-        const languageCode =
-          window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
-        setConsentLocale(languageCode?.startsWith("ru") ? "ru" : "en");
-        if (needsConsent) {
-          setPhase("consent");
-        } else {
-          signIn(false);
-        }
+        // Welcome / ToS consent screen is paused because it hurts conversion.
+        // signIn(true) is what Continue did: register new users and restore
+        // soft-deleted accounts. Restore the commented consent phase below
+        // to show the screen again.
+        signIn(needsConsent);
       })
       .catch((error: unknown) => {
         console.error("[auth] consent precheck failed", error);
@@ -160,6 +154,7 @@ export function AuthGate({
     setAttempt((count) => count + 1);
   };
 
+  /*
   if (phase === "consent") {
     return (
       <NextIntlClientProvider
@@ -170,6 +165,7 @@ export function AuthGate({
       </NextIntlClientProvider>
     );
   }
+  */
 
   if (phase === "checking" || phase === "signing-in") {
     return (
@@ -203,6 +199,7 @@ export function AuthGate({
   );
 }
 
+/*
 function ConsentScreen({
   locale,
   onContinue,
@@ -337,3 +334,4 @@ function ConsentScreen({
     </main>
   );
 }
+*/

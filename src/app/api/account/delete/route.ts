@@ -5,7 +5,7 @@ import { limitMiniappRequest } from "~/server/http/rate-limit";
 /**
  * Soft-deletes the signed-in user's account: marks it deleted, records the
  * deletion time, and revokes every session. Data is retained for up to
- * 7 months so the user can change their mind (restored on next consented
+ * 7 months so the user can change their mind (restored on the next
  * sign-in); permanent purging is handled out of band.
  */
 export async function POST(request: Request) {

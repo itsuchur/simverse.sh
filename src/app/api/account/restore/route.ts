@@ -3,8 +3,9 @@ import { db } from "~/server/db";
 import { limitMiniappRequest } from "~/server/http/rate-limit";
 
 /**
- * Clears the soft-delete flags after a previously deleted user re-accepts
- * the consent screen and signs back in, recovering their account data.
+ * Clears the soft-delete flags after a previously deleted user signs back
+ * in, recovering their account data. The welcome screen is paused, so this
+ * runs on the next sign-in with no extra step.
  */
 export async function POST(request: Request) {
   const session = await getAuth().api.getSession({ headers: request.headers });
