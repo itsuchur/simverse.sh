@@ -92,9 +92,9 @@ describe("other hosts", () => {
     test(`an explicit ${locale} blog link overrides a conflicting blog language cookie`, () => {
       const otherLocale = locale === "en" ? "ru" : "en";
       const response = proxy(
-        new NextRequest(`https://blog.simverse.sh/${locale}`, {
+        new NextRequest(`https://simverse.sh/${locale}/blog`, {
           headers: {
-            host: "blog.simverse.sh",
+            host: "simverse.sh",
             "accept-language": otherLocale,
             cookie: `NEXT_LOCALE=${otherLocale}`,
           },
@@ -104,11 +104,10 @@ describe("other hosts", () => {
         `NEXT_LOCALE=${locale}`,
       );
       if (locale === "en") {
-        expect(pathnameOf(response.headers.get("location"))).toBe("/");
+        expect(pathnameOf(response.headers.get("location"))).toBe("/blog");
       } else {
-        expect(pathnameOf(response.headers.get("x-middleware-rewrite"))).toBe(
-          "/ru/blog",
-        );
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.headers.get("x-middleware-next")).toBe("1");
       }
     });
   }
@@ -138,9 +137,9 @@ describe("other hosts", () => {
 
   test("does not negotiate the blog locale from a saved cookie", () => {
     const response = proxy(
-      new NextRequest("https://blog.simverse.sh/", {
+      new NextRequest("https://simverse.sh/blog", {
         headers: {
-          host: "blog.simverse.sh",
+          host: "simverse.sh",
           "accept-language": "ru",
           cookie: "NEXT_LOCALE=ru",
         },
@@ -160,21 +159,30 @@ describe("other hosts", () => {
     );
   });
 
-  test("redirects an apex blog article to the blog host", () => {
+  test("serves an apex blog article without a host redirect", () => {
     const response = proxy(
       request("https://simverse.sh/blog/how-to-install-an-e-sim"),
     );
-    expect(response.status).toBe(301);
-    expect(response.headers.get("location")).toBe(
-      "https://blog.simverse.sh/how-to-install-an-e-sim",
+    expect(response.headers.get("location")).toBeNull();
+    expect(pathnameOf(response.headers.get("x-middleware-rewrite"))).toBe(
+      "/en/blog/how-to-install-an-e-sim",
     );
   });
 
-  test("redirects a Russian apex blog index to the blog host", () => {
-    const response = proxy(request("https://simverse.sh/ru/blog/"));
-    expect(response.status).toBe(301);
-    expect(response.headers.get("location")).toBe(
-      "https://blog.simverse.sh/ru",
-    );
-  });
+  for (const [oldPath, newPath] of [
+    ["/", "/blog"],
+    ["/ru", "/ru/blog"],
+    ["/how-to-install-an-e-sim", "/blog/how-to-install-an-e-sim"],
+    ["/ru/kak-ustanovit-e-sim/", "/ru/blog/kak-ustanovit-e-sim"],
+  ]) {
+    test(`301 redirects the old blog ${oldPath}, preserving query parameters`, () => {
+      const response = proxy(
+        request(`https://blog.simverse.sh${oldPath}?tag=Travel&page=2`),
+      );
+      expect(response.status).toBe(301);
+      expect(response.headers.get("location")).toBe(
+        `https://simverse.sh${newPath}?tag=Travel&page=2`,
+      );
+    });
+  }
 });

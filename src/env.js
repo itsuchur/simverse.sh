@@ -14,7 +14,6 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.string().url(),
     MINIAPP_URL: z.string().url().optional(),
     API_URL: z.string().url().optional(),
-    BLOG_URL: z.string().url().optional(),
     STRAPI_URL:
       process.env.NODE_ENV === "production"
         ? z.string().url()
@@ -118,7 +117,6 @@ export const env = createEnv({
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     MINIAPP_URL: process.env.MINIAPP_URL,
     API_URL: process.env.API_URL,
-    BLOG_URL: process.env.BLOG_URL,
     STRAPI_URL: process.env.STRAPI_URL,
     STRAPI_API_TOKEN: process.env.STRAPI_API_TOKEN,
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,

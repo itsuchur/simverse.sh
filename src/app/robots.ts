@@ -7,7 +7,7 @@ import { isMarketingHostname } from "~/lib/public-url";
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const site = await requestSite();
-  if ((site.onBlogHost || isMarketingHostname(site.host)) && site.origin) {
+  if (isMarketingHostname(site.host) && site.origin) {
     return {
       rules: { userAgent: "*", allow: "/" },
       sitemap: `${site.origin}/sitemap.xml`,

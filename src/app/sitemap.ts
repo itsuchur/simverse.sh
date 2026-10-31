@@ -11,7 +11,6 @@ import { routing } from "~/i18n/routing";
 import { requestSite } from "~/lib/request-site";
 import {
   absoluteUrl,
-  BLOG_ORIGIN,
   isMarketingHostname,
   MARKETING_ORIGIN,
 } from "~/lib/public-url";
@@ -72,8 +71,8 @@ function articleEntries(articles: StrapiArticle[]): MetadataRoute.Sitemap {
       const item = group[locale];
       if (!item) continue;
       languages[locale] = absoluteUrl(
-        BLOG_ORIGIN,
-        publicPathForLocale(`/${item.slug}`, locale),
+        MARKETING_ORIGIN,
+        publicPathForLocale(`/blog/${item.slug}`, locale),
       );
     }
     if (languages.en) languages["x-default"] = languages.en;
@@ -96,16 +95,17 @@ function articleEntries(articles: StrapiArticle[]): MetadataRoute.Sitemap {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = await requestSite();
-  if (site.onBlogHost) {
+  if (isMarketingHostname(site.host)) {
     const articles = (
       await Promise.all(
         routing.locales.map((locale) => fetchPublishedArticles(locale)),
       )
     ).flat();
-    return [...localized(BLOG_ORIGIN, "/"), ...articleEntries(articles)];
-  }
-  if (isMarketingHostname(site.host)) {
-    return MARKETING_PATHS.flatMap((path) => localized(MARKETING_ORIGIN, path));
+    return [
+      ...MARKETING_PATHS.flatMap((path) => localized(MARKETING_ORIGIN, path)),
+      ...localized(MARKETING_ORIGIN, "/blog"),
+      ...articleEntries(articles),
+    ];
   }
   return [];
 }

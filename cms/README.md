@@ -1,7 +1,7 @@
 # Simverse CMS (Strapi 5)
 
 Headless CMS for the public blog. Next.js reads published **Article** documents
-and renders them at `/blog` (local/ngrok) and `https://blog.simverse.sh`
+and renders them at `/blog` (local/ngrok) and `https://simverse.sh/blog`
 (production). The admin UI and REST API are this service.
 
 ## Article body (Better Blocks)

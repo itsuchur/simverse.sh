@@ -4,7 +4,7 @@ import {
   articleAlternates,
   canonicalRequestTarget,
   pageAlternates,
-  prettyBlogPath,
+  isBlogArticlePath,
 } from "./public-url";
 
 describe("canonical public URLs", () => {
@@ -15,45 +15,33 @@ describe("canonical public URLs", () => {
     });
   });
 
-  test("sends apex blog paths to the blog host", () => {
-    expect(
-      canonicalRequestTarget("simverse.sh", "/blog/how-to-install-an-e-sim"),
-    ).toEqual({
-      host: "blog.simverse.sh",
-      pathname: "/how-to-install-an-e-sim",
+  for (const [oldPath, newPath] of [
+    ["/", "/blog"],
+    ["/how-to-install-an-e-sim", "/blog/how-to-install-an-e-sim"],
+    ["/ru/", "/ru/blog"],
+    ["/ru/kak-ustanovit-e-sim/", "/ru/blog/kak-ustanovit-e-sim"],
+    ["/en/how-to-install-an-e-sim/", "/blog/how-to-install-an-e-sim"],
+    ["/ru/blog/kak-ustanovit-e-sim/", "/ru/blog/kak-ustanovit-e-sim"],
+    ["/blog", "/blog"],
+    ["/blogosphere", "/blog/blogosphere"],
+  ] as const) {
+    test(`moves the old blog path ${oldPath} to ${newPath}`, () => {
+      expect(canonicalRequestTarget("blog.simverse.sh", oldPath)).toEqual({
+        host: "simverse.sh",
+        pathname: newPath,
+      });
     });
-    expect(canonicalRequestTarget("simverse.sh", "/ru/blog/")).toEqual({
-      host: "blog.simverse.sh",
-      pathname: "/ru",
-    });
-    expect(
-      canonicalRequestTarget(
-        "simverse.sh",
-        "/en/blog/how-to-install-an-e-sim/",
-      ),
-    ).toEqual({
-      host: "blog.simverse.sh",
-      pathname: "/how-to-install-an-e-sim",
-    });
-  });
-
-  test("pretty-roots a blog-host path that still contains /blog", () => {
-    expect(
-      canonicalRequestTarget(
-        "blog.simverse.sh",
-        "/ru/blog/kak-ustanovit-e-sim/",
-      ),
-    ).toEqual({
-      host: "blog.simverse.sh",
-      pathname: "/ru/kak-ustanovit-e-sim",
-    });
-  });
+  }
 
   test("leaves canonical marketing, blog, and mini app paths alone", () => {
-    expect(canonicalRequestTarget("simverse.sh", "/ru")).toBeNull();
-    expect(
-      canonicalRequestTarget("blog.simverse.sh", "/how-to-install-an-e-sim"),
-    ).toBeNull();
+    for (const path of [
+      "/ru",
+      "/blog",
+      "/ru/blog",
+      "/blog/how-to-install-an-e-sim",
+    ] as const) {
+      expect(canonicalRequestTarget("simverse.sh", path)).toBeNull();
+    }
     expect(
       canonicalRequestTarget("miniapp.simverse.sh", "/ru/profile"),
     ).toBeNull();
@@ -67,13 +55,19 @@ describe("canonical public URLs", () => {
       pathname: "/ru/profile",
     });
   });
-
-  test("does not treat a similarly prefixed path as the blog", () => {
-    expect(prettyBlogPath("/blogosphere")).toBeNull();
-  });
 });
 
 describe("hreflang", () => {
+  test("only blog articles suppress inherited path-based language alternates", () => {
+    expect(isBlogArticlePath("simverse.sh", "/blog/article")).toBe(true);
+    expect(isBlogArticlePath("simverse.sh", "/ru/blog/article")).toBe(true);
+    expect(isBlogArticlePath("simverse.sh", "/blog")).toBe(false);
+    expect(isBlogArticlePath("simverse.sh", "/ru/blog")).toBe(false);
+    expect(isBlogArticlePath("miniapp.simverse.sh", "/blog/article")).toBe(
+      false,
+    );
+  });
+
   test("pairs marketing pages that share a path", () => {
     expect(pageAlternates("https://simverse.sh", "/ru/tos")).toEqual({
       canonical: "https://simverse.sh/ru/tos",
@@ -87,25 +81,25 @@ describe("hreflang", () => {
 
   test("pairs article translations by slug and skips a missing language", () => {
     expect(
-      articleAlternates("https://blog.simverse.sh", "en", {
+      articleAlternates("https://simverse.sh", "en", {
         en: "how-to-install-an-e-sim",
         ru: "kak-ustanovit-e-sim",
       }),
     ).toEqual({
-      canonical: "https://blog.simverse.sh/how-to-install-an-e-sim",
+      canonical: "https://simverse.sh/blog/how-to-install-an-e-sim",
       languages: {
-        en: "https://blog.simverse.sh/how-to-install-an-e-sim",
-        ru: "https://blog.simverse.sh/ru/kak-ustanovit-e-sim",
-        "x-default": "https://blog.simverse.sh/how-to-install-an-e-sim",
+        en: "https://simverse.sh/blog/how-to-install-an-e-sim",
+        ru: "https://simverse.sh/ru/blog/kak-ustanovit-e-sim",
+        "x-default": "https://simverse.sh/blog/how-to-install-an-e-sim",
       },
     });
 
     expect(
-      articleAlternates("https://blog.simverse.sh", "ru", {
+      articleAlternates("https://simverse.sh", "ru", {
         ru: "tolko-po-russki",
       }).languages,
     ).toEqual({
-      ru: "https://blog.simverse.sh/ru/tolko-po-russki",
+      ru: "https://simverse.sh/ru/blog/tolko-po-russki",
     });
   });
 });

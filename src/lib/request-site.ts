@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 
 import { PUBLIC_PATHNAME_HEADER } from "~/i18n/preferred-locale";
 
-import { isBlogHostname, originForHost, requestHostname } from "./public-url";
+import { originForHost, requestHostname } from "./public-url";
 
 export async function requestSite() {
   const headerList = await headers();
@@ -15,6 +15,5 @@ export async function requestSite() {
     host,
     origin: originForHost(host),
     pathname: headerList.get(PUBLIC_PATHNAME_HEADER) ?? "/",
-    onBlogHost: isBlogHostname(host),
   };
 }

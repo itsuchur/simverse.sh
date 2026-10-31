@@ -5,8 +5,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { isAppLocale } from "~/i18n/preferred-locale";
 import { Link } from "~/i18n/navigation";
 import { articleTags } from "~/lib/article-tags";
-import { requestSite } from "~/lib/request-site";
-import { articleAlternates, blogListPath, BLOG_ORIGIN } from "~/lib/public-url";
+import { articleAlternates, MARKETING_ORIGIN } from "~/lib/public-url";
 import { articleLocalizations, fetchArticleBySlug } from "~/server/strapi";
 
 import { ArticleBody } from "../_components/article-body";
@@ -46,7 +45,7 @@ export async function generateMetadata({
     description: article.excerpt ?? t("metaDescription"),
     keywords: articleTags(article.tags),
     alternates: isAppLocale(locale)
-      ? articleAlternates(BLOG_ORIGIN, locale, slugs)
+      ? articleAlternates(MARKETING_ORIGIN, locale, slugs)
       : undefined,
   };
 }
@@ -59,7 +58,7 @@ export default async function BlogArticlePage({
   const t = await getTranslations("Blog");
   const format = await getFormatter();
   const article = await fetchArticleBySlug(slug, locale);
-  const listPath = blogListPath((await requestSite()).onBlogHost);
+  const listPath = "/blog";
 
   if (!article) {
     notFound();

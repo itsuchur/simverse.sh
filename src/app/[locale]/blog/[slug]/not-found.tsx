@@ -1,14 +1,12 @@
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "~/i18n/navigation";
-import { requestSite } from "~/lib/request-site";
-import { blogListPath } from "~/lib/public-url";
 
 import { BlogShell } from "../_components/blog-shell";
 
 export default async function BlogArticleNotFound() {
   const t = await getTranslations("Blog");
-  const listPath = blogListPath((await requestSite()).onBlogHost);
+  const listPath = "/blog";
 
   return (
     <BlogShell>

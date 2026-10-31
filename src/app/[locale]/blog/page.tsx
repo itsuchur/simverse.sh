@@ -5,7 +5,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { isAppLocale } from "~/i18n/preferred-locale";
 import { Link } from "~/i18n/navigation";
 import { requestSite } from "~/lib/request-site";
-import { blogListPath, blogPostPath, pageAlternates } from "~/lib/public-url";
+import { pageAlternates } from "~/lib/public-url";
 import { fetchArticles } from "~/server/strapi";
 
 import { ArticleCover } from "./_components/article-cover";
@@ -32,7 +32,7 @@ export async function generateMetadata({
     robots: filtered ? { index: false, follow: true } : undefined,
     alternates:
       filtered && site.origin && isAppLocale(locale)
-        ? pageAlternates(site.origin, locale === "ru" ? "/ru" : "/")
+        ? pageAlternates(site.origin, locale === "ru" ? "/ru/blog" : "/blog")
         : undefined,
   };
 }
@@ -53,8 +53,7 @@ export default async function BlogPage({
   const t = await getTranslations("Blog");
   const format = await getFormatter();
   const locale = await getLocale();
-  const onBlogHost = (await requestSite()).onBlogHost;
-  const listPath = blogListPath(onBlogHost);
+  const listPath = "/blog";
   const { articles, pageCount } = await fetchArticles(locale, page, tag);
   if (page > 1 && page > pageCount) {
     notFound();
@@ -87,7 +86,7 @@ export default async function BlogPage({
           {articles.map((article) => (
             <li key={article.documentId}>
               <Link
-                href={blogPostPath(onBlogHost, article.slug)}
+                href={`/blog/${article.slug}`}
                 className="group focus-visible:outline-ring block rounded-2xl outline-offset-8 focus-visible:outline-2"
               >
                 <ArticleCover

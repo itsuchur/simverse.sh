@@ -5,7 +5,6 @@ import { HomeLocalePicker } from "./home-locale-picker";
 import { buttonVariants } from "~/components/ui/button";
 import { getPathname } from "~/i18n/navigation";
 import { marketingUrl } from "~/lib/marketing-url";
-import { BLOG_ORIGIN } from "~/lib/public-url";
 import { cn } from "~/lib/utils";
 
 const SOCIAL_LINKS = [
@@ -61,7 +60,7 @@ export async function MarketingHeader() {
       </a>
       <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
         <a
-          href={`${BLOG_ORIGIN}${getPathname({ href: "/", locale })}`}
+          href={getPathname({ href: "/blog", locale })}
           className={cn(
             buttonVariants({ variant: "ghost" }),
             "h-9 px-2 sm:px-3 lg:h-12 lg:px-4 lg:text-lg",

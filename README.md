@@ -25,7 +25,7 @@ TLS and HTTP→HTTPS are provided by the host Traefik stack, not this compose fi
 | `https://dashboard.simverse.sh` | Internal dashboard (`/dashboard`, pretty-rooted) |
 | `https://miniapp.simverse.sh` | Telegram Mini App (pretty-rooted: `/` is the catalog, not `/app`) |
 | `https://api.simverse.sh` | Webhooks and other route handlers (`/webhooks/...` publicly; Traefik prefixes `/api` for Next.js). Same-origin `/api` stays on the two UI hosts. |
-| `https://blog.simverse.sh` | Public blog (pretty-rooted: `/` is the post list, `/[slug]` is an article) |
+| `https://simverse.sh/blog` | Public blog (`/blog` is the post list, `/blog/[slug]` is an article; Russian pages use `/ru/blog`) |
 | `https://cms.simverse.sh` | Strapi admin (`/admin`), REST API (`/api`), and media (`/uploads`) |
 | `https://kb.simverse.sh` | Wiki.js (behind Cloudflare Access, same as dashboard/cms) |
 
@@ -45,7 +45,6 @@ and set production values. Origins have **no trailing slash**. Use strong
 | `BETTER_AUTH_URL` | Dashboard origin: `https://dashboard.simverse.sh` (Google OAuth `baseURL`). |
 | `MINIAPP_URL` | Mini App origin: `https://miniapp.simverse.sh`. |
 | `API_URL` | Public API origin: `https://api.simverse.sh`. |
-| `BLOG_URL` | Blog origin: `https://blog.simverse.sh` (pretty-root). |
 | `STRAPI_URL` | Server-side CMS origin. Compose: `http://strapi:1337`. |
 | `STRAPI_PUBLIC_URL` | Public CMS origin: `https://cms.simverse.sh`. Passed to Strapi as `PUBLIC_URL`. |
 | `STRAPI_API_TOKEN` | Optional read-only API token. Public `find`/`findOne` on Article is enabled in CMS bootstrap. |
@@ -78,7 +77,7 @@ Compose-only (used by `compose.prod.yaml`, not in `.env.example`):
 
 What Compose injects:
 
-- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, `BLOG_URL`, `STRAPI_URL`, `STRAPI_API_TOKEN`, Telegram, eSIM Access, Trybit, Cardlink, Cent, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
+- **`app`:** `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_*`, `MINIAPP_URL`, `API_URL`, `STRAPI_URL`, `STRAPI_API_TOKEN`, Telegram, eSIM Access, Trybit, Cardlink, Cent, Google OAuth, `NEXT_PUBLIC_POSTHOG_*` (also as image build args), `NODE_ENV=production`.
 - **`strapi`:** Postgres `DATABASE_*` (database name `strapi`), `PUBLIC_URL` from `STRAPI_PUBLIC_URL`, `APP_KEYS` / JWT / encryption secrets from `STRAPI_*`.
 - **`wiki`:** `DB_*` from `WIKI_DB_*` (Postgres host `postgres`). Traefik host `kb.simverse.sh`.
 - **`poller`:** same runtime env as **`app`**, plus `OPENROUTER_KEY`. Order recovery imports the app env schema, so production validation needs those secrets even though the worker is not the web app.
@@ -174,7 +173,7 @@ docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f poller
 ```
 
-- Open `https://dashboard.simverse.sh`, `https://miniapp.simverse.sh`, `https://blog.simverse.sh`, `https://cms.simverse.sh/admin`, and `https://kb.simverse.sh`.
+- Open `https://dashboard.simverse.sh`, `https://miniapp.simverse.sh`, `https://simverse.sh/blog`, `https://cms.simverse.sh/admin`, and `https://kb.simverse.sh`.
 - Poller logs a catalog sync on start, then daily at midnight (`[cron] synced … packages to RedisJSON catalog generation …`).
 - Sign in at `https://dashboard.simverse.sh` as `support@simverse.sh`.
 
@@ -250,3 +249,5 @@ Do not restart an old app/poller image against the migrated schema. Verify the
 backfill, unique constraints, concurrent request behavior, and transaction
 rollback locally with `bun run test:refunds-migration` (requires Docker; creates
 and removes its own isolated PostgreSQL container).
+
+The old `blog.simverse.sh` host stays connected to Traefik for 301 redirects to the matching `/blog` or `/ru/blog` paths, preserving query strings. Its sitemap and robots URLs redirect to the apex equivalents.

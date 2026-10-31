@@ -2,10 +2,7 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 
-import {
-  esimProvisioningUrl,
-  lpaCardData,
-} from "~/lib/esim-provisioning";
+import { esimProvisioningUrl, lpaCardData } from "~/lib/esim-provisioning";
 import { miniappPublicUrl } from "~/lib/miniapp-path";
 import { db } from "~/server/db";
 import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
@@ -36,7 +33,10 @@ function formatDataAmount(mb: number | null): string | null {
   return `${mb} MB`;
 }
 
-function countryDisplayName(countryCode: string, locale: WelcomeLocale): string {
+function countryDisplayName(
+  countryCode: string,
+  locale: WelcomeLocale,
+): string {
   try {
     return (
       new Intl.DisplayNames([locale], { type: "region" }).of(countryCode) ??
@@ -108,9 +108,9 @@ const COPY: Record<
     installAndroid: "Install on Android",
     myEsims: "My eSIMs",
     installGuide: "How to install an eSIM?",
-    installGuideUrl: "https://blog.simverse.sh/how-to-install-an-e-sim",
+    installGuideUrl: "https://simverse.sh/blog/how-to-install-an-e-sim",
     saveDataGuide: "How to Save Mobile Data",
-    saveDataGuideUrl: "https://blog.simverse.sh/how-to-save-mobile-data",
+    saveDataGuideUrl: "https://simverse.sh/blog/how-to-save-mobile-data",
   },
   ru: {
     ready: "Ваша eSIM готова!",
@@ -125,10 +125,10 @@ const COPY: Record<
     installAndroid: "Установить на Android",
     myEsims: "Мои eSIM",
     installGuide: "Как установить eSIM?",
-    installGuideUrl: "https://blog.simverse.sh/ru/kak-ustanovit-e-sim",
+    installGuideUrl: "https://simverse.sh/ru/blog/kak-ustanovit-e-sim",
     saveDataGuide: "Как уменьшить расход данных в поездке",
     saveDataGuideUrl:
-      "https://blog.simverse.sh/ru/kak-umenshit-rashod-mobilnyh-dannyh-v-poezdke",
+      "https://simverse.sh/ru/blog/kak-umenshit-rashod-mobilnyh-dannyh-v-poezdke",
   },
 };
 
@@ -175,9 +175,7 @@ export function esimDeliveryMessage(input: {
   const cardData = lpaCardData(input.smdpAddress, input.activationCode);
   if (!manual || !cardData) return null;
 
-  const locale = welcomeLocale(
-    input.preferredLanguage ?? input.languageCode,
-  );
+  const locale = welcomeLocale(input.preferredLanguage ?? input.languageCode);
   const copy = COPY[locale];
 
   const { title, planLine } = esimPlanSummary({

@@ -2,28 +2,11 @@ import { publicPathForLocale, type AppLocale } from "~/i18n/preferred-locale";
 import { routing } from "~/i18n/routing";
 
 export const MARKETING_ORIGIN = "https://simverse.sh";
-export const BLOG_ORIGIN = "https://blog.simverse.sh";
 
 const LOCALES = routing.locales;
 
 export function requestHostname(value: string | null | undefined): string {
   return value?.split(",")[0]?.trim().split(":")[0]?.toLowerCase() ?? "";
-}
-
-function hostnameFromEnv(url: string | undefined): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
-export function isBlogHostname(host: string): boolean {
-  return (
-    host === "blog.simverse.sh" ||
-    host === hostnameFromEnv(process.env.BLOG_URL)
-  );
 }
 
 export function isMarketingHostname(host: string): boolean {
@@ -32,7 +15,6 @@ export function isMarketingHostname(host: string): boolean {
 
 /** Public origin for hosts that should be indexed. Other hosts have none. */
 export function originForHost(host: string): string | null {
-  if (isBlogHostname(host)) return BLOG_ORIGIN;
   if (isMarketingHostname(host)) return MARKETING_ORIGIN;
   return null;
 }
@@ -70,19 +52,6 @@ function withLocale(locale: AppLocale | null, rest: string): string {
 }
 
 /**
- * Internal `/blog/...` path (any locale prefix) as the public blog path.
- * `/blog/how-to` → `/how-to`, `/ru/blog` → `/ru`. Null when it is not a blog route.
- */
-export function prettyBlogPath(pathname: string): string | null {
-  const { locale, rest } = splitLocale(pathname);
-  if (rest !== "/blog" && !rest.startsWith("/blog/")) return null;
-  const stripped = stripTrailingSlash(
-    rest === "/blog" ? "/" : rest.slice("/blog".length),
-  );
-  return withLocale(locale, stripped);
-}
-
-/**
  * One hop to the canonical host and path. Null when the request is already
  * canonical. Does not touch the Mini App, dashboard, or other hosts except
  * to drop a trailing slash.
@@ -96,12 +65,16 @@ export function canonicalRequestTarget(
 
   if (host === "www.simverse.sh") nextHost = "simverse.sh";
 
-  if (nextHost === "simverse.sh" || isBlogHostname(nextHost)) {
-    const pretty = prettyBlogPath(nextPath);
-    if (pretty) {
-      nextHost = "blog.simverse.sh";
-      nextPath = pretty;
-    }
+  if (host === "blog.simverse.sh") {
+    nextHost = "simverse.sh";
+    const { locale, rest } = splitLocale(stripTrailingSlash(pathname));
+    const blogPath =
+      rest === "/blog" || rest.startsWith("/blog/")
+        ? rest
+        : rest === "/"
+          ? "/blog"
+          : `/blog${rest}`;
+    nextPath = withLocale(locale, blogPath);
   }
 
   nextPath = stripTrailingSlash(nextPath);
@@ -118,14 +91,14 @@ export function pageAlternates(origin: string, publicPathname: string) {
   };
 }
 
-/** Blog-host paths other than the locale index are articles. */
+/** Public blog article paths, excluding the list page. */
 export function isBlogArticlePath(
   host: string,
   publicPathname: string,
 ): boolean {
-  if (!isBlogHostname(host)) return false;
+  if (!isMarketingHostname(host)) return false;
   const { rest } = splitLocale(publicPathname);
-  return rest !== "/";
+  return rest.startsWith("/blog/");
 }
 
 export function articleAlternates(
@@ -139,7 +112,7 @@ export function articleAlternates(
     if (!slug) continue;
     languages[locale] = absoluteUrl(
       origin,
-      publicPathForLocale(`/${slug}`, locale),
+      publicPathForLocale(`/blog/${slug}`, locale),
     );
   }
   if (languages.en) languages["x-default"] = languages.en;
@@ -147,12 +120,4 @@ export function articleAlternates(
     canonical: languages[currentLocale],
     languages,
   };
-}
-
-export function blogListPath(onBlogHost: boolean): "/" | "/blog" {
-  return onBlogHost ? "/" : "/blog";
-}
-
-export function blogPostPath(onBlogHost: boolean, slug: string): string {
-  return onBlogHost ? `/${slug}` : `/blog/${slug}`;
 }
