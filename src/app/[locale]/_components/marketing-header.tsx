@@ -60,7 +60,7 @@ export async function MarketingHeader() {
       </a>
       <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
         <a
-          href={getPathname({ href: "/blog", locale })}
+          href={marketingUrl(getPathname({ href: "/blog", locale }))}
           className={cn(
             buttonVariants({ variant: "ghost" }),
             "h-9 px-2 sm:px-3 lg:h-12 lg:px-4 lg:text-lg",

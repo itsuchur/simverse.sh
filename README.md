@@ -250,4 +250,4 @@ backfill, unique constraints, concurrent request behavior, and transaction
 rollback locally with `bun run test:refunds-migration` (requires Docker; creates
 and removes its own isolated PostgreSQL container).
 
-The old `blog.simverse.sh` host stays connected to Traefik for 301 redirects to the matching `/blog` or `/ru/blog` paths, preserving query strings. Its sitemap and robots URLs redirect to the apex equivalents.
+The old `blog.simverse.sh` host stays connected to Traefik for 301 redirects to the matching `/blog` or `/ru/blog` paths, preserving query strings. Its sitemap and robots URLs redirect to the apex equivalents. Cloudflare must not redirect apex `/blog`, `/en/blog`, or `/ru/blog` paths back to the old host; those six legacy edge redirect rules were removed during the migration.

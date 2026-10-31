@@ -31,7 +31,7 @@ export async function generateMetadata({
     description: t("metaDescription"),
     robots: filtered ? { index: false, follow: true } : undefined,
     alternates:
-      filtered && site.origin && isAppLocale(locale)
+      site.origin && isAppLocale(locale)
         ? pageAlternates(site.origin, locale === "ru" ? "/ru/blog" : "/blog")
         : undefined,
   };
