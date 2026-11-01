@@ -3,7 +3,12 @@ import { beforeEach, expect, mock, test } from "bun:test";
 import { fulfillTrybitPayment } from "~/server/orders/fulfill";
 import { failPendingInvoice } from "~/server/orders/draft";
 import { fakeDb } from "~/test/fake-db";
-import { getCartSnapshot, resetTestState, stubEsimAccess } from "~/test/mocks";
+import {
+  getCartSnapshot,
+  resetTestState,
+  stubEsimAccess,
+  esimAccessPost,
+} from "~/test/mocks";
 
 import { placeCheckoutOrder, PromoError, quotePromo } from "./promo";
 
@@ -29,6 +34,8 @@ void mock.module("~/server/better-auth", () => ({
 void mock.module("~/server/sales", () => ({ isSalesActive: async () => true }));
 
 const { POST: previewPromo } = await import("~/app/api/checkout/promo/route");
+const { POST: plategaCheckout } =
+  await import("~/app/api/checkout/platega/route");
 
 const revision = "6f1b5c3a-1d2e-4f5a-8b7c-9d0e1f2a3b4c";
 
@@ -225,4 +232,66 @@ test("a draft that never reached a provider releases the reservation", async () 
     (item) => item.releasedAt == null,
   );
   expect(live).toHaveLength(1);
+});
+
+test("Platega SBP charges the discounted RUB order amount and stores its invoice ID", async () => {
+  await seedPromo();
+  esimAccessPost.mockResolvedValue({
+    success: true,
+    obj: { balance: 10000000 },
+  });
+  getCartSnapshot.mockResolvedValue({
+    revision,
+    plan: {
+      packageCode: "PKG-1",
+      name: "Test plan",
+      country: "US",
+      data_gb: 1,
+      validity_days: 7,
+      price: 100,
+      price_rub: 1000,
+      cost: 10,
+      qty: 1,
+    },
+  } as never);
+  const originalFetch = globalThis.fetch;
+  let providerBody: unknown;
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    if (typeof init?.body !== "string") throw new Error("Missing request body");
+    providerBody = JSON.parse(init.body) as unknown;
+    return Response.json({
+      transactionId: "00000000-0000-4000-8000-000000000001",
+      redirect: "https://pay.platega.io/test",
+      status: "PENDING",
+    });
+  }) as unknown as typeof fetch;
+  try {
+    const response = await plategaCheckout(
+      new Request("https://miniapp.simverse.sh/api/checkout/platega", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cartRevision: revision,
+          locale: "ru",
+          paymentMethod: "sbp",
+          promoCode: "WELCOME10",
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(providerBody).toMatchObject({
+      paymentMethod: 2,
+      paymentDetails: { amount: 900, currency: "RUB" },
+    });
+    const orders = await fakeDb.order.findMany({
+      where: { paymentProvider: "platega" },
+    });
+    expect(orders[0]?.priceAmount).toBe(90000n);
+    expect(orders[0]?.paymentInvoiceId).toBe(
+      "00000000-0000-4000-8000-000000000001",
+    );
+    expect(orders[0]?.promoCodeId).not.toBeNull();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

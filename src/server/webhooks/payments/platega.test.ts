@@ -63,6 +63,52 @@ function payload(
 describe("handlePlategaWebhook", () => {
   beforeEach(resetTestState);
 
+  test("DISPUTED preserves payment; resolution and a later chargeback remain supported", async () => {
+    const order = seedPendingOrder();
+    stubEsimAccess({ orderNo: "EA-PLATEGA", profiles: [PROFILE] });
+    await handlePlategaWebhook(callback(payload(order.orderUuid)));
+    const status = order.status;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await handlePlategaWebhook(
+        callback(payload(order.orderUuid, { status: "DISPUTED" })),
+      );
+      expect(response.status).toBe(200);
+      expect(order.paymentStatus).toBe("paid");
+      expect(order.status).toBe(status);
+      expect(order.paymentChargebackId).toBeNull();
+    }
+    expect(
+      sentryCaptureMessage.mock.calls.some(
+        (call) => call[0] === "Platega payment disputed",
+      ),
+    ).toBe(true);
+    expect(
+      fakeDb.webhookLogs.some(
+        (log) => (log.payload as { status: string }).status === "DISPUTED",
+      ),
+    ).toBe(true);
+    await handlePlategaWebhook(callback(payload(order.orderUuid)));
+    expect(order.paymentStatus).toBe("paid");
+    await handlePlategaWebhook(
+      callback(payload(order.orderUuid, { status: "CHARGEBACKED" })),
+    );
+    expect(order.paymentStatus).toBe("chargeback");
+    await handlePlategaWebhook(
+      callback(payload(order.orderUuid, { status: "DISPUTED" })),
+    );
+    expect(order.paymentStatus).toBe("chargeback");
+  });
+
+  test("out-of-order DISPUTED does not fulfill a pending order", async () => {
+    const order = seedPendingOrder();
+    const response = await handlePlategaWebhook(
+      callback(payload(order.orderUuid, { status: "DISPUTED" })),
+    );
+    expect(response.status).toBe(200);
+    expect(order.paymentStatus).toBe("pending");
+    expect(order.paymentChargeId).toBeNull();
+  });
+
   test("CONFIRMED callback fulfills the order", async () => {
     const order = seedPendingOrder();
     stubEsimAccess({ orderNo: "EA-PLATEGA", profiles: [PROFILE] });

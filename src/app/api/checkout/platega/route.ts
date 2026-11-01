@@ -6,20 +6,26 @@ import {
   invoiceResponse,
 } from "~/server/orders/checkout";
 import { getAuth } from "~/server/better-auth";
-import { limitMiniappRequest } from "~/server/http/rate-limit";
+import {
+  limitPromoAttempt,
+  limitMiniappRequest,
+} from "~/server/http/rate-limit";
 import { getCartSnapshot } from "~/server/cart";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import { PLATEGA_PAYMENT_PROVIDER } from "~/lib/order-status";
-import {
-  createPendingInvoice,
-  findOrCreatePendingOrder,
-} from "~/server/orders/draft";
+import { createPendingInvoice } from "~/server/orders/draft";
 import {
   createPlategaTransaction,
   plategaConfigured,
 } from "~/server/payments/platega";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
-import { miniappOrigin } from "~/server/urls";
+import { apiPublicUrl } from "~/server/urls";
+import { readPromoCode } from "~/lib/promo-code";
+import {
+  placeCheckoutOrder,
+  PromoError,
+  promoErrorResponse,
+} from "~/server/promos/promo";
 import { isSalesActive } from "~/server/sales";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
@@ -66,6 +72,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid_checkout" }, { status: 400 });
   }
 
+  const promoCode = readPromoCode(body.data.promoCode);
+  if (promoCode === null)
+    return Response.json({ error: "invalid_code" }, { status: 400 });
+
   const cart = await getCartSnapshot(telegramId);
   if (!cart) {
     return Response.json({ error: "empty" }, { status: 404 });
@@ -106,39 +116,50 @@ export async function POST(request: Request) {
   }
 
   const countryCode = plan.country.includes(",") ? null : plan.country || null;
-  const order = await findOrCreatePendingOrder({
-    userId: session.user.id,
-    resellerPlanId: plan.packageCode,
-    packageName: plan.name,
-    countryCode,
-    dataAmountMb: Math.round(plan.data_gb * 1024),
-    validityDays: plan.validity_days,
-    priceAmount: BigInt(cents),
-    currency,
-    costAmount: BigInt(Math.round(plan.cost)),
-    costCurrency: "USD",
-    paymentProvider: PLATEGA_PAYMENT_PROVIDER,
-    buyerIp: clientIpFromHeaders(request.headers),
-    cartRevision,
-  });
+  if (promoCode) {
+    const promoLimited = await limitPromoAttempt(session.user.id);
+    if (promoLimited) return promoLimited;
+  }
+  let order;
+  try {
+    order = await placeCheckoutOrder(
+      {
+        userId: session.user.id,
+        resellerPlanId: plan.packageCode,
+        packageName: plan.name,
+        countryCode,
+        dataAmountMb: Math.round(plan.data_gb * 1024),
+        validityDays: plan.validity_days,
+        priceAmount: BigInt(cents),
+        currency,
+        costAmount: BigInt(Math.round(plan.cost)),
+        costCurrency: "USD",
+        paymentProvider: PLATEGA_PAYMENT_PROVIDER,
+        buyerIp: clientIpFromHeaders(request.headers),
+        cartRevision,
+      },
+      promoCode,
+    );
+  } catch (error) {
+    if (error instanceof PromoError) return promoErrorResponse(error);
+    throw error;
+  }
   if (order.paymentInvoiceUrl) {
     return invoiceResponse(order.orderUuid, order.paymentInvoiceUrl);
   }
 
-  const origin = miniappOrigin();
-
   try {
     const invoiceUrl = await createPendingInvoice(order.id, async () => {
       const transaction = await createPlategaTransaction({
-        amount: cents / 100,
+        amount: Number(order.priceAmount) / 100,
         orderId: order.orderUuid,
         description: `${plan.name} · ${plan.validity_days}d`,
         currency,
         paymentMethod: paymentMethod === "sbp" ? 2 : undefined,
-        returnUrl: `${origin}/api/checkout/platega/return?status=success`,
-        failedUrl: `${origin}/api/checkout/platega/return?status=fail`,
+        returnUrl: apiPublicUrl("/checkout/platega/return?status=success"),
+        failedUrl: apiPublicUrl("/checkout/platega/return?status=fail"),
       });
-      return { url: transaction.redirect };
+      return { url: transaction.redirect, id: transaction.transactionId };
     });
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {

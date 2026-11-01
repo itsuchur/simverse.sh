@@ -305,3 +305,40 @@ test("only server-confirmed payment shows preparation and redirects to My eSIMs"
     globalThis.fetch = originalFetch;
   }
 });
+
+test("Russian SBP button requests Platega with the SBP method", async () => {
+  const ruMessages: AbstractIntlMessages = (await import("../../../../../messages/ru.json")).default;
+  const originalFetch = globalThis.fetch;
+  const calls: { path: string; body: unknown }[] = [];
+  globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+    if (typeof url !== "string") throw new Error("Expected request path");
+    if (init?.method === "POST") {
+      if (typeof init.body !== "string") throw new Error("Missing body");
+      calls.push({ path: url, body: JSON.parse(init.body) as unknown });
+    }
+    return Response.json(
+      init?.method === "POST" ? invoice : { paymentStatus: "pending" },
+    );
+  }) as unknown as typeof fetch;
+  try {
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <CheckoutView
+          plan={plan}
+          cartRevision={crypto.randomUUID()}
+          supportTopUpType={1}
+          networkCoverage={[]}
+        />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /\u0421\u0411\u041f/ }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({
+      path: "/api/checkout/platega",
+      body: { paymentMethod: "sbp", locale: "ru" },
+    });
+  } finally {
+    cleanup();
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -1,6 +1,9 @@
 import "server-only";
 
 import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
+import { db } from "~/server/db";
+import { PLATEGA_PAYMENT_PROVIDER } from "~/lib/order-status";
 
 import { withWebhookLogging } from "~/lib/webhook-logger";
 import {
@@ -14,7 +17,7 @@ const callbackSchema = z.object({
   id: z.string().uuid(),
   amount: z.number().finite().positive(),
   currency: z.string().min(1),
-  status: z.enum(["CONFIRMED", "CANCELED", "CHARGEBACKED"]),
+  status: z.enum(["CONFIRMED", "CANCELED", "CHARGEBACKED", "DISPUTED"]),
   paymentMethod: z.number().int().optional(),
   payload: z.string().uuid(),
 });
@@ -53,6 +56,20 @@ export const handlePlategaWebhook = withWebhookLogging(
       });
     } else if (status === "CANCELED") {
       await failPlategaPayment(orderUuid);
+    } else if (status === "DISPUTED") {
+      // A dispute reserves merchant funds but is not a failed payment or chargeback.
+      // Keep fulfillment idempotent when Platega repeats CONFIRMED after resolution.
+      const order = await db.order.findUnique({ where: { orderUuid } });
+      if (
+        order?.paymentProvider === PLATEGA_PAYMENT_PROVIDER &&
+        order.paymentChargeId === transactionId
+      ) {
+        Sentry.captureMessage("Platega payment disputed", {
+          level: "warning",
+          tags: { component: "platega", reason: "payment_disputed" },
+          extra: { orderUuid, transactionId },
+        });
+      }
     } else {
       await markPlategaChargeback({ orderUuid, transactionId });
     }
