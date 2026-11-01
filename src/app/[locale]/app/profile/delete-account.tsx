@@ -21,7 +21,7 @@ import { useRouter } from "~/i18n/navigation";
 /**
  * "Delete Account" profile row with a confirmation alert. Confirming
  * soft-deletes the account server-side and signs the user out. Reopening
- * the app signs them back in and restores the account, with no welcome screen.
+ * the app asks for confirmation before restoring their account.
  */
 export function DeleteAccount() {
   const t = useTranslations("Profile");

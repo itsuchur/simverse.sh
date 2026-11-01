@@ -6,6 +6,8 @@ import type { Refund } from "@prisma/client";
  */
 
 export type FakeUser = {
+  isDeleted: boolean;
+  deletedAt: Date | null;
   email: string;
   isBanned: boolean;
   banReason: string | null;
@@ -408,6 +410,8 @@ class FakeDb {
 
   seedUser(user: Partial<FakeUser> & { id: string }): FakeUser {
     const record: FakeUser = {
+      isDeleted: false,
+      deletedAt: null,
       email: `${user.id}@telegram.local`,
       isBanned: false,
       banReason: null,

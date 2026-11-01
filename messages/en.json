@@ -23,6 +23,11 @@
     "requiredDescription": "We couldn't sign you in automatically. Open this app from Telegram to continue.",
     "reasonRejected": "Telegram confirmed who you are, but the server rejected the sign-in data. Please contact support — this is a configuration problem on our side, not yours.",
     "reasonNetwork": "We couldn't reach the sign-in server. Check your connection and try again.",
+    "restoreTitle": "Restore your account?",
+    "restoreDescription": "You previously requested account deletion. Would you like to restore your account and sign in?",
+    "restoreAccount": "Restore account",
+    "keepDeleted": "Keep account deleted",
+    "accountDeleted": "Your account remains marked for deletion. You are signed out.",
     "tryAgain": "Try again"
   },
   "Consent": {

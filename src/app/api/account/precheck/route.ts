@@ -9,12 +9,7 @@ const bodySchema = z.object({
   initData: z.string().min(1).max(16_384),
 });
 
-/**
- * Pre-sign-in consent check. Validates Telegram initData (HMAC, via the
- * better-auth-telegram validate endpoint) and reports whether the user must
- * accept the ToS/Privacy consent screen before signing in: either they have
- * never registered, or they previously deleted their account.
- */
+/** Validate Telegram identity before reporting whether restoration requires consent. */
 export async function POST(request: Request) {
   const limited = await limitPrecheckRequest(request);
   if (limited) return limited;
@@ -50,5 +45,8 @@ export async function POST(request: Request) {
     select: { isDeleted: true },
   });
 
-  return Response.json({ needsConsent: !user || user.isDeleted });
+  return Response.json(
+    { requiresRestoration: user?.isDeleted === true },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
