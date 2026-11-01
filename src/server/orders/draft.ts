@@ -27,6 +27,7 @@ export type PendingOrderDraft = {
   costAmount: bigint;
   costCurrency: string;
   paymentProvider: string;
+  paymentCountry?: string;
   buyerIp?: string | null;
   cartRevision?: string | null;
   topupOfOrderId?: bigint | null;
@@ -61,6 +62,7 @@ export async function findOrCreatePendingOrder(
   if (existing) {
     if (
       existing.cartRevision === (data.cartRevision ?? null) &&
+      existing.paymentCountry === (data.paymentCountry ?? null) &&
       Date.now() - existing.createdAt.getTime() <= DRAFT_TTL_MS
     ) {
       return existing;
@@ -83,6 +85,7 @@ export async function findOrCreatePendingOrder(
         costAmount: data.costAmount,
         costCurrency: data.costCurrency,
         paymentProvider: data.paymentProvider,
+        paymentCountry: data.paymentCountry ?? null,
         buyerIp: data.buyerIp ?? null,
         cartRevision: data.cartRevision ?? null,
         topupOfOrderId: data.topupOfOrderId ?? null,
@@ -102,6 +105,7 @@ export async function findOrCreatePendingOrder(
     });
     if (
       raced?.cartRevision !== (data.cartRevision ?? null) ||
+      raced?.paymentCountry !== (data.paymentCountry ?? null) ||
       raced?.topupOfOrderId !== (data.topupOfOrderId ?? null) ||
       raced?.topupPeriodDays !== (data.topupPeriodDays ?? null) ||
       raced?.promoCodeId !== (data.promoCodeId ?? null)

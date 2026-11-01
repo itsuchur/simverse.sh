@@ -23,6 +23,7 @@ import {
   XHUB_PAYMENT_PROVIDER,
   UNITPAY_PAYMENT_PROVIDER,
   PAYPAL_PAYMENT_PROVIDER,
+  CODAPAY_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -54,6 +55,7 @@ export {
   XHUB_PAYMENT_PROVIDER,
   UNITPAY_PAYMENT_PROVIDER,
   PAYPAL_PAYMENT_PROVIDER,
+  CODAPAY_PAYMENT_PROVIDER,
   orderStatus,
   paymentStatus,
   STARS_PAYMENT_PROVIDER,
@@ -1676,4 +1678,12 @@ export async function fulfillPaypalPayment(input: {
     return;
   }
   await fulfillPayment({ provider: PAYPAL_PAYMENT_PROVIDER, orderUuid: input.orderUuid, chargeId: input.captureId });
+}
+
+export async function fulfillCodapayPayment(input: { orderUuid: string; transactionId: string; amount: bigint }) {
+  await fulfillPayment({ provider: CODAPAY_PAYMENT_PROVIDER, orderUuid: input.orderUuid, chargeId: input.transactionId,
+    validate: (order) => order.currency === "USD" && order.priceAmount === input.amount });
+}
+export async function failCodapayPayment(orderUuid: string) {
+  await failPendingPayment(orderUuid, CODAPAY_PAYMENT_PROVIDER);
 }

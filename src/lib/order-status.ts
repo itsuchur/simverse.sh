@@ -37,3 +37,5 @@ export const XHUB_PAYMENT_PROVIDER = "xhub";
 export const UNITPAY_PAYMENT_PROVIDER = "unitpay";
 
 export const PAYPAL_PAYMENT_PROVIDER = "paypal";
+
+export const CODAPAY_PAYMENT_PROVIDER = "codapay";

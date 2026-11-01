@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CODAPAY_COUNTRIES, type CodapayCountry } from "~/lib/codapay-markets";
 import Image from "next/image";
 import { ChevronLeft, Globe, LoaderCircle, Clock3 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
@@ -34,6 +35,7 @@ async function requestInvoice(
   locale: string,
   promoCode?: string,
   paymentMethod?: "card" | "sbp",
+  country?: string,
 ) {
   for (let attempt = 0; attempt < 30; attempt++) {
     const response = await fetch(path, {
@@ -47,6 +49,7 @@ async function requestInvoice(
         cartRevision,
         locale,
         paymentMethod,
+        ...(country ? { country } : {}),
         ...(promoCode ? { promoCode } : {}),
       }),
     });
@@ -143,12 +146,14 @@ export function CheckoutView({
   supportTopUpType,
   networkCoverage,
   initialPayment = null,
+  initialBillingCountry = null,
 }: {
   plan: CartPlan;
   cartRevision: string;
   supportTopUpType: number | undefined;
   networkCoverage: CatalogCoverage[];
   initialPayment?: { orderUuid: string; invoiceUrl: string } | null;
+  initialBillingCountry?: CodapayCountry | null;
 }) {
   const t = useTranslations("Checkout");
   const tCatalog = useTranslations("Catalog");
@@ -258,16 +263,23 @@ export function CheckoutView({
     }
   }
 
+  const [payerCountry, setPayerCountry] = useState(initialBillingCountry ?? "");
+  const [changingBillingCountry, setChangingBillingCountry] = useState(false);
+
   function openInvoice(url: string) {
     openExternalLink(url);
   }
 
   function pay(
-    method: "xhub_sbp" | "trybit" | "paypal",
+    method: "xhub_sbp" | "trybit" | "paypal" | "codapay",
     path: string,
     paymentMethod?: "card" | "sbp",
   ) {
     const promoCode = acceptedPromo?.code;
+    if (method === "codapay" && !payerCountry) {
+      setChangingBillingCountry(true);
+      return;
+    }
     if (invoiceRequested.current || payment) return;
     invoiceRequested.current = true;
     setPaying(true);
@@ -276,7 +288,14 @@ export function CheckoutView({
       method,
       packageCode: plan.packageCode,
     });
-    void requestInvoice(path, cartRevision, locale, promoCode, paymentMethod)
+    void requestInvoice(
+      path,
+      cartRevision,
+      locale,
+      promoCode,
+      paymentMethod,
+      method === "codapay" ? payerCountry : undefined,
+    )
       .then((invoice) => {
         captureAppEvent("checkout_invoice_opened", {
           method,
@@ -634,6 +653,63 @@ export function CheckoutView({
             />
             {t("payCrypto", { price: cryptoPrice })}
           </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="outline"
+            className="h-12 w-full text-lg"
+            disabled={controlsLocked}
+            onClick={() => pay("codapay", "/api/checkout/codapay")}
+          >
+            <Image
+              src="/card.svg"
+              alt=""
+              width={24}
+              height={24}
+              data-icon="inline-start"
+              className="size-6 shrink-0"
+            />
+            {t("payCard")}
+          </Button>
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto py-1 text-sm"
+            disabled={controlsLocked}
+            aria-expanded={changingBillingCountry}
+            aria-controls="billing-country"
+            onClick={() => setChangingBillingCountry((value) => !value)}
+          >
+            {t("changeBillingCountry")}
+          </Button>
+          {changingBillingCountry ? (
+            <label className="flex w-full flex-col gap-2 text-sm">
+              {t("cardCountry")}
+              <select
+                id="billing-country"
+                className="border-input bg-background h-10 rounded-md border px-3"
+                value={payerCountry}
+                onChange={(event) => setPayerCountry(event.target.value)}
+                disabled={controlsLocked}
+              >
+                <option value="" disabled>
+                  {t("chooseBillingCountry")}
+                </option>
+                {[...CODAPAY_COUNTRIES]
+                  .sort((a, b) =>
+                    countryDisplayName(a, locale).localeCompare(
+                      countryDisplayName(b, locale),
+                      locale,
+                    ),
+                  )
+                  .map((code) => (
+                    <option key={code} value={code}>
+                      {countryDisplayName(code, locale)}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          ) : null}
           {locale === "en" ? (
             <Button
               type="button"

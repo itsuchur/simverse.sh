@@ -145,10 +145,33 @@ for (const locale of ["en", "ru"] as const) {
           cartRevision={crypto.randomUUID()}
           supportTopUpType={1}
           networkCoverage={[]}
+          initialBillingCountry="TR"
         />
       </NextIntlClientProvider>,
     );
     const button = screen.queryByRole("button", { name: "Pay with PayPal" });
+    const card = screen.getByRole("button", {
+      name: locale === "en" ? "Credit Card" : "Иностранная карта",
+    });
+    expect(card.querySelector("img")?.getAttribute("src")).toBe("/card.svg");
+    expect(screen.queryByRole("combobox")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name:
+          locale === "en"
+            ? "Change billing country"
+            : "\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u0441\u0442\u0440\u0430\u043d\u0443 \u043e\u043f\u043b\u0430\u0442\u044b",
+      }),
+    );
+    const country = screen.getByRole("combobox");
+    expect((country as HTMLSelectElement).value).toBe("TR");
+    const options = Array.from(
+      country.querySelectorAll("option"),
+      (option) => option.value,
+    );
+    expect(options).toContain("VN");
+    expect(options).toContain("TR");
+    expect(options).not.toContain("UZ");
     if (locale === "en") {
       expect(button).toBeTruthy();
       expect(button?.querySelector("img")?.getAttribute("src")).toBe(
@@ -164,6 +187,22 @@ const invoice = {
   orderUuid: "6f1b5c3a-1d2e-4f5a-8b7c-9d0e1f2a3b4c",
   invoiceUrl: "https://www.paypal.com/checkoutnow?token=existing",
 };
+
+test("unknown billing country requires a selection before any invoice request", () => {
+  const originalFetch = globalThis.fetch;
+  const fetchInvoice = mock(async () => Response.json(invoice));
+  globalThis.fetch = fetchInvoice as unknown as typeof fetch;
+  try {
+    renderCheckout();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Credit Card" }));
+    expect(screen.getByRole<HTMLSelectElement>("combobox").value).toBe("");
+    expect(fetchInvoice).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test("opening payment replaces the method buttons; continuing reuses its invoice", async () => {
   const originalFetch = globalThis.fetch;

@@ -56,6 +56,9 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string().min(1)
         : z.string().min(1).optional(),
+    CODAPAY_API_KEY: z.string().min(1).optional(),
+    CODAPAY_PROJECT_ID: z.string().regex(/^[1-9]\d*$/).optional(),
+    CODAPAY_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
     PAYPAL_CLIENT_ID: z.string().min(1).optional(),
     PAYPAL_CLIENT_SECRET: z.string().min(1).optional(),
     PAYPAL_WEBHOOK_ID: z.string().min(1).optional(),
@@ -133,6 +136,9 @@ export const env = createEnv({
     TRYBIT_SECRET_KEY: process.env.TRYBIT_SECRET_KEY,
     CARDLINK_API_TOKEN: process.env.CARDLINK_API_TOKEN,
     CARDLINK_SHOP_ID: process.env.CARDLINK_SHOP_ID,
+    CODAPAY_API_KEY: process.env.CODAPAY_API_KEY,
+    CODAPAY_PROJECT_ID: process.env.CODAPAY_PROJECT_ID,
+    CODAPAY_ENVIRONMENT: process.env.CODAPAY_ENVIRONMENT,
     PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID,
     PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET,
     PAYPAL_WEBHOOK_ID: process.env.PAYPAL_WEBHOOK_ID,

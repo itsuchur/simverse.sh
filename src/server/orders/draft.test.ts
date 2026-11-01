@@ -33,6 +33,28 @@ beforeEach(() => {
 });
 
 describe("findOrCreatePendingOrder", () => {
+  test("changing the card market creates a fresh draft without reusing the old invoice", async () => {
+    const first = await findOrCreatePendingOrder({
+      ...DRAFT,
+      paymentProvider: "codapay",
+      paymentCountry: "KZ",
+    });
+    await createPendingInvoice(first.id, async () => ({
+      url: "https://sandbox.codapayments.com/first",
+      id: "123",
+    }));
+    const second = await findOrCreatePendingOrder({
+      ...DRAFT,
+      paymentProvider: "codapay",
+      paymentCountry: "TR",
+    });
+    expect(second.id).not.toBe(first.id);
+    expect(second.paymentCountry).toBe("TR");
+    expect(second.paymentInvoiceUrl).toBeNull();
+    expect(first.paymentInvoiceId).toBe("123");
+    expect(first.paymentStatus).toBe("failed");
+  });
+
   test("reuses the live pending draft", async () => {
     const first = await findOrCreatePendingOrder(DRAFT);
     const second = await findOrCreatePendingOrder(DRAFT);

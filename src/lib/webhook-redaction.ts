@@ -3,6 +3,7 @@ const REDACTED = "[REDACTED]";
 function isCredentialKey(key: string) {
   const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
   return (
+    normalized === "checksum" ||
     normalized === "authorization" ||
     normalized === "proxyauthorization" ||
     normalized === "cookie" ||

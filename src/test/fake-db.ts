@@ -57,6 +57,7 @@ export type FakeOrder = {
   paymentNextCheckAt: Date;
   paymentInvoiceClaim: string | null;
   cartRevision: string | null;
+  paymentCountry: string | null;
   paymentStatus: string;
   paymentChargeId: string | null;
   paymentChargebackId: string | null;
@@ -201,6 +202,7 @@ function orderDefaults(): Omit<
     paymentNextCheckAt: new Date(0),
     paymentInvoiceClaim: null,
     cartRevision: null,
+    paymentCountry: null,
     paymentStatus: "pending",
     paymentChargeId: null,
     paymentChargebackId: null,

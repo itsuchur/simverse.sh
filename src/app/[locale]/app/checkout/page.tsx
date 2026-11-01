@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+import { detectedCodapayCountry } from "~/lib/codapay-markets";
 import { db } from "~/server/db";
 import * as Sentry from "@sentry/nextjs";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -131,6 +133,7 @@ export default async function CheckoutPage({
       <CheckoutView
         key={cart.revision}
         initialPayment={initialPayment}
+        initialBillingCountry={detectedCodapayCountry(await headers())}
         plan={plan}
         cartRevision={cart.revision}
         supportTopUpType={catalog?.pkg.supportTopUpType}

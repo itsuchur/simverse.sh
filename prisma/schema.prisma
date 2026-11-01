@@ -179,6 +179,7 @@ model Order {
   costCurrency String? @map("cost_currency") @db.Char(3)
 
   paymentProvider     String  @map("payment_provider")
+  paymentCountry      String? @map("payment_country") @db.VarChar(2)
   /// Provider checkout link minted for this draft; reused so one draft never has two live invoices.
   paymentInvoiceUrl   String? @map("payment_invoice_url")
   paymentInvoiceId    String? @map("payment_invoice_id")

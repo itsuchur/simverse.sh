@@ -1,3 +1,5 @@
+import { codapayConfigured } from "~/server/payments/codapay";
+import { reconcileCodapayPayment } from "./codapay";
 import { paypalConfigured } from "~/server/payments/paypal";
 import { reconcilePaypalOrder } from "./paypal";
 import "server-only";
@@ -93,7 +95,7 @@ export async function applyVerifiedTrybitInvoice(orderUuid: string, invoice: Try
 
 /** Separate from supplier recovery: never require a callback to discover payment. */
 export async function reconcilePendingPayments() {
-  const providers = [paypalConfigured() ? "paypal" : null, trybitConfigured() ? "trybit" : null, xhubConfigured() ? "xhub" : null, unitpayConfigured() ? "unitpay" : null].filter((p): p is string => p !== null);
+  const providers = [codapayConfigured() ? "codapay" : null, paypalConfigured() ? "paypal" : null, trybitConfigured() ? "trybit" : null, xhubConfigured() ? "xhub" : null, unitpayConfigured() ? "unitpay" : null].filter((p): p is string => p !== null);
   if (!providers.length) return;
   const now = new Date();
   const orders = await db.order.findMany({
@@ -145,6 +147,8 @@ export async function reconcilePendingPayments() {
         ) {
           await failTrybitPayment(order.orderUuid);
         }
+      } else if (order.paymentProvider === "codapay") {
+        if (order.paymentInvoiceId) await reconcileCodapayPayment(order.paymentInvoiceId, order.orderUuid);
       } else if (order.paymentProvider === "paypal") {
         if (order.paymentInvoiceId) await reconcilePaypalOrder(order.paymentInvoiceId);
       } else if (order.paymentProvider === "unitpay") {
