@@ -304,13 +304,11 @@ export function UsagePanel({
   }
 
   function usdPrice(amount: number) {
-    return locale === "ru"
-      ? `${format.number(amount, { maximumFractionDigits: 0 })} USDT`
-      : format.number(amount, { style: "currency", currency: "USD" });
+    return format.number(amount, { style: "currency", currency: "USD" });
   }
 
   async function pay(
-    provider: "trybit" | "xhub",
+    provider: "xhub",
     selection: { packageCode: string; days?: number },
   ) {
     setPaying(true);
@@ -391,7 +389,6 @@ export function UsagePanel({
                 usdPrice={usdPrice}
                 payErrorText={tCheckout("payFailed")}
                 paySbp={(price) => tCheckout("paySbp", { price })}
-                payCrypto={(price) => tCheckout("payCrypto", { price })}
               />
             </PopoverContent>
           </Popover>
@@ -494,7 +491,6 @@ function PackageChoices({
   usdPrice,
   payErrorText,
   paySbp,
-  payCrypto,
 }: {
   action: "extend" | "topup";
   packages: TopupPackageOffer[];
@@ -503,12 +499,11 @@ function PackageChoices({
   paying: boolean;
   payError: boolean;
   onSelect: (key: string) => void;
-  onPay: (provider: "trybit" | "xhub") => void;
+  onPay: (provider: "xhub") => void;
   rubPrice: (amount: number) => string;
   usdPrice: (amount: number) => string;
   payErrorText: string;
   paySbp: (price: string) => string;
-  payCrypto: (price: string) => string;
 }) {
   const t = useTranslations("MyEsims");
   const tCatalog = useTranslations("Catalog");
@@ -547,44 +542,7 @@ function PackageChoices({
           );
         })}
       </div>
-      {selected ? (
-        <PayButtons
-          locale={locale}
-          paying={paying}
-          rub={rubPrice(selected.priceRub)}
-          usd={usdPrice(selected.priceUsd)}
-          paySbp={paySbp}
-          payCrypto={payCrypto}
-          onPay={onPay}
-        />
-      ) : null}
-      {payError ? (
-        <p className="text-destructive text-center text-sm">{payErrorText}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function PayButtons({
-  locale,
-  paying,
-  rub,
-  usd,
-  paySbp,
-  payCrypto,
-  onPay,
-}: {
-  locale: string;
-  paying: boolean;
-  rub: string;
-  usd: string;
-  paySbp: (price: string) => string;
-  payCrypto: (price: string) => string;
-  onPay: (provider: "trybit" | "xhub") => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      {locale === "ru" ? (
+      {selected && locale === "ru" ? (
         <Button
           type="button"
           className="h-10 border border-emerald-900 bg-emerald-700 text-white hover:bg-emerald-800"
@@ -599,26 +557,12 @@ function PayButtons({
             data-icon="inline-start"
             className="h-4 w-8 shrink-0 object-contain"
           />
-          {paySbp(rub)}
+          {paySbp(rubPrice(selected.priceRub))}
         </Button>
       ) : null}
-      <Button
-        type="button"
-        variant="outline"
-        className="h-10"
-        disabled={paying}
-        onClick={() => onPay("trybit")}
-      >
-        <Image
-          src="/USDT.svg"
-          alt=""
-          width={16}
-          height={16}
-          data-icon="inline-start"
-          className="size-4 shrink-0"
-        />
-        {payCrypto(usd)}
-      </Button>
+      {payError ? (
+        <p className="text-destructive text-center text-sm">{payErrorText}</p>
+      ) : null}
     </div>
   );
 }

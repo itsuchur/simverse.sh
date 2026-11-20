@@ -26,7 +26,7 @@ const COPY = {
     text: [
       "Internet abroad without roaming 🌍",
       "",
-      'eSIM for 150+ countries from $4. Tap "Open the App", choose a country, and pay with USDT. Setup takes a couple of minutes.',
+      'eSIM for 150+ countries from $4. Tap "Open the App", choose a country, and pay by card. Setup takes a couple of minutes.',
       "",
       "Questions: @simversesupport",
     ].join("\n"),
@@ -37,7 +37,7 @@ const COPY = {
     text: [
       "Интернет за границей без роуминга 🌍",
       "",
-      "eSIM для 150+ стран от 128 ₽. Нажмите «Открыть приложение», выберите страну и оплатите через СБП или USDT. Установка занимает пару минут.",
+      "eSIM для 150+ стран от 128 ₽. Нажмите «Открыть приложение», выберите страну и оплатите через СБП или картой. Установка занимает пару минут.",
       "",
       "Вопросы: @simversesupport",
     ].join("\n"),

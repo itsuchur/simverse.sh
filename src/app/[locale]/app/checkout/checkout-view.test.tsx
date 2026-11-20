@@ -116,17 +116,12 @@ test("a promo code is applied only after the server accepts it", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(screen.getByText("Use 4–32 letters or numbers only.")).toBeTruthy();
     expect(calls).toHaveLength(0);
-    expect(
-      screen.getByRole("button", { name: /Cryptocurrency/ }).textContent,
-    ).toContain("$100");
 
     fireEvent.change(input, { target: { value: "welcome10" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await screen.findByText("10% off");
     expect(calls).toEqual(["/api/checkout/promo"]);
-    expect(
-      screen.getByRole("button", { name: /Cryptocurrency/ }).textContent,
-    ).toContain("$90");
+    expect(screen.queryByRole("button", { name: /Cryptocurrency/ })).toBeNull();
   } finally {
     globalThis.fetch = originalFetch;
   }

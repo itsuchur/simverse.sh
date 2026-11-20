@@ -8,28 +8,6 @@ import { buttonVariants } from "~/components/ui/button";
 import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/utils";
 
-const USDT_METHOD = {
-  src: "/USDT.svg",
-  altKey: "paymentUsdtAlt",
-  width: 32,
-  height: 32,
-  className: "h-8",
-} as const;
-
-const PAYMENT_METHODS = {
-  en: [USDT_METHOD],
-  ru: [
-    {
-      src: "/SBP.svg",
-      altKey: "paymentSbpAlt",
-      width: 239,
-      height: 120,
-      className: "h-8",
-    },
-    USDT_METHOD,
-  ],
-} as const;
-
 export default async function Home() {
   const t = await getTranslations("HomePage");
   const help = await getTranslations("Help");
@@ -97,25 +75,18 @@ export default async function Home() {
             ))}
           </div>
         </section>
-        <section className="mt-16 w-full max-w-2xl sm:mt-20">
-          <ul className="flex flex-wrap items-center justify-center gap-6">
-            {PAYMENT_METHODS[locale].map((method) => (
-              <li key={method.src}>
-                <Image
-                  src={method.src}
-                  alt={t(method.altKey)}
-                  width={method.width}
-                  height={method.height}
-                  unoptimized
-                  className={cn(
-                    method.className,
-                    "w-auto shrink-0 object-contain",
-                  )}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+        {locale === "ru" ? (
+          <section className="mt-16 w-full max-w-2xl sm:mt-20">
+            <Image
+              src="/SBP.svg"
+              alt={t("paymentSbpAlt")}
+              width={239}
+              height={120}
+              unoptimized
+              className="mx-auto h-8 w-auto shrink-0 object-contain"
+            />
+          </section>
+        ) : null}
       </main>
       <MarketingFooter />
     </div>

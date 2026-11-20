@@ -279,7 +279,7 @@ export function CheckoutView({
   }
 
   function pay(
-    method: "platega_sbp" | "trybit" | "paypal" | "codapay",
+    method: "platega_sbp" | "paypal" | "codapay",
     path: string,
     paymentMethod?: "card" | "sbp",
   ) {
@@ -394,15 +394,7 @@ export function CheckoutView({
     return () => clearTimeout(timeout);
   }, [paymentConfirmed, router, myEsimsHref]);
 
-  const priceUsd = acceptedPromo?.priceUsd ?? plan.price;
   const priceRub = acceptedPromo?.priceRub ?? plan.price_rub;
-  const cryptoPrice =
-    locale === "ru"
-      ? `${format.number(priceUsd, { maximumFractionDigits: 0 })} USDT`
-      : format.number(priceUsd, {
-          style: "currency",
-          currency: "USD",
-        });
   const sbpPrice = format.number(priceRub, {
     style: "currency",
     currency: "RUB",
@@ -644,24 +636,6 @@ export function CheckoutView({
               {t("paySbp", { price: sbpPrice })}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            size="lg"
-            variant="outline"
-            className="h-12 w-full text-lg"
-            disabled={controlsLocked}
-            onClick={() => pay("trybit", "/api/checkout/trybit")}
-          >
-            <Image
-              src="/USDT.svg"
-              alt=""
-              width={24}
-              height={24}
-              data-icon="inline-start"
-              className="size-6 shrink-0"
-            />
-            {t("payCrypto", { price: cryptoPrice })}
-          </Button>
           <Button
             type="button"
             size="lg"
