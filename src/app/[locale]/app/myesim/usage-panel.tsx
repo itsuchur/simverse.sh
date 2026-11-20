@@ -308,7 +308,7 @@ export function UsagePanel({
   }
 
   async function pay(
-    provider: "xhub",
+    provider: "platega",
     selection: { packageCode: string; days?: number },
   ) {
     setPaying(true);
@@ -499,7 +499,7 @@ function PackageChoices({
   paying: boolean;
   payError: boolean;
   onSelect: (key: string) => void;
-  onPay: (provider: "xhub") => void;
+  onPay: (provider: "platega") => void;
   rubPrice: (amount: number) => string;
   usdPrice: (amount: number) => string;
   payErrorText: string;
@@ -547,7 +547,7 @@ function PackageChoices({
           type="button"
           className="h-10 border border-emerald-900 bg-emerald-700 text-white hover:bg-emerald-800"
           disabled={paying}
-          onClick={() => onPay("xhub")}
+          onClick={() => onPay("platega")}
         >
           <Image
             src="/SBP.svg"

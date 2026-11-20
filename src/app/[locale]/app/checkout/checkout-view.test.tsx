@@ -304,7 +304,7 @@ test("only server-confirmed payment shows preparation and redirects to My eSIMs"
   }
 });
 
-test("Russian SBP button requests the SBP checkout", async () => {
+test("Russian SBP button requests Platega with the SBP method", async () => {
   const ruMessages: AbstractIntlMessages = (
     await import("../../../../../messages/ru.json")
   ).default;
@@ -337,7 +337,7 @@ test("Russian SBP button requests the SBP checkout", async () => {
     fireEvent.click(screen.getByRole("button", { name: /\u0421\u0411\u041f/ }));
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toMatchObject({
-      path: "/api/checkout/sbp",
+      path: "/api/checkout/platega",
       body: { paymentMethod: "sbp", locale: "ru" },
     });
   } finally {

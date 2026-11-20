@@ -575,3 +575,108 @@ describe("top-up checkout expiry window", () => {
     });
   }
 });
+
+const rateLimitModule = await import("~/server/http/rate-limit");
+void mock.module("~/server/http/rate-limit", () => ({
+  ...rateLimitModule,
+  limitMiniappRequest: async () => null,
+}));
+void mock.module("~/server/better-auth", () => ({
+  getAuth: () => ({
+    api: {
+      getSession: async () => ({ user: { id: "user-1", telegramId: "42" } }),
+    },
+  }),
+}));
+void mock.module("~/server/sales", () => ({ isSalesActive: async () => true }));
+
+const { POST: topupCheckout } = await import("~/app/api/checkout/topup/route");
+
+describe("top-up checkout via Platega", () => {
+  function checkout(orderUuid: string, locale: "en" | "ru") {
+    return topupCheckout(
+      new Request("https://miniapp.simverse.sh/api/checkout/topup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          orderUuid,
+          provider: "platega",
+          locale,
+          packageCode: "TOPUP_DATA",
+        }),
+      }),
+    );
+  }
+
+  test("creates a RUB SBP transaction for a Russian top-up", async () => {
+    const parent = seedParent({ resellerPlanId: DATA_PKG.packageCode });
+    getEsimAccessPackageByCode.mockResolvedValue({
+      meta: { usdRubRate: 90 },
+      pkg: DATA_PKG,
+    });
+    esimAccessPost.mockImplementation(async (path: string) =>
+      path === "/balance/query"
+        ? { success: true, obj: { balance: 1_000_000_000 } }
+        : {
+            success: true,
+            obj: {
+              packageList: [
+                {
+                  packageCode: "TOPUP_DATA",
+                  name: "Europe 1GB 7Days",
+                  price: 80_000,
+                  retailPrice: 16_100,
+                  volume: 1024 ** 3,
+                  duration: 7,
+                },
+              ],
+            },
+          },
+    );
+    const originalFetch = globalThis.fetch;
+    const http = mock(async (_url: unknown, _init?: RequestInit) =>
+      Response.json({
+        transactionId: "3f7c2a1e-0b4d-4c6e-9a8b-1d2e3f4a5b6c",
+        redirect: "https://pay.platega.io/test",
+        status: "PENDING",
+      }),
+    );
+    globalThis.fetch = http as unknown as typeof fetch;
+    try {
+      const response = await checkout(parent.orderUuid, "ru");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        invoiceUrl: "https://pay.platega.io/test",
+      });
+      const [order] = await fakeDb.order.findMany({
+        where: { paymentProvider: "platega" },
+      });
+      if (!order) throw new Error("expected a Platega top-up order");
+      expect(order.currency).toBe("RUB");
+      expect(order.topupOfOrderId).toBe(parent.id);
+      const body = http.mock.calls[0]?.[1]?.body;
+      if (typeof body !== "string") throw new Error("missing Platega body");
+      const sent = JSON.parse(body) as {
+        paymentMethod: number;
+        paymentDetails: { amount: number; currency: string };
+        payload: string;
+      };
+      expect(sent.paymentMethod).toBe(2);
+      expect(sent.paymentDetails).toEqual({
+        amount: Number(order.priceAmount) / 100,
+        currency: "RUB",
+      });
+      expect(sent.payload).toBe(order.orderUuid);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("is unavailable outside the Russian locale", async () => {
+    const parent = seedParent({ resellerPlanId: DATA_PKG.packageCode });
+    const response = await checkout(parent.orderUuid, "en");
+    expect(response.status).toBe(503);
+    expect(await fakeDb.order.findMany({ where: { paymentProvider: "platega" } }))
+      .toHaveLength(0);
+  });
+});

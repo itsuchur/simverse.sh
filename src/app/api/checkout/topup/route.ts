@@ -5,6 +5,7 @@ import { getAuth } from "~/server/better-auth";
 import { limitMiniappRequest } from "~/server/http/rate-limit";
 import { clientIpFromHeaders } from "~/server/http/client-ip";
 import {
+  PLATEGA_PAYMENT_PROVIDER,
   TRYBIT_PAYMENT_PROVIDER,
   XHUB_PAYMENT_PROVIDER,
 } from "~/lib/order-status";
@@ -16,18 +17,28 @@ import {
 import { DAY_PASS_PRESETS } from "~/lib/topup-offer";
 import { prepareTopupPurchase } from "~/server/orders/topup";
 import {
+  createPlategaTransaction,
+  plategaConfigured,
+} from "~/server/payments/platega";
+import {
   createTrybitInvoice,
   trybitConfigured,
 } from "~/server/payments/trybit";
 import { createXhubPayment, xhubConfigured } from "~/server/payments/xhub";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { isSalesActive } from "~/server/sales";
-import { miniappOrigin } from "~/server/urls";
+import { apiPublicUrl, miniappOrigin } from "~/server/urls";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
+
+const PAYMENT_PROVIDERS = {
+  platega: PLATEGA_PAYMENT_PROVIDER,
+  trybit: TRYBIT_PAYMENT_PROVIDER,
+  xhub: XHUB_PAYMENT_PROVIDER,
+} as const;
 
 const bodySchema = z.object({
   orderUuid: z.string().uuid(),
-  provider: z.enum(["trybit", "xhub"]),
+  provider: z.enum(["platega", "trybit", "xhub"]),
   locale: z.enum(["en", "ru"]).optional(),
   packageCode: z.string().min(1).max(255),
   days: z
@@ -70,6 +81,13 @@ export async function POST(request: Request) {
   if (body.data.provider === "xhub" && (locale !== "ru" || !xhubConfigured())) {
     return unavailable();
   }
+  if (
+    body.data.provider === "platega" &&
+    (locale !== "ru" || !plategaConfigured())
+  ) {
+    return unavailable();
+  }
+  const paysInRub = body.data.provider !== "trybit";
   if (body.data.provider === "trybit" && !trybitConfigured()) {
     return unavailable();
   }
@@ -88,8 +106,7 @@ export async function POST(request: Request) {
   }
   if (purchase === "unavailable") return unavailable();
 
-  const major =
-    body.data.provider === "xhub" ? purchase.priceRub : purchase.priceUsd;
+  const major = paysInRub ? purchase.priceRub : purchase.priceUsd;
   const cents = Math.round(major * 100);
   if (!Number.isFinite(cents) || cents < 1) return unavailable();
 
@@ -115,10 +132,7 @@ export async function POST(request: Request) {
     return unavailable();
   }
 
-  const provider =
-    body.data.provider === "xhub"
-      ? XHUB_PAYMENT_PROVIDER
-      : TRYBIT_PAYMENT_PROVIDER;
+  const provider = PAYMENT_PROVIDERS[body.data.provider];
   const buyerIp = clientIpFromHeaders(request.headers);
   const order = await findOrCreatePendingOrder({
     userId: session.user.id,
@@ -128,7 +142,7 @@ export async function POST(request: Request) {
     dataAmountMb: purchase.draft.dataAmountMb,
     validityDays: purchase.draft.validityDays,
     priceAmount: BigInt(cents),
-    currency: body.data.provider === "xhub" ? "RUB" : "USD",
+    currency: paysInRub ? "RUB" : "USD",
     costAmount: BigInt(Math.round(purchase.supplierCost)),
     costCurrency: "USD",
     paymentProvider: provider,
@@ -142,6 +156,18 @@ export async function POST(request: Request) {
 
   try {
     const invoiceUrl = await createPendingInvoice(order.id, async () => {
+      if (body.data.provider === "platega") {
+        const transaction = await createPlategaTransaction({
+          amount: cents / 100,
+          orderId: order.orderUuid,
+          description: purchase.description,
+          currency: "RUB",
+          paymentMethod: 2,
+          returnUrl: apiPublicUrl("/checkout/platega/return?status=success"),
+          failedUrl: apiPublicUrl("/checkout/platega/return?status=fail"),
+        });
+        return { url: transaction.redirect, id: transaction.transactionId };
+      }
       if (body.data.provider === "xhub") {
         const payment = await createXhubPayment({
           amountRub: cents / 100,
