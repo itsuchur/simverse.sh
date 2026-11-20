@@ -1,4 +1,9 @@
 import { env } from "~/env";
+import {
+  readReturnChannel,
+  webPaymentResultPath,
+} from "~/lib/checkout-channel";
+import { MARKETING_ORIGIN } from "~/lib/public-url";
 
 /** Used when Docker `next build` skips env validation and URLs are unset. */
 export const FALLBACK_ORIGIN = "http://localhost:3000";
@@ -24,9 +29,25 @@ export function apiOrigin() {
  * result screen via `start_param` (handled by <StartParamRouter />).
  */
 export function miniappDeepLink(result: "success" | "fail") {
-  const startapp =
-    result === "fail" ? "failed_payment" : "successful_payment";
+  const startapp = result === "fail" ? "failed_payment" : "successful_payment";
   return `https://t.me/${env.TELEGRAM_BOT_USERNAME}?startapp=${startapp}`;
+}
+
+export function marketingOrigin() {
+  return origin(env.MARKETING_URL ?? MARKETING_ORIGIN);
+}
+
+/**
+ * Where a payment return route sends the buyer: the Mini App deep link, or
+ * the website account/checkout page for checkouts started on the web.
+ */
+export function paymentReturnTarget(
+  result: "success" | "fail",
+  params: URLSearchParams,
+) {
+  const { channel, locale } = readReturnChannel(params);
+  if (channel === "miniapp") return miniappDeepLink(result);
+  return `${marketingOrigin()}${webPaymentResultPath(result, locale)}`;
 }
 
 /** Public webhook/API path. Dedicated `API_URL` host omits `/api`; local/ngrok keeps it. */

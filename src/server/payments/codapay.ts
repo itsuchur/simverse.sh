@@ -5,6 +5,10 @@ import { alpha2ToNumeric } from "i18n-iso-countries";
 import { type CodapayCountry } from "~/lib/codapay-markets";
 import { z } from "zod";
 import { env } from "~/env";
+import {
+  type CheckoutChannel,
+  withReturnChannel,
+} from "~/lib/checkout-channel";
 import { apiPublicUrl } from "~/server/urls";
 
 export function codapayConfigured() {
@@ -61,6 +65,8 @@ export async function createCodapayInvoice(input: {
   orderId: string;
   userId: string;
   country: CodapayCountry;
+  channel?: CheckoutChannel;
+  locale?: string;
 }) {
   if (input.amount <= 0n || input.amount > BigInt(Number.MAX_SAFE_INTEGER))
     throw new Error("Invalid Codapay amount");
@@ -95,7 +101,11 @@ export async function createCodapayInvoice(input: {
               {
                 key: "return_url",
                 value: apiPublicUrl(
-                  "/checkout/codapay/return?orderId={orderId}&txnId={transactionId}",
+                  withReturnChannel(
+                    "/checkout/codapay/return?orderId={orderId}&txnId={transactionId}",
+                    input.channel,
+                    input.locale,
+                  ),
                 ),
               },
             ],

@@ -8,6 +8,7 @@ import {
   sanitizeDisplayName,
   sanitizeHttpsUrl,
   sanitizeLanguageCode,
+  sanitizeLoginWidgetUser,
   sanitizeMiniAppMappedUser,
   sanitizeTelegramId,
   sanitizeTelegramUsername,
@@ -196,5 +197,30 @@ describe("sanitizeAccountForPersist", () => {
     });
     expect(persisted.telegramId).toBe("123456789");
     expect(persisted.telegramUsername).toBeNull();
+  });
+});
+
+describe("sanitizeLoginWidgetUser", () => {
+  test("maps widget data to the same synthetic email as the Mini App", () => {
+    const user = sanitizeLoginWidgetUser({
+      id: 42,
+      first_name: "Ann",
+      last_name: "Lee",
+      auth_date: 1,
+      hash: "x",
+    });
+    expect(user.email).toBe("42@telegram.local");
+    expect(user.name).toBe("Ann Lee");
+  });
+
+  test("rejects an invalid Telegram id", () => {
+    expect(() =>
+      sanitizeLoginWidgetUser({
+        id: -1,
+        first_name: "A",
+        auth_date: 1,
+        hash: "x",
+      }),
+    ).toThrow(InvalidTelegramIdError);
   });
 });

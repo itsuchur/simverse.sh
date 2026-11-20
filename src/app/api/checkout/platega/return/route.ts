@@ -1,16 +1,15 @@
-import { miniappDeepLink } from "~/server/urls";
+import { paymentReturnTarget } from "~/server/urls";
 
-function redirectFor(status: string | null) {
-  const result = status === "fail" ? "fail" : "success";
-  return Response.redirect(miniappDeepLink(result), 303);
+function redirectFor(request: Request) {
+  const params = new URL(request.url).searchParams;
+  const result = params.get("status") === "fail" ? "fail" : "success";
+  return Response.redirect(paymentReturnTarget(result, params), 303);
 }
 
-export async function GET(request: Request) {
-  const status = new URL(request.url).searchParams.get("status");
-  return redirectFor(status);
+export function GET(request: Request) {
+  return redirectFor(request);
 }
 
-export async function POST(request: Request) {
-  const status = new URL(request.url).searchParams.get("status");
-  return redirectFor(status);
+export function POST(request: Request) {
+  return redirectFor(request);
 }

@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { NextResponse } from "next/server";
 
+import { checkoutChannelSchema } from "~/lib/checkout-channel";
+
 export const checkoutRequestSchema = z.object({
   cartRevision: z.string().uuid(),
   locale: z.enum(["en", "ru"]).optional(),
   promoCode: z.string().max(64).optional(),
+  channel: checkoutChannelSchema.optional(),
 });
 
 export function invoiceResponse(orderUuid: string, invoiceUrl: string | null) {

@@ -141,6 +141,8 @@ export async function POST(request: Request) {
       const invoice = await createPaypalInvoice({
         amount: order.priceAmount,
         orderId: order.orderUuid,
+        channel: body.data.channel,
+        locale: body.data.locale,
       });
       return { url: invoice.link, id: invoice.uuid };
     });

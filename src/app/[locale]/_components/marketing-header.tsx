@@ -19,7 +19,12 @@ const SOCIAL_LINKS = [
 
 export async function MarketingHeader() {
   const t = await getTranslations("Blog");
+  const store = await getTranslations("Store");
   const locale = await getLocale();
+  const navLinkClassName = cn(
+    buttonVariants({ variant: "ghost" }),
+    "h-9 px-2 sm:px-3 lg:h-12 lg:px-4 lg:text-lg",
+  );
 
   return (
     <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-3 pt-4 sm:gap-2 sm:px-6 lg:px-10 lg:pt-6">
@@ -58,13 +63,22 @@ export async function MarketingHeader() {
           className="h-auto w-full dark:invert"
         />
       </a>
-      <div className="flex items-center gap-1 justify-self-end sm:gap-2 lg:gap-3">
+      <div className="flex flex-wrap items-center justify-end gap-1 justify-self-end sm:gap-2 lg:gap-3">
+        <a
+          href={marketingUrl(getPathname({ href: "/esim", locale }))}
+          className={navLinkClassName}
+        >
+          {store("navPlans")}
+        </a>
+        <a
+          href={marketingUrl(getPathname({ href: "/account", locale }))}
+          className={cn(navLinkClassName, "max-sm:hidden")}
+        >
+          {store("navAccount")}
+        </a>
         <a
           href={marketingUrl(getPathname({ href: "/blog", locale }))}
-          className={cn(
-            buttonVariants({ variant: "ghost" }),
-            "h-9 px-2 sm:px-3 lg:h-12 lg:px-4 lg:text-lg",
-          )}
+          className={navLinkClassName}
         >
           {t("title")}
         </a>

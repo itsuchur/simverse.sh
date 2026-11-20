@@ -155,6 +155,8 @@ export async function POST(request: Request) {
         orderId: order.orderUuid,
         userId: session.user.id,
         country: billingCountry,
+        channel: body.data.channel,
+        locale: body.data.locale,
       });
       return { url: invoice.url, id: invoice.id };
     });

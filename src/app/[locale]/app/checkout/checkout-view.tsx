@@ -17,7 +17,7 @@ import { parsePromoCode } from "~/lib/promo-code";
 import { captureAppEvent } from "~/lib/posthog/browser";
 import { parseName } from "~/server/suppliers/esimaccess/parse-package-name";
 import { openExternalLink } from "~/lib/telegram-webapp";
-import { useMiniappPath } from "~/lib/use-miniapp-path";
+import type { CheckoutChannel } from "~/lib/checkout-channel";
 import { CoverageList } from "../_components/coverage-list";
 import type { CatalogCoverage } from "~/server/suppliers/esimaccess/catalog-types";
 
@@ -33,6 +33,7 @@ async function requestInvoice(
   path: string,
   cartRevision: string,
   locale: string,
+  channel: CheckoutChannel,
   promoCode?: string,
   paymentMethod?: "card" | "sbp",
   country?: string,
@@ -48,6 +49,7 @@ async function requestInvoice(
       body: JSON.stringify({
         cartRevision,
         locale,
+        channel,
         paymentMethod,
         ...(country ? { country } : {}),
         ...(promoCode ? { promoCode } : {}),
@@ -147,7 +149,13 @@ export function CheckoutView({
   networkCoverage,
   initialPayment = null,
   initialBillingCountry = null,
+  channel,
+  catalogHref,
+  myEsimsHref,
 }: {
+  channel: CheckoutChannel;
+  catalogHref: string;
+  myEsimsHref: string;
   plan: CartPlan;
   cartRevision: string;
   supportTopUpType: number | undefined;
@@ -160,7 +168,6 @@ export function CheckoutView({
   const format = useFormatter();
   const locale = useLocale();
   const router = useRouter();
-  const homeHref = useMiniappPath("/");
   const [leaving, setLeaving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payment, setPayment] = useState(initialPayment);
@@ -177,7 +184,6 @@ export function CheckoutView({
     priceUsd: number;
   } | null>(null);
   const invoiceRequested = useRef(false);
-  const myEsimsHref = useMiniappPath("/myesim");
   const controlsLocked = leaving || paying || payment !== null || applyingPromo;
 
   function promoMessage(code: string) {
@@ -267,7 +273,9 @@ export function CheckoutView({
   const [changingBillingCountry, setChangingBillingCountry] = useState(false);
 
   function openInvoice(url: string) {
-    openExternalLink(url);
+    // The website hands the tab to the provider, which returns to /account.
+    if (channel === "web") window.location.assign(url);
+    else openExternalLink(url);
   }
 
   function pay(
@@ -292,6 +300,7 @@ export function CheckoutView({
       path,
       cartRevision,
       locale,
+      channel,
       promoCode,
       paymentMethod,
       method === "codapay" ? payerCountry : undefined,
@@ -425,7 +434,7 @@ export function CheckoutView({
                     headers: await checkoutHeaders(),
                   });
               } finally {
-                router.push(homeHref);
+                router.push(catalogHref);
               }
             })();
           }}

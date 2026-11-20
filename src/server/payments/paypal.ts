@@ -11,6 +11,10 @@ import {
 } from "@paypal/paypal-server-sdk";
 import { z } from "zod";
 import { env } from "~/env";
+import {
+  type CheckoutChannel,
+  withReturnChannel,
+} from "~/lib/checkout-channel";
 import { apiPublicUrl } from "~/server/urls";
 
 export function paypalConfigured() {
@@ -45,6 +49,8 @@ export function paypalAmountToMinor(value: string) {
 export async function createPaypalInvoice(input: {
   amount: bigint;
   orderId: string;
+  channel?: CheckoutChannel;
+  locale?: string;
 }) {
   if (input.amount <= 0n) throw new Error("Invalid PayPal amount");
   const { result } = await new OrdersController(paypalClient()).createOrder({
@@ -67,8 +73,20 @@ export async function createPaypalInvoice(input: {
             shippingPreference:
               PaypalWalletContextShippingPreference.NoShipping,
             userAction: PaypalExperienceUserAction.PayNow,
-            returnUrl: apiPublicUrl("/checkout/paypal/return"),
-            cancelUrl: apiPublicUrl("/checkout/paypal/return?status=fail"),
+            returnUrl: apiPublicUrl(
+              withReturnChannel(
+                "/checkout/paypal/return",
+                input.channel,
+                input.locale,
+              ),
+            ),
+            cancelUrl: apiPublicUrl(
+              withReturnChannel(
+                "/checkout/paypal/return?status=fail",
+                input.channel,
+                input.locale,
+              ),
+            ),
           },
         },
       },

@@ -33,9 +33,6 @@ void mock.module("~/i18n/navigation", () => ({
   }),
   usePathname: () => "/en/app/checkout",
 }));
-void mock.module("~/lib/use-miniapp-path", () => ({
-  useMiniappPath: (path: string) => path,
-}));
 void mock.module("~/lib/posthog/browser", () => ({
   captureAppEvent: () => undefined,
 }));
@@ -76,6 +73,9 @@ function renderCheckout(
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <CheckoutView
+        channel="miniapp"
+        catalogHref="/"
+        myEsimsHref="/myesim"
         initialPayment={initialPayment}
         plan={plan}
         cartRevision="6f1b5c3a-1d2e-4f5a-8b7c-9d0e1f2a3b4c"
@@ -141,6 +141,9 @@ for (const locale of ["en", "ru"] as const) {
     render(
       <NextIntlClientProvider locale={locale} messages={localeMessages}>
         <CheckoutView
+          channel="miniapp"
+          catalogHref="/"
+          myEsimsHref="/myesim"
           plan={plan}
           cartRevision={crypto.randomUUID()}
           supportTopUpType={1}
@@ -307,7 +310,9 @@ test("only server-confirmed payment shows preparation and redirects to My eSIMs"
 });
 
 test("Russian SBP button requests Platega with the SBP method", async () => {
-  const ruMessages: AbstractIntlMessages = (await import("../../../../../messages/ru.json")).default;
+  const ruMessages: AbstractIntlMessages = (
+    await import("../../../../../messages/ru.json")
+  ).default;
   const originalFetch = globalThis.fetch;
   const calls: { path: string; body: unknown }[] = [];
   globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
@@ -324,6 +329,9 @@ test("Russian SBP button requests Platega with the SBP method", async () => {
     render(
       <NextIntlClientProvider locale="ru" messages={ruMessages}>
         <CheckoutView
+          channel="miniapp"
+          catalogHref="/"
+          myEsimsHref="/myesim"
           plan={plan}
           cartRevision={crypto.randomUUID()}
           supportTopUpType={1}

@@ -20,6 +20,7 @@ import {
 } from "~/server/payments/platega";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { apiPublicUrl } from "~/server/urls";
+import { withReturnChannel } from "~/lib/checkout-channel";
 import { readPromoCode } from "~/lib/promo-code";
 import {
   placeCheckoutOrder,
@@ -156,8 +157,20 @@ export async function POST(request: Request) {
         description: `${plan.name} · ${plan.validity_days}d`,
         currency,
         paymentMethod: paymentMethod === "sbp" ? 2 : undefined,
-        returnUrl: apiPublicUrl("/checkout/platega/return?status=success"),
-        failedUrl: apiPublicUrl("/checkout/platega/return?status=fail"),
+        returnUrl: apiPublicUrl(
+          withReturnChannel(
+            "/checkout/platega/return?status=success",
+            body.data.channel,
+            locale,
+          ),
+        ),
+        failedUrl: apiPublicUrl(
+          withReturnChannel(
+            "/checkout/platega/return?status=fail",
+            body.data.channel,
+            locale,
+          ),
+        ),
       });
       return { url: transaction.redirect, id: transaction.transactionId };
     });

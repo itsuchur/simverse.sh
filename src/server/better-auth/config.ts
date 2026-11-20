@@ -10,11 +10,18 @@ import { db } from "~/server/db";
 import {
   InvalidTelegramIdError,
   sanitizeAccountForPersist,
+  sanitizeLoginWidgetUser,
   sanitizeMiniAppMappedUser,
   sanitizeUserForPersist,
 } from "~/server/telegram/sanitize-mini-app-user";
 import { syncChatMenuButton } from "~/server/telegram/menu-button";
-import { dashboardOrigin, FALLBACK_ORIGIN, miniappOrigin } from "~/server/urls";
+import { MARKETING_ORIGIN } from "~/lib/public-url";
+import {
+  dashboardOrigin,
+  FALLBACK_ORIGIN,
+  marketingOrigin,
+  miniappOrigin,
+} from "~/server/urls";
 
 const createAuth = () =>
   betterAuth({
@@ -26,6 +33,8 @@ const createAuth = () =>
         miniappOrigin(),
         "https://dashboard.simverse.sh",
         "https://miniapp.simverse.sh",
+        MARKETING_ORIGIN,
+        marketingOrigin(),
         FALLBACK_ORIGIN,
       ]),
     ),
@@ -165,7 +174,20 @@ const createAuth = () =>
       telegram({
         botToken: env.TELEGRAM_BOT_TOKEN,
         botUsername: env.TELEGRAM_BOT_USERNAME,
-        loginWidget: false,
+        // Website sign-in. BotFather /setdomain must point at the marketing host.
+        loginWidget: true,
+        mapTelegramDataToUser: (data) => {
+          try {
+            return sanitizeLoginWidgetUser(data);
+          } catch (error) {
+            if (error instanceof InvalidTelegramIdError) {
+              throw new APIError("BAD_REQUEST", {
+                message: "Invalid Telegram user id.",
+              });
+            }
+            throw error;
+          }
+        },
         miniApp: {
           enabled: true,
           validateInitData: true,

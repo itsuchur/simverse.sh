@@ -5,6 +5,7 @@ import { FAQ_KEYS } from "./_components/faq-keys";
 import { MarketingHeader } from "./_components/marketing-header";
 import { MarketingFooter } from "./_components/marketing-footer";
 import { buttonVariants } from "~/components/ui/button";
+import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/utils";
 
 const USDT_METHOD = {
@@ -32,6 +33,7 @@ const PAYMENT_METHODS = {
 export default async function Home() {
   const t = await getTranslations("HomePage");
   const help = await getTranslations("Help");
+  const store = await getTranslations("Store");
   const locale = await getLocale();
 
   return (
@@ -41,17 +43,28 @@ export default async function Home() {
         <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-balance sm:text-6xl md:text-7xl">
           {t("headline")}
         </h1>
-        <a
-          href="https://t.me/simversebot"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "mt-10 h-12 px-8 text-base font-semibold",
-          )}
-        >
-          {t("cta")}
-        </a>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a
+            href="https://t.me/simversebot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "h-12 px-8 text-base font-semibold",
+            )}
+          >
+            {t("cta")}
+          </a>
+          <Link
+            href="/esim"
+            className={cn(
+              buttonVariants({ size: "lg", variant: "outline" }),
+              "h-12 px-8 text-base font-semibold",
+            )}
+          >
+            {store("homeCta")}
+          </Link>
+        </div>
         <Image
           src={locale === "ru" ? "/miniappRU.png" : "/miniappEN.png"}
           alt={t("screenshotAlt")}

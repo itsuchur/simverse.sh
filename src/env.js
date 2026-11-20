@@ -13,6 +13,7 @@ export const env = createEnv({
         : z.string().optional(),
     BETTER_AUTH_URL: z.string().url(),
     MINIAPP_URL: z.string().url().optional(),
+    MARKETING_URL: z.string().url().optional(),
     API_URL: z.string().url().optional(),
     STRAPI_URL:
       process.env.NODE_ENV === "production"
@@ -57,7 +58,10 @@ export const env = createEnv({
         ? z.string().min(1)
         : z.string().min(1).optional(),
     CODAPAY_API_KEY: z.string().min(1).optional(),
-    CODAPAY_PROJECT_ID: z.string().regex(/^[1-9]\d*$/).optional(),
+    CODAPAY_PROJECT_ID: z
+      .string()
+      .regex(/^[1-9]\d*$/)
+      .optional(),
     CODAPAY_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
     PAYPAL_CLIENT_ID: z.string().min(1).optional(),
     PAYPAL_CLIENT_SECRET: z.string().min(1).optional(),
@@ -119,6 +123,7 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     MINIAPP_URL: process.env.MINIAPP_URL,
+    MARKETING_URL: process.env.MARKETING_URL,
     API_URL: process.env.API_URL,
     STRAPI_URL: process.env.STRAPI_URL,
     STRAPI_API_TOKEN: process.env.STRAPI_API_TOKEN,

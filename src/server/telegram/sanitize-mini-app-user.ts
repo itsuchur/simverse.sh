@@ -1,5 +1,8 @@
 import { z } from "zod";
-import type { TelegramMiniAppUser } from "better-auth-telegram";
+import type {
+  TelegramAuthData,
+  TelegramMiniAppUser,
+} from "better-auth-telegram";
 
 import { welcomeLocale } from "~/server/telegram/start-welcome";
 
@@ -113,6 +116,20 @@ export function sanitizeMiniAppMappedUser(user: TelegramMiniAppUser) {
     isPremium: user.is_premium === true,
     allowsWriteToPm: user.allows_write_to_pm === true,
   };
+}
+
+/**
+ * Login Widget users get the same shape as Mini App users, so the email gate
+ * passes and both sign-in paths share one user per Telegram id.
+ */
+export function sanitizeLoginWidgetUser(data: TelegramAuthData) {
+  return sanitizeMiniAppMappedUser({
+    id: data.id,
+    first_name: data.first_name,
+    last_name: data.last_name,
+    username: data.username,
+    photo_url: data.photo_url,
+  });
 }
 
 export class InvalidTelegramIdError extends Error {

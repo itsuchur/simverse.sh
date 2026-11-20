@@ -1,19 +1,6 @@
-import { headers } from "next/headers";
-import { detectedCodapayCountry } from "~/lib/codapay-markets";
-import { db } from "~/server/db";
-import * as Sentry from "@sentry/nextjs";
-import { getLocale, getTranslations } from "next-intl/server";
-
-import { CheckoutView } from "./checkout-view";
-import { buttonVariants } from "~/components/ui/button";
-import { Link, redirect } from "~/i18n/navigation";
+import { CheckoutScreen } from "~/components/store/checkout-screen";
 import { getSession } from "~/server/better-auth/server";
-import { getCartSnapshot } from "~/server/cart";
 import { miniappPathForRequest } from "~/server/miniapp-path";
-import { isSalesActive } from "~/server/sales";
-import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
-import { getEsimAccessPackageByCode } from "~/server/suppliers/esimaccess/packages";
-import { extractCoverage } from "~/server/suppliers/esimaccess/coverage";
 
 export const dynamic = "force-dynamic";
 
@@ -31,119 +18,12 @@ export default async function CheckoutPage({
     return null;
   }
 
-  const locale = await getLocale();
-  const t = await getTranslations("Checkout");
-
-  if (!(await isSalesActive())) {
-    return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 py-24 text-center">
-        <p className="text-base leading-7">{t("salesClosed")}</p>
-        <Link
-          href={await miniappPathForRequest("/")}
-          className={buttonVariants({
-            variant: "outline",
-            size: "lg",
-            className: "h-11 px-4 text-base",
-          })}
-        >
-          {t("backToCatalog")}
-        </Link>
-      </main>
-    );
-  }
-
-  const telegramId = session.user.telegramId;
-  const cart =
-    typeof telegramId === "string" && telegramId.length > 0
-      ? await getCartSnapshot(telegramId)
-      : null;
-
-  const plan = cart?.plan;
-  if (!plan || !cart?.revision) {
-    return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 py-24 text-center">
-        <p className="text-base leading-7">{t("empty")}</p>
-        <Link
-          href={await miniappPathForRequest("/")}
-          className={buttonVariants({
-            variant: "outline",
-            size: "lg",
-            className: "h-11 px-4 text-base",
-          })}
-        >
-          {t("backToCatalog")}
-        </Link>
-      </main>
-    );
-  }
-
-  const existingPayment = await db.order.findFirst({
-    where: {
-      userId: session.user.id,
-      cartRevision: cart.revision,
-      paymentInvoiceUrl: { not: null },
-      topupOfOrderId: null,
-    },
-    orderBy: { createdAt: "desc" },
-    select: { orderUuid: true, paymentInvoiceUrl: true, paymentStatus: true },
-  });
-  if (existingPayment?.paymentStatus === "paid") {
-    redirect({ href: await miniappPathForRequest("/myesim"), locale });
-  }
-  const initialPayment = existingPayment?.paymentInvoiceUrl
-    ? {
-        orderUuid: existingPayment.orderUuid,
-        invoiceUrl: existingPayment.paymentInvoiceUrl,
-      }
-    : null;
-
-  let hasBalance = initialPayment !== null;
-  try {
-    if (!initialPayment) {
-      const balance = await checkBalance();
-      hasBalance = balance >= plan.cost * plan.qty;
-      if (!hasBalance) {
-        Sentry.captureMessage("Supplier balance insufficient for checkout", {
-          level: "fatal",
-          tags: {
-            component: "cart",
-            reason: "insufficient_balance",
-          },
-          extra: {
-            packageCode: plan.packageCode,
-            cost: plan.cost,
-            qty: plan.qty,
-          },
-        });
-      }
-    }
-  } catch (error) {
-    Sentry.captureException(error, {
-      level: "fatal",
-      tags: {
-        component: "cart",
-        reason: "balance_check_failed",
-      },
-    });
-  }
-
-  if (hasBalance) {
-    const catalog = await getEsimAccessPackageByCode(plan.packageCode);
-    return (
-      <CheckoutView
-        key={cart.revision}
-        initialPayment={initialPayment}
-        initialBillingCountry={detectedCodapayCountry(await headers())}
-        plan={plan}
-        cartRevision={cart.revision}
-        supportTopUpType={catalog?.pkg.supportTopUpType}
-        networkCoverage={extractCoverage(
-          catalog?.pkg.locationNetworkList,
-          plan.country,
-        )}
-      />
-    );
-  }
-
-  redirect({ href: await miniappPathForRequest("/"), locale });
+  return (
+    <CheckoutScreen
+      session={session}
+      channel="miniapp"
+      catalogHref={await miniappPathForRequest("/")}
+      myEsimsHref={await miniappPathForRequest("/myesim")}
+    />
+  );
 }

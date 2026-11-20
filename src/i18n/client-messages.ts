@@ -6,11 +6,20 @@ export const MARKETING_CLIENT_NAMESPACES = [
   "Profile",
 ] as const;
 
-type MarketingClientNamespace = (typeof MARKETING_CLIENT_NAMESPACES)[number];
+/** Extra client namespaces for the website store: catalog, checkout, account. */
+export const STORE_CLIENT_NAMESPACES = [
+  ...MARKETING_CLIENT_NAMESPACES,
+  "Auth",
+  "Catalog",
+  "Checkout",
+  "MyEsims",
+  "EsimStatus",
+  "Store",
+] as const;
 
 export function pickMessages(
   messages: AbstractIntlMessages,
-  namespaces: readonly MarketingClientNamespace[],
+  namespaces: readonly string[],
 ): AbstractIntlMessages {
   const picked: AbstractIntlMessages = {};
   for (const namespace of namespaces) {

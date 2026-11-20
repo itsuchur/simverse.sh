@@ -13,3 +13,14 @@ export const getSession = cache(async () => {
   });
   return user && !user.isDeleted ? session : null;
 });
+
+/** True when the browser holds a valid session for a user who deleted their account. */
+export const hasDeletedAccountSession = cache(async () => {
+  const session = await getAuth().api.getSession({ headers: await headers() });
+  if (!session) return false;
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { isDeleted: true },
+  });
+  return user?.isDeleted === true;
+});

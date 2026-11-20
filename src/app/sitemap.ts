@@ -14,6 +14,9 @@ import {
   isMarketingHostname,
   MARKETING_ORIGIN,
 } from "~/lib/public-url";
+import { countrySlug } from "~/lib/country-slug";
+import { countriesWithPlans } from "~/lib/public-catalog";
+import { getStoreCatalog } from "~/server/suppliers/esimaccess/packages";
 import {
   articleLocalizations,
   fetchPublishedArticles,
@@ -26,6 +29,7 @@ const MARKETING_PATHS = [
   "/tos",
   "/privacy-policy",
   "/refund-policy",
+  "/esim",
 ] as const;
 
 function localized(origin: string, pathname: string): MetadataRoute.Sitemap {
@@ -96,13 +100,18 @@ function articleEntries(articles: StrapiArticle[]): MetadataRoute.Sitemap {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = await requestSite();
   if (isMarketingHostname(site.host)) {
-    const articles = (
-      await Promise.all(
+    const [articles, catalog] = await Promise.all([
+      Promise.all(
         routing.locales.map((locale) => fetchPublishedArticles(locale)),
-      )
-    ).flat();
+      ).then((lists) => lists.flat()),
+      getStoreCatalog(routing.defaultLocale),
+    ]);
+    const countryPaths = countriesWithPlans(catalog).map(
+      (group) => `/esim/${countrySlug(group.countryCode)}`,
+    );
     return [
       ...MARKETING_PATHS.flatMap((path) => localized(MARKETING_ORIGIN, path)),
+      ...countryPaths.flatMap((path) => localized(MARKETING_ORIGIN, path)),
       ...localized(MARKETING_ORIGIN, "/blog"),
       ...articleEntries(articles),
     ];
