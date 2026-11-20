@@ -22,7 +22,8 @@ import {
 } from "~/server/promos/promo";
 import { createXhubPayment, xhubConfigured } from "~/server/payments/xhub";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
-import { miniappOrigin } from "~/server/urls";
+import { apiPublicUrl } from "~/server/urls";
+import { withReturnChannel } from "~/lib/checkout-channel";
 import { isSalesActive } from "~/server/sales";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
@@ -147,8 +148,6 @@ export async function POST(request: Request) {
     return invoiceResponse(order.orderUuid, order.paymentInvoiceUrl);
   }
 
-  const origin = miniappOrigin();
-
   try {
     const invoiceUrl = await createPendingInvoice(order.id, async () => {
       const payment = await createXhubPayment({
@@ -156,7 +155,13 @@ export async function POST(request: Request) {
         orderUuid: order.orderUuid,
         paymentMethod,
         description: `${plan.name} · ${plan.validity_days}d`,
-        successUrl: `${origin}/api/checkout/xhub/return?status=success`,
+        successUrl: apiPublicUrl(
+          withReturnChannel(
+            "/checkout/xhub/return?status=success",
+            body.data.channel,
+            locale,
+          ),
+        ),
         clientIp: buyerIp,
       });
       return { url: payment.paymentUrl, id: payment.id };

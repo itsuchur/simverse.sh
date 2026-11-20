@@ -6,6 +6,11 @@ import { z } from "zod";
 import { requireDashboardSession } from "~/server/dashboard/access";
 import { setPriceModifier } from "~/server/price-modifier";
 import { setSalesActive } from "~/server/sales";
+import {
+  type SbpProvider,
+  sbpProviderSchema,
+  setSbpProvider,
+} from "~/server/sbp-provider";
 import { setPopularCountryCodes } from "~/server/suppliers/esimaccess/packages";
 
 const popularCountriesSchema = z
@@ -17,6 +22,12 @@ const priceModifierSchema = z.number().positive().finite();
 export async function setSalesActiveAction(active: boolean) {
   await requireDashboardSession();
   await setSalesActive(active);
+  revalidatePath("/dashboard");
+}
+
+export async function setSbpProviderAction(provider: SbpProvider) {
+  await requireDashboardSession();
+  await setSbpProvider(sbpProviderSchema.parse(provider));
   revalidatePath("/dashboard");
 }
 

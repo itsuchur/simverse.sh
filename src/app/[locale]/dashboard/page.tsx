@@ -3,12 +3,14 @@ import { getSalesSeries } from "~/server/dashboard/get-sales-series";
 import { parseSalesRange } from "~/server/dashboard/sales-series";
 import { getPriceModifier } from "~/server/price-modifier";
 import { isSalesActive } from "~/server/sales";
+import { getSbpProvider } from "~/server/sbp-provider";
 import { getStoreCatalog } from "~/server/suppliers/esimaccess/packages";
 
 import { EsimAccessBalanceCard } from "./_components/esimaccess-balance-card";
 import { PopularCountriesEditor } from "./_components/popular-countries-editor";
 import { PriceModifierInput } from "./_components/price-modifier-input";
 import { SalesGraph } from "./_components/sales-graph";
+import { SbpProviderSelect } from "./_components/sbp-provider-select";
 import { StartSalesSwitch } from "./_components/start-sales-switch";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +25,10 @@ export default async function DashboardHome({
   const params = await searchParams;
   const range = parseSalesRange(params.range);
 
-  const [salesActive, priceModifier, catalog, balance, series] =
+  const [salesActive, sbpProvider, priceModifier, catalog, balance, series] =
     await Promise.all([
       isSalesActive(),
+      getSbpProvider(),
       getPriceModifier(),
       getStoreCatalog("en"),
       getEsimAccessBalance(),
@@ -52,6 +55,7 @@ export default async function DashboardHome({
       <EsimAccessBalanceCard balance={balance} />
       <SalesGraph range={range} series={series} />
       <StartSalesSwitch initialActive={salesActive} />
+      <SbpProviderSelect initialProvider={sbpProvider} />
       <PriceModifierInput initialValue={priceModifier} />
       <PopularCountriesEditor
         initialCountries={initialCountries}
