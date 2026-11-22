@@ -79,7 +79,7 @@ describe("fulfillStarsPayment", () => {
     expect(order.status).toBe("issued");
     expect(order.resellerOrderId).toBe("EA-1");
     expect(order.esimIccid).toBe(PROFILE.iccid);
-    expect(clearCart).toHaveBeenCalledWith("42");
+    expect(clearCart).toHaveBeenCalledWith("user-1");
     expect(capturedEvents()).toEqual(["order_paid", "esim_issued"]);
   });
 

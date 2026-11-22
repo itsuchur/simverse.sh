@@ -68,11 +68,7 @@ export async function CheckoutScreen({
     );
   }
 
-  const telegramId = session.user.telegramId;
-  const cart =
-    typeof telegramId === "string" && telegramId.length > 0
-      ? await getCartSnapshot(telegramId)
-      : null;
+  const cart = await getCartSnapshot(session.user.id);
 
   const plan = cart?.plan;
   if (!plan || !cart?.revision) {

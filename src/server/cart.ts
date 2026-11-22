@@ -36,8 +36,8 @@ export class CatalogIncompleteError extends Error {
   }
 }
 
-function cartKey(telegramId: string) {
-  return `cart:${telegramId}`;
+function cartKey(userId: string) {
+  return `cart:${userId}`;
 }
 
 function operatorNames(
@@ -143,9 +143,9 @@ function parseStoredCart(value: unknown): {
   return legacy.success ? { plan: legacy.data, revision: null } : null;
 }
 
-export async function replaceCartPlan(telegramId: string, plan: CartPlan) {
+export async function replaceCartPlan(userId: string, plan: CartPlan) {
   const redis = await getRedis();
-  const key = cartKey(telegramId);
+  const key = cartKey(userId);
   const revision = randomUUID();
   const stored: StoredCart = { revision, plan };
   await redis
@@ -156,13 +156,13 @@ export async function replaceCartPlan(telegramId: string, plan: CartPlan) {
   return revision;
 }
 
-export async function clearCart(telegramId: string) {
+export async function clearCart(userId: string) {
   const redis = await getRedis();
-  await redis.del(cartKey(telegramId));
+  await redis.del(cartKey(userId));
 }
 
 export async function clearCartIfRevisionMatches(
-  telegramId: string,
+  userId: string,
   revision: string | null,
 ) {
   // Orders/checkouts created before revision tracking must never delete a cart
@@ -184,16 +184,16 @@ export async function clearCartIfRevisionMatches(
       end
       return redis.call('DEL', KEYS[1])
     `,
-    { keys: [cartKey(telegramId)], arguments: [revision] },
+    { keys: [cartKey(userId)], arguments: [revision] },
   );
   return Number(result) > 0;
 }
 
 export async function getCartSnapshot(
-  telegramId: string,
+  userId: string,
 ): Promise<{ plan: CartPlan; revision: string | null } | null> {
   const redis = await getRedis();
-  const value = await redis.json.get(cartKey(telegramId));
+  const value = await redis.json.get(cartKey(userId));
   if (value === null) {
     return null;
   }
@@ -210,10 +210,8 @@ export async function getCartSnapshot(
   return cart;
 }
 
-export async function getCartPlan(
-  telegramId: string,
-): Promise<CartPlan | null> {
-  return (await getCartSnapshot(telegramId))?.plan ?? null;
+export async function getCartPlan(userId: string): Promise<CartPlan | null> {
+  return (await getCartSnapshot(userId))?.plan ?? null;
 }
 
 export async function cartPlanForPackageCode(

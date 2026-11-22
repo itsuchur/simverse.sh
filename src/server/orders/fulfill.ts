@@ -163,7 +163,7 @@ async function applyProfile(
   recordEsimFulfillment({
     outcome: "issued",
     kind: "issue",
-    distinctId: updated.user.telegramId,
+    distinctId: updated.user.telegramId ?? updated.userId,
     orderUuid: updated.orderUuid,
     packageCode: updated.resellerPlanId,
   });
@@ -184,7 +184,7 @@ async function recordFulfillmentForUser(input: {
   recordEsimFulfillment({
     outcome: input.outcome,
     kind: input.kind,
-    distinctId: user?.telegramId,
+    distinctId: user?.telegramId ?? input.userId,
     orderUuid: input.orderUuid,
     packageCode: input.packageCode,
     failureReason: input.failureReason,
@@ -259,10 +259,9 @@ export async function holdCapturedPaymentMismatch(input: {
     },
   });
 
-  const telegramId = order.user.telegramId;
-  if (typeof telegramId === "string" && telegramId.length > 0) {
+  {
     try {
-      await clearCartIfRevisionMatches(telegramId, order.cartRevision);
+      await clearCartIfRevisionMatches(order.userId, order.cartRevision);
     } catch (error) {
       Sentry.captureException(error, {
         tags: { component: "cart", reason: "clear_failed" },
@@ -949,7 +948,7 @@ async function fulfillPayment(input: {
     }
 
     captureOrderPaid({
-      distinctId: telegramId,
+      distinctId: telegramId ?? order.userId,
       orderUuid: paid.orderUuid,
       paymentProvider: input.provider,
       priceAmount: order.priceAmount,
@@ -958,14 +957,12 @@ async function fulfillPayment(input: {
         order.user.acquisitionSource,
       ),
     });
-    if (typeof telegramId === "string" && telegramId.length > 0) {
-      try {
-        await clearCartIfRevisionMatches(telegramId, paid.cartRevision);
-      } catch (error) {
-        Sentry.captureException(error, {
-          tags: { component: "cart", reason: "clear_failed" },
-        });
-      }
+    try {
+      await clearCartIfRevisionMatches(paid.userId, paid.cartRevision);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { component: "cart", reason: "clear_failed" },
+      });
     }
     await continueFulfillment(paid, input.provider);
   } catch (error) {

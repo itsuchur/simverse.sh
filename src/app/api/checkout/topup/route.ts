@@ -62,10 +62,6 @@ export async function POST(request: Request) {
   const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) return unauthorized();
 
-  const telegramId = session.user.telegramId;
-  if (typeof telegramId !== "string" || telegramId.length === 0) {
-    return unauthorized();
-  }
   const limited = await limitMiniappRequest(session.user.id, "checkout");
   if (limited) return limited;
 

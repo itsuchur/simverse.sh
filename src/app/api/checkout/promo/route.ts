@@ -28,10 +28,6 @@ export async function POST(request: Request) {
   const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) return unauthorized();
 
-  const telegramId = session.user.telegramId;
-  if (typeof telegramId !== "string" || telegramId.length === 0) {
-    return unauthorized();
-  }
   const limited = await limitMiniappRequest(session.user.id, "checkout");
   if (limited) return limited;
 
@@ -47,7 +43,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid_code" }, { status: 400 });
   }
 
-  const cart = await getCartSnapshot(telegramId);
+  const cart = await getCartSnapshot(session.user.id);
   if (!cart) return Response.json({ error: "empty" }, { status: 404 });
   if (cart.revision !== body.data.cartRevision) {
     return Response.json({ error: "cart_changed" }, { status: 409 });

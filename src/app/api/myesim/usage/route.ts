@@ -15,13 +15,9 @@ export async function POST(request: Request) {
   const session = await getAuth().api.getSession({ headers: request.headers });
   if (!session) return unauthorized();
 
-  const telegramId = session.user.telegramId;
-  if (typeof telegramId !== "string" || telegramId.length === 0) {
-    return unauthorized();
-  }
   if (await isUserBanned(session.user.id)) return forbidden();
 
-  if ((await consumeUsageCheckAttempt(telegramId)) === "limited") {
+  if ((await consumeUsageCheckAttempt(session.user.id)) === "limited") {
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 

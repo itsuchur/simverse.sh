@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   if (!body.success)
     return Response.json({ error: "invalid_checkout" }, { status: 400 });
 
-  const cart = await getCartSnapshot(telegramId);
+  const cart = await getCartSnapshot(session.user.id);
   if (!cart) {
     return Response.json({ error: "empty" }, { status: 404 });
   }

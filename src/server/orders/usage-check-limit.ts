@@ -5,8 +5,8 @@ import { getRedis } from "~/server/redis";
 export const USAGE_CHECK_LIMIT = 5;
 export const USAGE_CHECK_WINDOW_SECONDS = 300;
 
-function usageCheckKey(telegramId: string) {
-  return `myesim:usage-check:${telegramId}`;
+function usageCheckKey(userId: string) {
+  return `myesim:usage-check:${userId}`;
 }
 
 /**
@@ -14,7 +14,7 @@ function usageCheckKey(telegramId: string) {
  * Returns "limited" once the count exceeds USAGE_CHECK_LIMIT.
  */
 export async function consumeUsageCheckAttempt(
-  telegramId: string,
+  userId: string,
 ): Promise<"ok" | "limited"> {
   const redis = await getRedis();
   const count = Number(
@@ -27,7 +27,7 @@ export async function consumeUsageCheckAttempt(
         return c
       `,
       {
-        keys: [usageCheckKey(telegramId)],
+        keys: [usageCheckKey(userId)],
         arguments: [String(USAGE_CHECK_WINDOW_SECONDS)],
       },
     ),

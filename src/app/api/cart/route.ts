@@ -26,17 +26,13 @@ function unavailable() {
   return Response.json({ error: "unavailable" }, { status: 503 });
 }
 
-async function requireTelegramSession(request: Request) {
+async function requireSession(request: Request) {
   const session = await getAuth().api.getSession({ headers: request.headers });
-  const telegramId = session?.user.telegramId;
-  if (!session || typeof telegramId !== "string" || telegramId.length === 0) {
-    return null;
-  }
-  return { session, telegramId };
+  return session ? { session, userId: session.user.id } : null;
 }
 
 export async function PUT(request: Request) {
-  const authz = await requireTelegramSession(request);
+  const authz = await requireSession(request);
   if (!authz) {
     return unauthorized();
   }
@@ -46,7 +42,7 @@ export async function PUT(request: Request) {
   if (await isUserBanned(authz.session.user.id)) {
     return forbidden();
   }
-  const { telegramId } = authz;
+  const { userId } = authz;
 
   let json: unknown;
   try {
@@ -62,7 +58,7 @@ export async function PUT(request: Request) {
 
   try {
     const plan = await cartPlanForPackageCode(body.data.packageCode);
-    const revision = await replaceCartPlan(telegramId, plan);
+    const revision = await replaceCartPlan(userId, plan);
     return Response.json({ plan, revision });
   } catch (error) {
     if (error instanceof UnknownPackageError) {
@@ -76,15 +72,15 @@ export async function PUT(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const authz = await requireTelegramSession(request);
+  const authz = await requireSession(request);
   if (!authz) {
     return unauthorized();
   }
-  const { telegramId } = authz;
+  const { userId } = authz;
   const limited = await limitMiniappRequest(authz.session.user.id, "cart");
   if (limited) return limited;
 
-  const plan = await getCartPlan(telegramId);
+  const plan = await getCartPlan(userId);
   if (!plan) {
     return Response.json({ error: "empty" }, { status: 404 });
   }
@@ -121,14 +117,14 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const authz = await requireTelegramSession(request);
+  const authz = await requireSession(request);
   if (!authz) {
     return unauthorized();
   }
-  const { telegramId } = authz;
+  const { userId } = authz;
   const limited = await limitMiniappRequest(authz.session.user.id, "cart");
   if (limited) return limited;
 
-  await clearCart(telegramId);
+  await clearCart(userId);
   return new Response(null, { status: 204 });
 }

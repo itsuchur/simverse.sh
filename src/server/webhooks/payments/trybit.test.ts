@@ -94,7 +94,7 @@ describe("handleTrybitWebhook", () => {
     expect(order.esimStatus).toBeNull();
     expect(order.paidAt).toBeInstanceOf(Date);
     expect(order.issuedAt).toBeInstanceOf(Date);
-    expect(clearCart).toHaveBeenCalledWith("42");
+    expect(clearCart).toHaveBeenCalledWith("user-1");
     expect(fakeDb.webhookLogs).toHaveLength(1);
     expect(fakeDb.webhookLogs[0]?.source).toBe("trybit");
   });
