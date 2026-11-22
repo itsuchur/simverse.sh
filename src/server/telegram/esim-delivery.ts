@@ -5,6 +5,9 @@ import * as Sentry from "@sentry/nextjs";
 import { esimProvisioningUrl, lpaCardData } from "~/lib/esim-provisioning";
 import { miniappPublicUrl } from "~/lib/miniapp-path";
 import { db } from "~/server/db";
+import { buyerChannel, buyerContactSelect } from "~/server/email/recipient";
+import { sendEmail } from "~/server/email/send";
+import { esimDeliveryEmail } from "~/server/email/templates";
 import { isFupPackageName } from "~/server/suppliers/esimaccess/parse-package-name";
 import {
   sendMessage,
@@ -15,7 +18,7 @@ import {
   welcomeLocale,
   type WelcomeLocale,
 } from "~/server/telegram/start-welcome";
-import { miniappOrigin } from "~/server/urls";
+import { miniappOrigin, webAccountUrl } from "~/server/urls";
 
 function escapeHtml(value: string): string {
   return value
@@ -251,11 +254,9 @@ export async function notifyBuyerEsimDelivery(orderId: bigint): Promise<void> {
       esimActivationCode: true,
       user: {
         select: {
-          telegramId: true,
+          ...buyerContactSelect,
           languageCode: true,
           preferredLanguage: true,
-          isBanned: true,
-          isDeleted: true,
         },
       },
     },
@@ -263,22 +264,52 @@ export async function notifyBuyerEsimDelivery(orderId: bigint): Promise<void> {
   if (!order) return;
 
   const user = order.user;
-  if (
-    user.isBanned ||
-    user.isDeleted ||
-    typeof user.telegramId !== "string" ||
-    user.telegramId.length === 0
-  ) {
+  const channel = buyerChannel(user);
+  if (!channel) return;
+
+  const qrUrl =
+    typeof order.esimQrUrl === "string" && order.esimQrUrl.length > 0
+      ? order.esimQrUrl
+      : null;
+
+  if (channel.kind === "email") {
+    const manual = manualInstallParts(
+      order.esimSmdpAddress,
+      order.esimActivationCode,
+    );
+    const cardData = lpaCardData(
+      order.esimSmdpAddress,
+      order.esimActivationCode,
+    );
+    if (!manual || !cardData) return;
+    const locale = welcomeLocale(user.preferredLanguage ?? user.languageCode);
+    const { title, planLine } = esimPlanSummary({
+      locale,
+      packageName: order.packageName,
+      countryCode: order.countryCode,
+      dataAmountMb: order.dataAmountMb,
+      validityDays: order.validityDays,
+    });
+    await sendEmail({
+      to: channel.to,
+      kind: "esim_delivery",
+      ...esimDeliveryEmail({
+        locale,
+        copy: COPY[locale],
+        title,
+        planLine,
+        qrUrl,
+        smdp: manual.smdp,
+        activationCode: manual.activationCode,
+        appleInstallUrl: esimProvisioningUrl("apple", cardData),
+        androidInstallUrl: esimProvisioningUrl("android", cardData),
+        accountUrl: webAccountUrl(locale),
+      }),
+    });
     return;
   }
 
-  const chatId = Number(user.telegramId);
-  if (!Number.isFinite(chatId) || chatId <= 0) {
-    return;
-  }
-
-  const hasQr =
-    typeof order.esimQrUrl === "string" && order.esimQrUrl.length > 0;
+  const chatId = channel.chatId;
   const message = esimDeliveryMessage({
     preferredLanguage: user.preferredLanguage,
     languageCode: user.languageCode,
@@ -288,15 +319,15 @@ export async function notifyBuyerEsimDelivery(orderId: bigint): Promise<void> {
     validityDays: order.validityDays,
     smdpAddress: order.esimSmdpAddress,
     activationCode: order.esimActivationCode,
-    hasQr,
+    hasQr: qrUrl !== null,
   });
   if (!message) return;
 
   try {
-    if (hasQr && order.esimQrUrl) {
+    if (qrUrl) {
       await sendPhoto({
         chatId,
-        photo: order.esimQrUrl,
+        photo: qrUrl,
         caption: message.text,
         parseMode: "HTML",
         replyMarkup: message.replyMarkup,

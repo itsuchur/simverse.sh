@@ -4,6 +4,9 @@ import * as Sentry from "@sentry/nextjs";
 
 import { miniappPublicUrl } from "~/lib/miniapp-path";
 import { db } from "~/server/db";
+import { buyerChannel, buyerContactSelect } from "~/server/email/recipient";
+import { sendEmail } from "~/server/email/send";
+import { noticeEmail } from "~/server/email/templates";
 import {
   sendMessage,
   type InlineKeyboardMarkup,
@@ -13,7 +16,7 @@ import {
   welcomeLocale,
   type WelcomeLocale,
 } from "~/server/telegram/start-welcome";
-import { miniappOrigin } from "~/server/urls";
+import { miniappOrigin, webAccountUrl } from "~/server/urls";
 
 const COPY: Record<WelcomeLocale, { ready: string; myEsims: string }> = {
   en: {
@@ -76,11 +79,9 @@ export async function notifyBuyerTopupApplied(orderId: bigint): Promise<void> {
         validityDays: true,
         user: {
           select: {
-            telegramId: true,
+            ...buyerContactSelect,
             languageCode: true,
             preferredLanguage: true,
-            isBanned: true,
-            isDeleted: true,
           },
         },
       },
@@ -88,19 +89,8 @@ export async function notifyBuyerTopupApplied(orderId: bigint): Promise<void> {
     if (!order) return;
 
     const user = order.user;
-    if (
-      user.isBanned ||
-      user.isDeleted ||
-      typeof user.telegramId !== "string" ||
-      user.telegramId.length === 0
-    ) {
-      return;
-    }
-
-    const chatId = Number(user.telegramId);
-    if (!Number.isFinite(chatId) || chatId <= 0) {
-      return;
-    }
+    const channel = buyerChannel(user);
+    if (!channel) return;
 
     const message = topupAppliedMessage({
       preferredLanguage: user.preferredLanguage,
@@ -111,8 +101,25 @@ export async function notifyBuyerTopupApplied(orderId: bigint): Promise<void> {
       validityDays: order.validityDays,
     });
 
+    if (channel.kind === "email") {
+      const locale = welcomeLocale(
+        user.preferredLanguage ?? user.languageCode,
+      );
+      await sendEmail({
+        to: channel.to,
+        kind: "topup_notice",
+        ...noticeEmail({
+          locale,
+          subject: COPY[locale].ready,
+          text: message.text,
+          button: { label: COPY[locale].myEsims, href: webAccountUrl(locale) },
+        }),
+      });
+      return;
+    }
+
     await sendMessage({
-      chatId,
+      chatId: channel.chatId,
       text: message.text,
       replyMarkup: message.replyMarkup,
       disableLinkPreview: true,

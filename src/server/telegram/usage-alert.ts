@@ -26,6 +26,8 @@ const COPY: Record<
     data: (packageName: string, remainLabel: string | null) => string;
     validity: (packageName: string) => string;
     button: string;
+    dataSubject: string;
+    validitySubject: string;
   }
 > = {
   en: {
@@ -46,6 +48,8 @@ const COPY: Record<
         "Open My eSIMs if you need another plan.",
       ].join("\n"),
     button: "My eSIMs",
+    dataSubject: "Your eSIM is running low on data",
+    validitySubject: "Your eSIM expires in about 1 day",
   },
   ru: {
     data: (packageName, remainLabel) =>
@@ -65,6 +69,8 @@ const COPY: Record<
         "Откройте «Мои eSIM», если нужен ещё один тариф.",
       ].join("\n"),
     button: "Мои eSIM",
+    dataSubject: "На вашей eSIM заканчивается интернет",
+    validitySubject: "Ваша eSIM истекает примерно через 1 день",
   },
 };
 
@@ -75,6 +81,9 @@ export function usageAlertMessage(input: {
   packageName: string;
   remainBytes?: number | null;
 }): {
+  locale: WelcomeLocale;
+  subject: string;
+  buttonLabel: string;
   text: string;
   replyMarkup: WelcomeReplyMarkup;
 } {
@@ -96,6 +105,10 @@ export function usageAlertMessage(input: {
       : copy.validity(input.packageName);
 
   return {
+    locale,
+    subject:
+      input.kind === "DATA_USAGE" ? copy.dataSubject : copy.validitySubject,
+    buttonLabel: copy.button,
     text,
     replyMarkup: {
       inline_keyboard: [

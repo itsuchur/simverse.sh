@@ -7,6 +7,7 @@ import {
   getSession,
   hasDeletedAccountSession,
 } from "~/server/better-auth/server";
+import { isEmailConfigured } from "~/server/email/send";
 import { loadMyEsims } from "~/server/orders/my-esims";
 
 import { SignOutButton, WebAuthGate } from "../_components/web-auth-gate";
@@ -38,6 +39,7 @@ export default async function AccountPage({
           key={String(deletedAccount)}
           botUsername={env.TELEGRAM_BOT_USERNAME}
           deletedAccount={deletedAccount}
+          emailSignIn={isEmailConfigured()}
         />
       </main>
     );

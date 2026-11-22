@@ -58,3 +58,8 @@ export function apiPublicUrl(pathname: string) {
   }
   return `${apiOrigin()}/api${path}`;
 }
+
+/** Website account page with the buyer's eSIMs, for emails. */
+export function webAccountUrl(locale: "en" | "ru") {
+  return `${marketingOrigin()}${locale === "ru" ? "/ru" : ""}/account`;
+}

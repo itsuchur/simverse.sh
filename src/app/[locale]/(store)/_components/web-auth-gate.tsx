@@ -23,6 +23,7 @@ import {
 import { useRouter } from "~/i18n/navigation";
 import { signOut } from "~/lib/auth-client";
 
+import { EmailLogin } from "./email-login";
 import { TelegramLogin } from "./telegram-login";
 
 /**
@@ -32,9 +33,12 @@ import { TelegramLogin } from "./telegram-login";
 export function WebAuthGate({
   botUsername,
   deletedAccount,
+  emailSignIn,
 }: {
   botUsername: string;
   deletedAccount: boolean;
+  /** False until Resend is configured. */
+  emailSignIn: boolean;
 }) {
   const t = useTranslations("Store");
   const tAuth = useTranslations("Auth");
@@ -73,13 +77,25 @@ export function WebAuthGate({
   return (
     <Card className="mx-auto w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-xl">{t("loginTitle")}</CardTitle>
+        <CardTitle className="text-xl">
+          {emailSignIn ? t("loginTitleWithEmail") : t("loginTitle")}
+        </CardTitle>
         <CardDescription className="leading-6">
-          {t("loginDescription")}
+          {emailSignIn ? t("loginDescriptionWithEmail") : t("loginDescription")}
         </CardDescription>
       </CardHeader>
       <div className="px-6 pb-6">
         <TelegramLogin botUsername={botUsername} onSignedIn={onSignedIn} />
+        {emailSignIn ? (
+          <>
+            <div className="text-muted-foreground my-5 flex items-center gap-3 text-xs uppercase">
+              <span className="bg-border h-px flex-1" />
+              {t("loginOr")}
+              <span className="bg-border h-px flex-1" />
+            </div>
+            <EmailLogin onSignedIn={() => router.refresh()} />
+          </>
+        ) : null}
         {failed ? (
           <p role="alert" className="text-destructive mt-3 text-center text-sm">
             {tAuth("reasonNetwork")}

@@ -40,11 +40,11 @@ export function capturedEvents(): string[] {
 
 export const getCartSnapshot = mock(
   async (
-    _telegramId: string,
+    _userId: string,
   ): Promise<{ plan: CartPlan; revision: string } | null> => null,
 );
 
-export const clearCart = mock(async (_telegramId: string) => undefined);
+export const clearCart = mock(async (_userId: string) => undefined);
 
 type EsimAccessEnvelope = {
   success: boolean;
@@ -70,6 +70,15 @@ export const telegramSendMessage = mock(
     replyMarkup?: unknown;
     disableLinkPreview?: boolean;
   }) => ({ message_id: 1 }),
+);
+
+export const sendEmail = mock(
+  async (_input: {
+    to: string;
+    subject: string;
+    react: unknown;
+    kind: string;
+  }) => true,
 );
 
 export const telegramSendPhoto = mock(
@@ -151,4 +160,6 @@ export function resetTestState() {
   telegramSendPhoto.mockImplementation(async () => ({ message_id: 1 }));
   telegramSetChatMenuButton.mockClear();
   telegramSetChatMenuButton.mockImplementation(async () => undefined);
+  sendEmail.mockClear();
+  sendEmail.mockImplementation(async () => true);
 }

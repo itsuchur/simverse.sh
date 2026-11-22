@@ -118,6 +118,39 @@ export function limitPromoAttempt(userId: string) {
   return consumeIdentity(getPromoLimiter(), userId);
 }
 
+/** Sign-in codes sent to one address. Better Auth separately limits per IP. */
+export const EMAIL_CODE_LIMIT = 5;
+export const EMAIL_CODE_WINDOW_SECONDS = 60 * 60;
+let emailCodeLimiter: Promise<Limiter> | undefined;
+
+function getEmailCodeLimiter(): Promise<Limiter> {
+  emailCodeLimiter ??= getRedis()
+    .then(
+      (storeClient) =>
+        new RateLimiterRedis({
+          storeClient,
+          useRedisPackage: true,
+          rejectIfRedisNotReady: true,
+          keyPrefix: "email-code",
+          points: EMAIL_CODE_LIMIT,
+          duration: EMAIL_CODE_WINDOW_SECONDS,
+        }),
+    )
+    .catch((error: unknown) => {
+      emailCodeLimiter = undefined;
+      throw error;
+    });
+  return emailCodeLimiter;
+}
+
+/** Null when a code may be sent; otherwise the 429/503 response to return. */
+export function limitEmailCode(email: string) {
+  const key = createHash("sha256")
+    .update(email.trim().toLowerCase())
+    .digest("hex");
+  return consumeIdentity(getEmailCodeLimiter(), key);
+}
+
 export function limitPrecheckRequest(request: Request) {
   // Traefik overwrites X-Real-IP. Do not trust arbitrary forwarded/CF headers
   // here; direct access to the app must remain restricted to the proxy.

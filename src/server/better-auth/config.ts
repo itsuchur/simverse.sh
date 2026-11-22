@@ -1,12 +1,18 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { telegram } from "better-auth-telegram";
 
 import { env } from "~/env";
-import { isAllowedAuthEmail } from "~/server/dashboard/emails";
+import {
+  EMAIL_OTP_SIGN_IN_PATH,
+  isAllowedAuthEmail,
+  isEmailCodeAllowed,
+} from "~/server/dashboard/emails";
 import { db } from "~/server/db";
+import { requestLocale } from "~/server/email/request-locale";
 import {
   InvalidTelegramIdError,
   sanitizeAccountForPersist,
@@ -22,6 +28,43 @@ import {
   marketingOrigin,
   miniappOrigin,
 } from "~/server/urls";
+
+const EMAIL_OTP_SEND_PATH = "/email-otp/send-verification-otp";
+
+/** Email codes are for web buyers only, and only once Resend is configured. */
+const emailCodeGuard = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== EMAIL_OTP_SEND_PATH && ctx.path !== EMAIL_OTP_SIGN_IN_PATH) {
+    return;
+  }
+  if (!env.RESEND_API_KEY) {
+    throw new APIError("NOT_FOUND");
+  }
+  const body = ctx.body as { email?: unknown; type?: unknown } | undefined;
+  const email = typeof body?.email === "string" ? body.email : undefined;
+  if (!isEmailCodeAllowed(email)) {
+    throw new APIError("FORBIDDEN", {
+      message: "This email cannot sign in with a code.",
+    });
+  }
+  if (ctx.path === EMAIL_OTP_SEND_PATH) {
+    if (body?.type !== "sign-in") {
+      throw new APIError("BAD_REQUEST");
+    }
+    // Loaded per request so importing auth stays cheap (build, tests).
+    const { limitEmailCode } = await import("~/server/http/rate-limit");
+    const limited = await limitEmailCode(email ?? "");
+    if (limited) {
+      throw new APIError(
+        limited.status === 429 ? "TOO_MANY_REQUESTS" : "SERVICE_UNAVAILABLE",
+      );
+    }
+  }
+});
+
+/** Display name for a buyer who registered by email: the address's local part. */
+function emailDisplayName(email: string) {
+  return email.split("@")[0] ?? "";
+}
 
 const createAuth = () =>
   betterAuth({
@@ -57,6 +100,9 @@ const createAuth = () =>
     },
     // Avoid a database session read on every mini-app navigation. Purchase bans
     // still read isBanned from Postgres.
+    hooks: {
+      before: emailCodeGuard,
+    },
     session: {
       cookieCache: {
         enabled: true,
@@ -76,15 +122,24 @@ const createAuth = () =>
     databaseHooks: {
       user: {
         create: {
-          before: async (user) => {
-            if (!isAllowedAuthEmail(user.email)) {
+          before: async (user, ctx) => {
+            if (!isAllowedAuthEmail(user.email, ctx?.path)) {
               throw new APIError("FORBIDDEN", {
                 message: "This account is not allowed to sign in.",
               });
             }
+            const byEmailCode = ctx?.path === EMAIL_OTP_SIGN_IN_PATH;
             try {
               return {
-                data: sanitizeUserForPersist(user),
+                data: sanitizeUserForPersist(
+                  byEmailCode
+                    ? {
+                        ...user,
+                        name: user.name || emailDisplayName(user.email),
+                        preferredLanguage: requestLocale(ctx.headers),
+                      }
+                    : user,
+                ),
               };
             } catch (error) {
               if (error instanceof InvalidTelegramIdError) {
@@ -204,6 +259,28 @@ const createAuth = () =>
               throw error;
             }
           },
+        },
+      }),
+      emailOTP({
+        otpLength: 6,
+        expiresIn: 10 * 60,
+        allowedAttempts: 3,
+        storeOTP: "hashed",
+        sendVerificationOTP: async ({ email, otp, type }, ctx) => {
+          if (type !== "sign-in") return;
+          // React Email is heavy; load it only when a code is actually sent.
+          const [{ signInCodeEmail }, { sendEmail }] = await Promise.all([
+            import("~/server/email/templates"),
+            import("~/server/email/send"),
+          ]);
+          const sent = await sendEmail({
+            to: email,
+            kind: "sign_in_code",
+            ...signInCodeEmail(requestLocale(ctx?.headers), otp),
+          });
+          if (!sent) {
+            throw new APIError("SERVICE_UNAVAILABLE");
+          }
         },
       }),
       nextCookies(),

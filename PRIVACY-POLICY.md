@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated: October 23rd, 2026**
+**Last updated: November 22nd, 2026**
 
 This Privacy Policy explains how **Individual Entrepreneur Dmitrii Efimov**, Georgian Tax Number **345637091**, registered at **Tamar Mepe St. N22A, apt 143, Batumi, Georgia** (referred to as **"simverse"**, the **"Miniapp"**, **"we"**, **"us"**, or **"our"**) collects, uses, stores, shares, and protects personal data when you access or use the Miniapp, purchase an eSIM, contact support, or otherwise interact with our services.
 
@@ -30,6 +30,8 @@ This may include, depending on what Telegram provides:
 We use Telegram-provided information to authenticate you, associate purchases with your account, provide support, prevent fraud, and operate the Miniapp.
 
 We do not receive your Telegram password.
+
+If you sign in on simverse.sh with your email address instead of Telegram, we collect that **email address** and a one-time sign-in code we send to it. We use the email address to authenticate you, associate purchases with your account, and send your eSIM details, order notices, refund notices, and data-usage alerts. We send these emails through **Resend**.
 
 ### 1.2 Purchase and Order Information
 
@@ -163,7 +165,7 @@ Please avoid sending information that is not necessary for us to resolve your re
 We may process personal data to:
 
 - provide and operate the Miniapp;
-- authenticate users through Telegram;
+- authenticate users through Telegram or a one-time code sent by email;
 - create, process, and fulfill eSIM orders;
 - provision eSIMs through our suppliers;
 - process payments and refunds;
@@ -258,6 +260,7 @@ We may disclose or make personal data available to categories of recipients incl
 - Cloudflare for security, network protection, and delivery;
 - Sentry for debugging and application monitoring;
 - PostHog for product analytics;
+- Resend for sending sign-in codes and transactional emails;
 - professional advisers such as accountants or legal advisers where necessary;
 - banks, payment networks, or financial institutions involved in a transaction;
 - public authorities where disclosure is legally required; and

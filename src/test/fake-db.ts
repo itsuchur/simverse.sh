@@ -9,6 +9,7 @@ export type FakeUser = {
   isDeleted: boolean;
   deletedAt: Date | null;
   email: string;
+  emailVerified: boolean;
   isBanned: boolean;
   banReason: string | null;
   id: string;
@@ -413,6 +414,7 @@ class FakeDb {
       isDeleted: false,
       deletedAt: null,
       email: `${user.id}@telegram.local`,
+      emailVerified: false,
       isBanned: false,
       banReason: null,
       telegramId: null,
@@ -501,6 +503,8 @@ class FakeDb {
       ...record,
       user: {
         telegramId: user?.telegramId ?? null,
+        email: user?.email ?? `${record.userId}@telegram.local`,
+        emailVerified: user?.emailVerified ?? false,
         languageCode: user?.languageCode ?? null,
         preferredLanguage: user?.preferredLanguage ?? null,
         dataUsageNotifications: true,

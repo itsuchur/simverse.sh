@@ -8,6 +8,9 @@ import { z } from "zod";
 import { env } from "~/env";
 import type { EsimSnapshotEvent } from "~/lib/esim-lifecycle";
 import { db } from "~/server/db";
+import { buyerChannel, buyerContactSelect } from "~/server/email/recipient";
+import { sendEmail } from "~/server/email/send";
+import { noticeEmail } from "~/server/email/templates";
 import { recordEsimSnapshot } from "~/server/orders/esim-lifecycle-sync";
 import {
   attachGotResource,
@@ -19,6 +22,7 @@ import {
   usageAlertMessage,
   type UsageAlertKind,
 } from "~/server/telegram/usage-alert";
+import { webAccountUrl } from "~/server/urls";
 
 /**
  * eSIM Access webhook notifications.
@@ -131,29 +135,15 @@ async function notifyBuyerUsageAlert(input: {
   const user = await db.user.findUnique({
     where: { id: order.userId },
     select: {
-      telegramId: true,
+      ...buyerContactSelect,
       languageCode: true,
       preferredLanguage: true,
       dataUsageNotifications: true,
-      isBanned: true,
-      isDeleted: true,
     },
   });
-  if (
-    !user ||
-    user.isBanned ||
-    user.isDeleted ||
-    !user.dataUsageNotifications ||
-    typeof user.telegramId !== "string" ||
-    user.telegramId.length === 0
-  ) {
-    return;
-  }
-
-  const chatId = Number(user.telegramId);
-  if (!Number.isFinite(chatId) || chatId <= 0) {
-    return;
-  }
+  if (!user?.dataUsageNotifications) return;
+  const channel = buyerChannel(user);
+  if (!channel) return;
 
   const message = usageAlertMessage({
     kind: input.kind,
@@ -166,9 +156,26 @@ async function notifyBuyerUsageAlert(input: {
         : null,
   });
 
+  if (channel.kind === "email") {
+    await sendEmail({
+      to: channel.to,
+      kind: "usage_alert",
+      ...noticeEmail({
+        locale: message.locale,
+        subject: message.subject,
+        text: message.text,
+        button: {
+          label: message.buttonLabel,
+          href: webAccountUrl(message.locale),
+        },
+      }),
+    });
+    return;
+  }
+
   try {
     await sendMessage({
-      chatId,
+      chatId: channel.chatId,
       text: message.text,
       replyMarkup: message.replyMarkup,
     });

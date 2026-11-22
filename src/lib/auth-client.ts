@@ -1,3 +1,4 @@
+import { emailOTPClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { telegramClient } from "better-auth-telegram/client";
 
@@ -17,7 +18,7 @@ export const authClient = createAuthClient({
           }
         : undefined,
   },
-  plugins: [telegramClient()],
+  plugins: [telegramClient(), emailOTPClient()],
 });
 
 export type Session = typeof authClient.$Infer.Session;
@@ -78,6 +79,15 @@ export function signInWithTelegramWidget(
     ) => Promise<TelegramMiniAppSignInResult>;
   };
   return client.signInWithTelegram(user);
+}
+
+/** Email a 6-digit sign-in code. The account is created on first sign-in. */
+export function sendEmailSignInCode(email: string) {
+  return authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+}
+
+export function signInWithEmailCode(email: string, otp: string) {
+  return authClient.signIn.emailOtp({ email, otp });
 }
 
 export async function signOut() {

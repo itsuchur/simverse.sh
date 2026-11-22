@@ -12,6 +12,7 @@ import {
   getSession,
   hasDeletedAccountSession,
 } from "~/server/better-auth/server";
+import { isEmailConfigured } from "~/server/email/send";
 import { getStoreCatalog } from "~/server/suppliers/esimaccess/packages";
 
 import { CartLoader } from "../_components/cart-loader";
@@ -77,6 +78,7 @@ export default async function WebCheckoutPage({
           key={String(deletedAccount)}
           botUsername={env.TELEGRAM_BOT_USERNAME}
           deletedAccount={deletedAccount}
+          emailSignIn={isEmailConfigured()}
         />
       </main>
     );

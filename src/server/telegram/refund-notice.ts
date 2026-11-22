@@ -3,6 +3,9 @@ import "server-only";
 import * as Sentry from "@sentry/nextjs";
 
 import { db } from "~/server/db";
+import { buyerChannel, buyerContactSelect } from "~/server/email/recipient";
+import { sendEmail } from "~/server/email/send";
+import { noticeEmail } from "~/server/email/templates";
 import { sendMessage } from "~/server/telegram/bot-api";
 import {
   welcomeLocale,
@@ -11,15 +14,17 @@ import {
 
 const COPY: Record<
   WelcomeLocale,
-  { issue: string; topup: string }
+  { subject: string; issue: string; topup: string }
 > = {
   en: {
+    subject: "Your Simverse payment was refunded",
     issue:
       "We couldn't issue your eSIM — the provider was unable to fulfill the order. Your payment has been refunded.",
     topup:
       "We couldn't apply your top-up — the provider was unable to fulfill the order. Your payment has been refunded.",
   },
   ru: {
+    subject: "Оплата в Simverse возвращена",
     issue:
       "Не удалось выпустить eSIM — провайдер не смог выполнить заказ. Оплата возвращена.",
     topup:
@@ -36,11 +41,9 @@ export async function notifyBuyerRefundNotice(orderId: bigint): Promise<void> {
       topupOfOrderId: true,
       user: {
         select: {
-          telegramId: true,
+          ...buyerContactSelect,
           languageCode: true,
           preferredLanguage: true,
-          isBanned: true,
-          isDeleted: true,
         },
       },
     },
@@ -48,19 +51,8 @@ export async function notifyBuyerRefundNotice(orderId: bigint): Promise<void> {
   if (!order) return;
 
   const user = order.user;
-  if (
-    user.isBanned ||
-    user.isDeleted ||
-    typeof user.telegramId !== "string" ||
-    user.telegramId.length === 0
-  ) {
-    return;
-  }
-
-  const chatId = Number(user.telegramId);
-  if (!Number.isFinite(chatId) || chatId <= 0) {
-    return;
-  }
+  const channel = buyerChannel(user);
+  if (!channel) return;
 
   const locale = welcomeLocale(
     user.preferredLanguage ?? user.languageCode,
@@ -68,9 +60,18 @@ export async function notifyBuyerRefundNotice(orderId: bigint): Promise<void> {
   const text =
     order.topupOfOrderId !== null ? COPY[locale].topup : COPY[locale].issue;
 
+  if (channel.kind === "email") {
+    await sendEmail({
+      to: channel.to,
+      kind: "refund_notice",
+      ...noticeEmail({ locale, subject: COPY[locale].subject, text }),
+    });
+    return;
+  }
+
   try {
     await sendMessage({
-      chatId,
+      chatId: channel.chatId,
       text,
       disableLinkPreview: true,
     });

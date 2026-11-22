@@ -2,7 +2,7 @@
  * bun test preload (see bunfig.toml). Runs before any test file so that:
  * - `~/env` sees SKIP_ENV_VALIDATION plus deterministic test secrets,
  * - `server-only` imports are inert,
- * - Prisma, Sentry, PostHog, the Redis cart, and the eSIM Access HTTP client
+ * - Prisma, Sentry, PostHog, the Redis cart, Resend email, and the eSIM Access HTTP client
  *   are replaced with in-memory fakes/spies from ./fake-db and ./mocks.
  */
 import { mock } from "bun:test";
@@ -16,6 +16,7 @@ import {
   recordEsimFulfillment,
   sentryCaptureException,
   sentryCaptureMessage,
+  sendEmail,
   telegramSendMessage,
   telegramSendPhoto,
   telegramSetChatMenuButton,
@@ -89,6 +90,11 @@ void mock.module("../server/cart", () => ({
 void mock.module("../server/suppliers/esimaccess/client", () => ({
   ESIMACCESS_API_BASE: "https://api.esimaccess.example",
   esimAccessPost,
+}));
+
+void mock.module("../server/email/send", () => ({
+  isEmailConfigured: () => true,
+  sendEmail,
 }));
 
 void mock.module("../server/telegram/bot-api", () => ({
