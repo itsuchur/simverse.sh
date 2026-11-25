@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import ReactCountryFlag from "react-country-flag";
+import { ChevronRight, Search } from "lucide-react";
 
 import { Input } from "~/components/ui/input";
 import { Link } from "~/i18n/navigation";
+
+import { FlagBadge } from "./flag-badge";
 
 export type CountryEntry = {
   code: string;
@@ -44,7 +45,7 @@ export function CountryDirectory({
         {searchLabel}
       </label>
       <div className="relative">
-        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2" />
         <Input
           id="country-search"
           type="search"
@@ -52,33 +53,32 @@ export function CountryDirectory({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={searchPlaceholder}
           autoComplete="off"
-          className="h-11 pl-9"
+          className="h-14 rounded-xl pl-12 text-lg shadow-sm md:text-lg"
         />
       </div>
       {visible.length === 0 ? (
-        <p className="text-muted-foreground">{noMatches}</p>
+        <p className="text-muted-foreground text-lg">{noMatches}</p>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {visible.map((country) => (
             <li key={country.code}>
               <Link
                 href={`/esim/${country.slug}`}
-                className="hover:bg-muted/60 border-border flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors"
+                className="group border-border bg-card hover:border-foreground/25 flex items-center gap-4 rounded-xl border px-4 py-4 shadow-sm transition-all hover:shadow-md sm:px-5"
               >
-                <ReactCountryFlag
-                  countryCode={country.code}
-                  svg
-                  style={{ width: "1.5em", height: "1.5em", flexShrink: 0 }}
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1 font-medium">
+                <FlagBadge countryCode={country.code} height="1.5rem" />
+                <span className="min-w-0 flex-1 text-base font-semibold sm:text-lg">
                   {country.name}
                 </span>
                 {country.fromPrice ? (
-                  <span className="text-muted-foreground text-sm whitespace-nowrap">
+                  <span className="text-base font-semibold whitespace-nowrap">
                     {country.fromPrice}
                   </span>
                 ) : null}
+                <ChevronRight
+                  className="text-muted-foreground group-hover:text-foreground size-5 shrink-0 transition-transform group-hover:translate-x-0.5"
+                  aria-hidden
+                />
               </Link>
             </li>
           ))}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
-import ReactCountryFlag from "react-country-flag";
+import { ChevronDown } from "lucide-react";
 
 import { Link } from "~/i18n/navigation";
 import {
@@ -13,6 +13,7 @@ import type { CatalogPackage } from "~/server/suppliers/esimaccess/catalog-types
 import { getStoreCatalog } from "~/server/suppliers/esimaccess/packages";
 
 import { CountryDirectory } from "../_components/country-directory";
+import { FlagBadge } from "../_components/flag-badge";
 import { PlanTable } from "../_components/plan-table";
 import { PurchaseNotes } from "../_components/purchase-notes";
 
@@ -51,37 +52,34 @@ export default async function EsimCatalogPage() {
   const regions = regionalGroups(catalog, locale);
 
   return (
-    <main className="space-y-14">
+    <main className="space-y-16">
       <header className="space-y-4">
-        <h1 className="text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
+        <h1 className="text-4xl font-extrabold tracking-tight text-balance sm:text-6xl">
           {t("catalogTitle")}
         </h1>
-        <p className="text-muted-foreground text-lg leading-8">
+        <p className="text-muted-foreground max-w-3xl text-lg leading-8 sm:text-xl sm:leading-9">
           {t("catalogIntro")}
         </p>
         <PurchaseNotes />
       </header>
 
       {popular.length > 0 ? (
-        <section aria-labelledby="popular" className="space-y-5">
-          <h2 id="popular" className="text-2xl font-bold tracking-tight">
+        <section aria-labelledby="popular" className="space-y-6">
+          <h2 id="popular" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
             {t("popularHeading")}
           </h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {popular.map((group) => (
               <li key={group.countryCode}>
                 <Link
                   href={`/esim/${countrySlug(group.countryCode)}`}
-                  className="hover:bg-muted/60 border-border flex h-full flex-col gap-3 rounded-xl border p-4 transition-colors"
+                  className="border-border bg-card hover:border-foreground/25 flex h-full flex-col gap-4 rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:p-6"
                 >
-                  <ReactCountryFlag
-                    countryCode={group.countryCode}
-                    svg
-                    style={{ width: "2em", height: "2em" }}
-                    aria-hidden
-                  />
-                  <span className="font-semibold">{group.countryName}</span>
-                  <span className="text-muted-foreground text-sm">
+                  <FlagBadge countryCode={group.countryCode} height="2.25rem" />
+                  <span className="text-lg leading-tight font-bold">
+                    {group.countryName}
+                  </span>
+                  <span className="mt-auto text-base font-semibold">
                     {fromPrice(group.packages)}
                   </span>
                 </Link>
@@ -91,8 +89,8 @@ export default async function EsimCatalogPage() {
         </section>
       ) : null}
 
-      <section aria-labelledby="countries" className="space-y-5">
-        <h2 id="countries" className="text-2xl font-bold tracking-tight">
+      <section aria-labelledby="countries" className="space-y-6">
+        <h2 id="countries" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
           {t("countriesHeading")}
         </h2>
         <CountryDirectory
@@ -104,21 +102,25 @@ export default async function EsimCatalogPage() {
       </section>
 
       {regions.length > 0 ? (
-        <section aria-labelledby="regional" className="space-y-5">
-          <h2 id="regional" className="text-2xl font-bold tracking-tight">
+        <section aria-labelledby="regional" className="space-y-6">
+          <h2 id="regional" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
             {t("regionalHeading")}
           </h2>
           <div className="space-y-3">
             {regions.map((group) => (
               <details
                 key={group.id}
-                className="border-border rounded-xl border"
+                className="group border-border bg-card rounded-2xl border shadow-sm"
               >
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 font-semibold [&::-webkit-details-marker]:hidden">
-                  <span>{group.title}</span>
-                  <span className="text-muted-foreground text-sm font-normal whitespace-nowrap">
+                <summary className="hover:bg-muted/40 flex cursor-pointer list-none items-center gap-4 rounded-2xl px-5 py-4 text-lg font-bold [&::-webkit-details-marker]:hidden">
+                  <span className="min-w-0 flex-1">{group.title}</span>
+                  <span className="text-base font-semibold whitespace-nowrap">
                     {fromPrice(group.packages)}
                   </span>
+                  <ChevronDown
+                    className="text-muted-foreground size-5 shrink-0 transition-transform group-open:rotate-180"
+                    aria-hidden
+                  />
                 </summary>
                 <div className="px-2 pb-2">
                   <PlanTable packages={group.packages} />
@@ -130,8 +132,8 @@ export default async function EsimCatalogPage() {
       ) : null}
 
       {catalog.global.length > 0 ? (
-        <section aria-labelledby="global" className="space-y-5">
-          <h2 id="global" className="text-2xl font-bold tracking-tight">
+        <section aria-labelledby="global" className="space-y-6">
+          <h2 id="global" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
             {t("globalHeading")}
           </h2>
           <PlanTable packages={catalog.global} />

@@ -3,6 +3,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { buttonVariants } from "~/components/ui/button";
 import { UnlimitedDataLabel } from "~/components/ui/unlimited-data-label";
 import { Link } from "~/i18n/navigation";
+import { cn } from "~/lib/utils";
 import {
   catalogNumberFormatOptions,
   catalogPriceAmount,
@@ -23,20 +24,20 @@ export async function PlanTable({
   const priceFormat = catalogNumberFormatOptions(locale);
 
   return (
-    <div className="border-border overflow-x-auto rounded-xl border">
-      <table className="w-full text-left text-base">
-        <thead className="bg-muted/50 text-muted-foreground text-sm">
+    <div className="border-border bg-card overflow-x-auto rounded-2xl border shadow-sm">
+      <table className="w-full text-left text-base sm:text-lg">
+        <thead className="bg-muted/50 text-muted-foreground text-xs tracking-wider uppercase">
           <tr>
-            <th scope="col" className="px-4 py-3 font-medium">
+            <th scope="col" className="px-4 py-3 font-semibold sm:px-5">
               {t("colData")}
             </th>
-            <th scope="col" className="px-4 py-3 font-medium">
+            <th scope="col" className="px-4 py-3 font-semibold sm:px-5">
               {t("colValidity")}
             </th>
-            <th scope="col" className="px-4 py-3 text-right font-medium">
+            <th scope="col" className="px-4 py-3 text-right font-semibold sm:px-5">
               {t("colPrice")}
             </th>
-            <th scope="col" className="px-4 py-3">
+            <th scope="col" className="px-4 py-3 sm:px-5">
               <span className="sr-only">{t("buy")}</span>
             </th>
           </tr>
@@ -49,8 +50,11 @@ export async function PlanTable({
             const data = formatVolume(pkg.volume);
             const validity = tCatalog("duration.day", { count: pkg.duration });
             return (
-              <tr key={pkg.packageCode}>
-                <td className="px-4 py-3">
+              <tr
+                key={pkg.packageCode}
+                className="hover:bg-muted/30 transition-colors"
+              >
+                <td className="px-4 py-4 font-medium sm:px-5">
                   {pkg.isUnlimited ? (
                     <UnlimitedDataLabel
                       fullSpeedAmount={data}
@@ -60,11 +64,13 @@ export async function PlanTable({
                     data
                   )}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">{validity}</td>
-                <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                <td className="px-4 py-4 whitespace-nowrap sm:px-5">
+                  {validity}
+                </td>
+                <td className="px-4 py-4 text-right text-lg font-bold whitespace-nowrap sm:px-5 sm:text-xl">
                   {price ?? "—"}
                 </td>
-                <td className="px-4 py-2 text-right">
+                <td className="px-4 py-3 text-right sm:px-5">
                   {price ? (
                     <Link
                       href={{
@@ -73,7 +79,10 @@ export async function PlanTable({
                       }}
                       prefetch={false}
                       aria-label={t("buyLabel", { data, validity, price })}
-                      className={buttonVariants({ size: "sm" })}
+                      className={cn(
+                        buttonVariants({ size: "lg" }),
+                        "h-10 px-5 text-base font-semibold sm:h-11 sm:px-6",
+                      )}
                     >
                       {t("buy")}
                     </Link>

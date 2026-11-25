@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
-import ReactCountryFlag from "react-country-flag";
 
 import { CoverageList } from "~/app/[locale]/app/_components/coverage-list";
 import { Link } from "~/i18n/navigation";
@@ -14,6 +13,7 @@ import { countryCodeForSlug } from "~/lib/country-slug";
 import { countriesWithPlans, plansCoveringCountry } from "~/lib/public-catalog";
 import { getStoreCatalog } from "~/server/suppliers/esimaccess/packages";
 
+import { FlagBadge } from "../../_components/flag-badge";
 import { PlanTable } from "../../_components/plan-table";
 import { PurchaseNotes } from "../../_components/purchase-notes";
 
@@ -69,39 +69,34 @@ export default async function CountryPlansPage({ params }: Props) {
     <main className="space-y-12">
       <Link
         href="/esim"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-base font-medium"
       >
-        <ChevronLeft className="size-4" aria-hidden />
+        <ChevronLeft className="size-5" aria-hidden />
         {t("allDestinations")}
       </Link>
 
       <header className="space-y-4">
-        <div className="flex items-center gap-4">
-          <ReactCountryFlag
-            countryCode={group.countryCode}
-            svg
-            style={{ width: "2.5em", height: "2.5em", flexShrink: 0 }}
-            aria-hidden
-          />
-          <h1 className="text-4xl font-extrabold tracking-tight text-balance">
+        <div className="flex items-center gap-5">
+          <FlagBadge countryCode={group.countryCode} height="3rem" />
+          <h1 className="text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
             {t("countryTitle", { country: group.countryName })}
           </h1>
         </div>
-        <p className="text-muted-foreground text-lg leading-8">
+        <p className="text-muted-foreground max-w-3xl text-lg leading-8 sm:text-xl sm:leading-9">
           {t("countryIntro", { country: group.countryName })}
         </p>
         <PurchaseNotes />
       </header>
 
-      <section aria-labelledby="local-plans" className="space-y-5">
-        <h2 id="local-plans" className="text-2xl font-bold tracking-tight">
+      <section aria-labelledby="local-plans" className="space-y-6">
+        <h2 id="local-plans" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
           {t("localPlansHeading", { country: group.countryName })}
         </h2>
         <PlanTable packages={group.packages} />
       </section>
 
-      <section aria-labelledby="networks" className="space-y-3">
-        <h2 id="networks" className="text-2xl font-bold tracking-tight">
+      <section aria-labelledby="networks" className="space-y-4">
+        <h2 id="networks" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
           {t("networksHeading")}
         </h2>
         <CoverageList
@@ -112,18 +107,22 @@ export default async function CountryPlansPage({ params }: Props) {
       </section>
 
       {covering.length > 0 ? (
-        <section aria-labelledby="covering" className="space-y-5">
-          <h2 id="covering" className="text-2xl font-bold tracking-tight">
+        <section aria-labelledby="covering" className="space-y-6">
+          <h2 id="covering" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
             {t("coveringPlansHeading", { country: group.countryName })}
           </h2>
           <div className="space-y-3">
             {covering.map((plans) => (
               <details
                 key={plans.id}
-                className="border-border rounded-xl border"
+                className="group border-border bg-card rounded-2xl border shadow-sm"
               >
-                <summary className="cursor-pointer list-none px-4 py-3 font-semibold [&::-webkit-details-marker]:hidden">
-                  {plans.title}
+                <summary className="hover:bg-muted/40 flex cursor-pointer list-none items-center gap-4 rounded-2xl px-5 py-4 text-lg font-bold [&::-webkit-details-marker]:hidden">
+                  <span className="min-w-0 flex-1">{plans.title}</span>
+                  <ChevronDown
+                    className="text-muted-foreground size-5 shrink-0 transition-transform group-open:rotate-180"
+                    aria-hidden
+                  />
                 </summary>
                 <div className="px-2 pb-2">
                   <PlanTable packages={plans.packages} />
