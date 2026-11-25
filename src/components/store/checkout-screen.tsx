@@ -1,14 +1,12 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import { headers } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { CheckoutView } from "~/app/[locale]/app/checkout/checkout-view";
 import { buttonVariants } from "~/components/ui/button";
 import { Link, redirect } from "~/i18n/navigation";
 import type { CheckoutChannel } from "~/lib/checkout-channel";
-import { detectedCodapayCountry } from "~/lib/codapay-markets";
 import type { Session } from "~/server/better-auth/config";
 import { getCartSnapshot } from "~/server/cart";
 import { db } from "~/server/db";
@@ -143,7 +141,6 @@ export async function CheckoutScreen({
       catalogHref={catalogHref}
       myEsimsHref={myEsimsHref}
       initialPayment={initialPayment}
-      initialBillingCountry={detectedCodapayCountry(await headers())}
       plan={plan}
       cartRevision={cart.revision}
       supportTopUpType={catalog?.pkg.supportTopUpType}

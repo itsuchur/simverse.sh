@@ -27,7 +27,7 @@ describe("startWelcome", () => {
       [
         "Internet abroad without roaming 🌍",
         "",
-        'eSIM for 150+ countries from $4. Tap "Open the App", choose a country, and pay by card. Setup takes a couple of minutes.',
+        'eSIM for 150+ countries from $4. Tap "Open the App", choose a country, and pay with PayPal. Setup takes a couple of minutes.',
         "",
         "Questions: @simversesupport",
       ].join("\n"),
@@ -46,7 +46,7 @@ describe("startWelcome", () => {
       [
         "Интернет за границей без роуминга 🌍",
         "",
-        "eSIM для 150+ стран от 128 ₽. Нажмите «Открыть приложение», выберите страну и оплатите через СБП или картой. Установка занимает пару минут.",
+        "eSIM для 150+ стран от 128 ₽. Нажмите «Открыть приложение», выберите страну и оплатите через СБП или PayPal. Установка занимает пару минут.",
         "",
         "Вопросы: @simversesupport",
       ].join("\n"),
