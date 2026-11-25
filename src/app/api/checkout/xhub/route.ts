@@ -149,6 +149,9 @@ export async function POST(request: Request) {
       const payment = await createXhubPayment({
         amountRub: Number(order.priceAmount) / 100,
         orderUuid: order.orderUuid,
+        orderNumber: order.id,
+        customerId: session.user.id,
+        customerRegisteredAt: session.user.createdAt,
         paymentMethod,
         description: `${plan.name} · ${plan.validity_days}d`,
         successUrl: apiPublicUrl(

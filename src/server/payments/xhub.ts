@@ -7,6 +7,9 @@ import { z } from "zod";
 
 const XHUB_API_BASE = "https://api.x-hub.online/api/v1";
 const WEBHOOK_MAX_AGE_MS = 5 * 60_000;
+// X-Hub requires client contact data; their manager approved these placeholders.
+const XHUB_PLACEHOLDER_EMAIL_SUFFIX = "+noreply@e.simverse.sh";
+const XHUB_PLACEHOLDER_PHONE = "+79999999999";
 
 const refundSchema = z.object({
   id: z.string().min(1),
@@ -147,6 +150,9 @@ export function verifyXhubWebhookSignature(input: {
 export async function createXhubPayment(input: {
   amountRub: number;
   orderUuid: string;
+  orderNumber: bigint;
+  customerId: string;
+  customerRegisteredAt: Date;
   paymentMethod: XhubPaymentMethod;
   description: string;
   successUrl: string;
@@ -162,6 +168,10 @@ export async function createXhubPayment(input: {
     payment_method: input.paymentMethod,
     description: input.description,
     success_url: input.successUrl,
+    client_email: `${input.orderNumber}${XHUB_PLACEHOLDER_EMAIL_SUFFIX}`,
+    client_phone: XHUB_PLACEHOLDER_PHONE,
+    customer_id: input.customerId,
+    customer_registered_at: input.customerRegisteredAt.toISOString(),
   };
   if (input.clientIp) {
     body.client_info = { ip: input.clientIp };

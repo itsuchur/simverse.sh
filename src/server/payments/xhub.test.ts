@@ -39,6 +39,9 @@ describe("X-Hub payment client", () => {
     const payment = await createXhubPayment({
       amountRub: 500,
       orderUuid: "00000000-0000-4000-8000-000000000002",
+      orderNumber: 14n,
+      customerId: "user-1",
+      customerRegisteredAt: new Date("2026-03-15T07:20:00.000Z"),
       paymentMethod: "sbp",
       description: "Test eSIM · 7d",
       successUrl: "https://example.com/success",
@@ -69,6 +72,10 @@ describe("X-Hub payment client", () => {
       payment_method: "sbp",
       description: "Test eSIM · 7d",
       success_url: "https://example.com/success",
+      client_email: "14+noreply@e.simverse.sh",
+      client_phone: "+79999999999",
+      customer_id: "user-1",
+      customer_registered_at: "2026-03-15T07:20:00.000Z",
       client_info: { ip: "203.0.113.24" },
     });
   });
@@ -91,6 +98,9 @@ describe("X-Hub payment client", () => {
     await createXhubPayment({
       amountRub: 299.5,
       orderUuid: "00000000-0000-4000-8000-000000000003",
+      orderNumber: 15n,
+      customerId: "user-2",
+      customerRegisteredAt: new Date("2026-04-01T00:00:00.000Z"),
       paymentMethod: "card",
       description: "Test eSIM · 15d",
       successUrl: "https://example.com/success",
@@ -107,6 +117,10 @@ describe("X-Hub payment client", () => {
       payment_method: "card",
       description: "Test eSIM · 15d",
       success_url: "https://example.com/success",
+      client_email: "15+noreply@e.simverse.sh",
+      client_phone: "+79999999999",
+      customer_id: "user-2",
+      customer_registered_at: "2026-04-01T00:00:00.000Z",
     });
   });
 

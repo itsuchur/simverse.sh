@@ -168,6 +168,9 @@ export async function POST(request: Request) {
         const payment = await createXhubPayment({
           amountRub: cents / 100,
           orderUuid: order.orderUuid,
+          orderNumber: order.id,
+          customerId: session.user.id,
+          customerRegisteredAt: session.user.createdAt,
           paymentMethod: "sbp",
           description: purchase.description,
           successUrl: `${miniappOrigin()}/api/checkout/xhub/return?status=success`,
