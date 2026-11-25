@@ -279,7 +279,7 @@ export function CheckoutView({
   }
 
   function pay(
-    method: "platega_sbp" | "paypal" | "codapay",
+    method: "sbp" | "paypal" | "codapay",
     path: string,
     paymentMethod?: "card" | "sbp",
   ) {
@@ -623,7 +623,7 @@ export function CheckoutView({
               size="lg"
               className="h-12 w-full border border-emerald-900 bg-emerald-700 text-lg text-white hover:bg-emerald-800"
               disabled={controlsLocked}
-              onClick={() => pay("platega_sbp", "/api/checkout/platega", "sbp")}
+              onClick={() => pay("sbp", "/api/checkout/sbp", "sbp")}
             >
               <Image
                 src="/SBP.svg"

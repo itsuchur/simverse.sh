@@ -27,6 +27,7 @@ import {
 import { createXhubPayment, xhubConfigured } from "~/server/payments/xhub";
 import { checkBalance } from "~/server/suppliers/esimaccess/balance-check";
 import { isSalesActive } from "~/server/sales";
+import { getSbpProvider } from "~/server/sbp-provider";
 import { apiPublicUrl, miniappOrigin } from "~/server/urls";
 import { forbidden, isUserBanned } from "~/server/users/purchase-access";
 
@@ -38,7 +39,7 @@ const PAYMENT_PROVIDERS = {
 
 const bodySchema = z.object({
   orderUuid: z.string().uuid(),
-  provider: z.enum(["platega", "trybit", "xhub"]),
+  provider: z.enum(["sbp", "trybit"]),
   locale: z.enum(["en", "ru"]).optional(),
   packageCode: z.string().min(1).max(255),
   days: z
@@ -73,18 +74,21 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid_checkout" }, { status: 400 });
   }
 
+  // SBP goes to whichever provider the dashboard selected.
+  const method =
+    body.data.provider === "sbp" ? await getSbpProvider() : "trybit";
   const locale = body.data.locale ?? "en";
-  if (body.data.provider === "xhub" && (locale !== "ru" || !xhubConfigured())) {
+  if (method === "xhub" && (locale !== "ru" || !xhubConfigured())) {
     return unavailable();
   }
   if (
-    body.data.provider === "platega" &&
+    method === "platega" &&
     (locale !== "ru" || !plategaConfigured())
   ) {
     return unavailable();
   }
-  const paysInRub = body.data.provider !== "trybit";
-  if (body.data.provider === "trybit" && !trybitConfigured()) {
+  const paysInRub = method !== "trybit";
+  if (method === "trybit" && !trybitConfigured()) {
     return unavailable();
   }
 
@@ -128,7 +132,7 @@ export async function POST(request: Request) {
     return unavailable();
   }
 
-  const provider = PAYMENT_PROVIDERS[body.data.provider];
+  const provider = PAYMENT_PROVIDERS[method];
   const buyerIp = clientIpFromHeaders(request.headers);
   const order = await findOrCreatePendingOrder({
     userId: session.user.id,
@@ -152,7 +156,7 @@ export async function POST(request: Request) {
 
   try {
     const invoiceUrl = await createPendingInvoice(order.id, async () => {
-      if (body.data.provider === "platega") {
+      if (method === "platega") {
         const transaction = await createPlategaTransaction({
           amount: cents / 100,
           orderId: order.orderUuid,
@@ -164,7 +168,7 @@ export async function POST(request: Request) {
         });
         return { url: transaction.redirect, id: transaction.transactionId };
       }
-      if (body.data.provider === "xhub") {
+      if (method === "xhub") {
         const payment = await createXhubPayment({
           amountRub: cents / 100,
           orderUuid: order.orderUuid,
@@ -187,7 +191,7 @@ export async function POST(request: Request) {
     return invoiceResponse(order.orderUuid, invoiceUrl);
   } catch (error) {
     Sentry.captureException(error, {
-      tags: { component: body.data.provider, reason: "invoice_failed" },
+      tags: { component: method, reason: "invoice_failed" },
       extra: { orderUuid: order.orderUuid },
     });
     return unavailable();

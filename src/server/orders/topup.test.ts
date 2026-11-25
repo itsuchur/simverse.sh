@@ -584,15 +584,51 @@ void mock.module("~/server/http/rate-limit", () => ({
 void mock.module("~/server/better-auth", () => ({
   getAuth: () => ({
     api: {
-      getSession: async () => ({ user: { id: "user-1", telegramId: "42" } }),
+      getSession: async () => ({
+        user: {
+          id: "user-1",
+          telegramId: "42",
+          createdAt: new Date("2026-03-15T07:20:00.000Z"),
+        },
+      }),
     },
   }),
 }));
 void mock.module("~/server/sales", () => ({ isSalesActive: async () => true }));
+let sbpProvider: "platega" | "xhub" = "platega";
+void mock.module("~/server/sbp-provider", () => ({
+  getSbpProvider: async () => sbpProvider,
+}));
 
 const { POST: topupCheckout } = await import("~/app/api/checkout/topup/route");
 
-describe("top-up checkout via Platega", () => {
+function mockTopupPackage() {
+  getEsimAccessPackageByCode.mockResolvedValue({
+    meta: { usdRubRate: 90 },
+    pkg: DATA_PKG,
+  });
+  esimAccessPost.mockImplementation(async (path: string) =>
+    path === "/balance/query"
+      ? { success: true, obj: { balance: 1_000_000_000 } }
+      : {
+          success: true,
+          obj: {
+            packageList: [
+              {
+                packageCode: "TOPUP_DATA",
+                name: "Europe 1GB 7Days",
+                price: 80_000,
+                retailPrice: 16_100,
+                volume: 1024 ** 3,
+                duration: 7,
+              },
+            ],
+          },
+        },
+  );
+}
+
+describe("SBP top-up checkout", () => {
   function checkout(orderUuid: string, locale: "en" | "ru") {
     return topupCheckout(
       new Request("https://miniapp.simverse.sh/api/checkout/topup", {
@@ -600,7 +636,7 @@ describe("top-up checkout via Platega", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           orderUuid,
-          provider: "platega",
+          provider: "sbp",
           locale,
           packageCode: "TOPUP_DATA",
         }),
@@ -610,29 +646,7 @@ describe("top-up checkout via Platega", () => {
 
   test("creates a RUB SBP transaction for a Russian top-up", async () => {
     const parent = seedParent({ resellerPlanId: DATA_PKG.packageCode });
-    getEsimAccessPackageByCode.mockResolvedValue({
-      meta: { usdRubRate: 90 },
-      pkg: DATA_PKG,
-    });
-    esimAccessPost.mockImplementation(async (path: string) =>
-      path === "/balance/query"
-        ? { success: true, obj: { balance: 1_000_000_000 } }
-        : {
-            success: true,
-            obj: {
-              packageList: [
-                {
-                  packageCode: "TOPUP_DATA",
-                  name: "Europe 1GB 7Days",
-                  price: 80_000,
-                  retailPrice: 16_100,
-                  volume: 1024 ** 3,
-                  duration: 7,
-                },
-              ],
-            },
-          },
-    );
+    mockTopupPackage();
     const originalFetch = globalThis.fetch;
     const http = mock(async (_url: unknown, _init?: RequestInit) =>
       Response.json({
@@ -669,6 +683,50 @@ describe("top-up checkout via Platega", () => {
       expect(sent.payload).toBe(order.orderUuid);
     } finally {
       globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("uses X-Hub when the dashboard selects it", async () => {
+    sbpProvider = "xhub";
+    const parent = seedParent({ resellerPlanId: DATA_PKG.packageCode });
+    mockTopupPackage();
+    const originalFetch = globalThis.fetch;
+    const http = mock(async (_url: unknown, _init?: RequestInit) =>
+      Response.json({
+        id: "pay_550e8400-e29b-41d4-a716-446655440000",
+        payment_url: "https://qr.nspk.ru/TEST",
+        status: "pending",
+      }),
+    );
+    globalThis.fetch = http as unknown as typeof fetch;
+    try {
+      const response = await checkout(parent.orderUuid, "ru");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        invoiceUrl: "https://qr.nspk.ru/TEST",
+      });
+      const [order] = await fakeDb.order.findMany({
+        where: { paymentProvider: "xhub" },
+      });
+      if (!order) throw new Error("expected an X-Hub top-up order");
+      expect(order.currency).toBe("RUB");
+      expect(order.topupOfOrderId).toBe(parent.id);
+      expect(String(http.mock.calls[0]?.[0])).toBe(
+        "https://api.x-hub.online/api/v1/payments",
+      );
+      const body = http.mock.calls[0]?.[1]?.body;
+      if (typeof body !== "string") throw new Error("missing X-Hub body");
+      expect(JSON.parse(body)).toMatchObject({
+        external_id: order.orderUuid,
+        payment_method: "sbp",
+        client_email: `${order.id}+noreply@e.simverse.sh`,
+        client_phone: "+79999999999",
+        customer_id: "user-1",
+        customer_registered_at: "2026-03-15T07:20:00.000Z",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+      sbpProvider = "platega";
     }
   });
 
